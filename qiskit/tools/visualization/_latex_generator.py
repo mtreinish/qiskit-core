@@ -180,16 +180,32 @@ class LatexCircuit(object):
     def add_cw(self, cbit_label):
         self.circuit_list['cbits'][cbit_label].append(ClassicWire())
 
+    def add_reset(self, qbit_label):
+        reset = pylatex.NoEscape(
+            "\\push{\\rule{.6em}{0em}\\ket{0}\\rule{.2em}{0em}}")
+        self.circuit_list['qbits'][qbit_label].append(reset)
+        self.add_qw(qbit_label)
+
     def add_cwx(self, cbit_label, end_label):
         cwx = ClassicWireX(end_label)
         end_gate = self.circuit_list['cbits'][cbit_label][-1]
         self.circuit_list['cbits'][cbit_label][-1] = [end_gate, cwx]
 
-    def generate_circuit_latex(self, doc):
+    def generate_circuit_latex(self, doc, width=None):
         with doc.create(Qcircuit()) as circuit:
             for qbit in self.circuit_list['qbits']:
+                if not width is None:
+                    current_length = len(self.circuit_list['qbits'][qbit])
+                    if current_length < width:
+                        for _ in range(width - current_length):
+                            self.add_qw(qbit)
                 row = [qbit] + self.circuit_list['qbits'][qbit]
                 circuit.add_row(row)
             for cbit in self.circuit_list['cbits']:
+                if not width is None:
+                    current_length = len(self.circuit_list['cbits'][cbit])
+                    if current_length < width:
+                        for _ in range(width - current_length):
+                            self.add_cw(cbit)
                 row = [cbit] + self.circuit_list['cbits'][cbit]
                 circuit.add_row(row)

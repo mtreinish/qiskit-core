@@ -31,12 +31,14 @@ from matplotlib import get_backend as get_matplotlib_backend
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
+import pylatex
 
 from PIL import Image, ImageChops
 
 from qiskit import QuantumCircuit, QISKitError, load_qasm_file
 from qiskit.qasm import Qasm
 from qiskit.unroll import Unroller, JsonBackend
+from qiskit.tools.visualization import _latex_generator
 
 logger = logging.getLogger(__name__)
 
@@ -310,55 +312,46 @@ class QCircuitImage(object):
         Returns:
             string: for writing to a LaTeX file.
         """
-        self._initialize_latex_array(aliases)
-        self._build_latex_array(aliases)
-        header_1 = r"""% \documentclass[preview]{standalone}
-% If the image is too large to fit on this documentclass use
-\documentclass[draft]{beamer}
-"""
-        beamer_line = "\\usepackage[size=custom,height=%d,width=%d,scale=%.1f]{beamerposter}\n"
-        header_2 = r"""% instead and customize the height and width (in cm) to fit.
-% Large images may run out of memory quickly.
-% To fix this use the LuaLaTeX compiler, which dynamically
-% allocates memory.
-\usepackage[braket, qm]{qcircuit}
-\usepackage{amsmath}
-\pdfmapfile{+sansmathaccent.map}
-% \usepackage[landscape]{geometry}
-% Comment out the above line if using the beamer documentclass.
-\begin{document}
-\begin{equation*}"""
-        qcircuit_line = r"""
-    \Qcircuit @C=%.1fem @R=%.1fem @!R {
-"""
-        output = StringIO()
-        output.write(header_1)
-        output.write('%% img_width = %d, img_depth = %d\n' % (self.img_width, self.img_depth))
-        output.write(beamer_line % self._get_beamer_page())
-        output.write(header_2)
-        output.write(qcircuit_line %
-                     (self.column_separation, self.row_separation))
-        for i in range(self.img_width):
-            output.write("\t \t")
-            for j in range(self.img_depth + 1):
-                cell_str = self._latex[i][j]
-                # floats can cause "Dimension too large" latex error in xymatrix
-                # this truncates floats to avoid issue.
-                cell_str = re.sub(r'[-+]?\d*\.\d{2,}|\d{2,}', _truncate_float,
-                                  cell_str)
-                output.write(cell_str)
-                if j != self.img_depth:
-                    output.write(" & ")
-                else:
-                    output.write(r'\\'+'\n')
-        output.write('\t }\n')
-        output.write('\\end{equation*}\n\n')
-        output.write('\\end{document}')
-        contents = output.getvalue()
-        output.close()
-        return contents
+        circuit = self._initialize_latex_array(aliases)
+        circuit = self._build_latex_array(circuit, aliases)
+        doc = pylatex.Document(documentclass='beamer',document_options='draft')
+        ops = pylatex.base_classes.Options(size='custom',
+                                   height=10,
+                                   width=10,
+                                   scale=0.7)
+        doc.preamble.append(pylatex.Package('beamerposter', ops))
+        doc.preamble.append(pylatex.Package('qcircuit', 'braket, qm'))
+        doc.preamble.append(pylatex.Package('amsmath'))
+        doc.preamble.append(pylatex.Command('pdfmapfile',
+                                            pylatex.NoEscape(
+                                                '+sansmathaccent.map')))
+#        doc.preamble.append(pylatex.Package('geometry', 'landscape'))
+        with doc.create(_latex_generator.Equation()):
+            circuit.generate_circuit_latex(doc, self.img_width)
+        
+        raw_latex = doc.dumps()
+        print(raw_latex)
+        return raw_latex
+
+    def _generate_latex_cbit_label(self, iterator):
+            label = _latex_generator.Lstick(
+                pylatex.NoEscape("%s_{%s}: 0" % (
+                    self.ordered_regs[iterator][0],
+                    self.ordered_regs[iterator][1])))
+            return label
+
+    def _generate_latex_qbit_label(self, iterator):
+            label = _latex_generator.Lstick([
+                pylatex.NoEscape("%s_{%s}: 0" % (
+                     self.ordered_regs[iterator][0],
+                     self.ordered_regs[iterator][1])),
+                _latex_generator.Ket(0)])
+            return label
+
+
 
     def _initialize_latex_array(self, aliases=None):
+        circuit = _latex_generator.LatexCircuit()
         # pylint: disable=unused-argument
         self.img_depth, self.sum_column_widths = self._get_image_depth(aliases)
         self.sum_row_heights = self.img_width
@@ -376,14 +369,15 @@ class QCircuitImage(object):
         self._latex.append([" "] * (self.img_depth + 1))
         for i in range(self.img_width):
             if self.wire_type[self.ordered_regs[i]]:
-                self._latex[i][0] = "\\lstick{" + self.ordered_regs[i][0] + \
-                                    "_{" + str(self.ordered_regs[i][1]) + "}" + \
-                                    ": 0}"
+                label = self._generate_latex_cbit_label(i)
+                circuit.add_cbit(label)
+                circuit.add_cw(label)
             else:
-                self._latex[i][0] = "\\lstick{" + \
-                                    self.ordered_regs[i][0] + "_{" + \
-                                    str(self.ordered_regs[i][1]) + "}" + \
-                                    ": \\ket{0}}"
+                label = self._generate_latex_qbit_label(i)
+                circuit.add_qbit(label)
+                circuit.add_qw(label)
+
+        return circuit
 
     def _get_image_depth(self, aliases=None):
         """Get depth information for the circuit.
@@ -660,7 +654,7 @@ class QCircuitImage(object):
                 count += size
         raise ValueError('qubit index lies outside range of qubit registers')
 
-    def _build_latex_array(self, aliases=None):
+    def _build_latex_array(self, circuit, aliases=None):
         """Returns an array of strings containing \\LaTeX for this circuit.
 
         If aliases is not None, aliases contains a dict mapping
@@ -711,45 +705,55 @@ class QCircuitImage(object):
                                 for j in range(pos_1, pos_2 + 1):
                                     is_occupied[j] = True
                                 break
-
+                        label = list(
+                            circuit.circuit_list['qbits'].keys())[pos_1]
                         if nm == "x":
-                            self._latex[pos_1][columns] = "\\gate{X}"
+                            circuit.add_gate(label, 'X')
                         elif nm == "y":
-                            self._latex[pos_1][columns] = "\\gate{Y}"
+                            circuit.add_gate(label, 'Y')
                         elif nm == "z":
-                            self._latex[pos_1][columns] = "\\gate{Z}"
+                            circuit.add_gate(label, 'Z')
                         elif nm == "h":
-                            self._latex[pos_1][columns] = "\\gate{H}"
+                            circuit.add_gate(label, 'H')
                         elif nm == "s":
-                            self._latex[pos_1][columns] = "\\gate{S}"
+                            circuit.add_gate(label, 'S')
                         elif nm == "sdg":
-                            self._latex[pos_1][columns] = "\\gate{S^\\dag}"
+                            circuit.add_gate(label, pylatex.NoEscape(
+                                'S\\dag'))
                         elif nm == "t":
-                            self._latex[pos_1][columns] = "\\gate{T}"
+                            circuit.add_gate(label, 'T')
                         elif nm == "tdg":
-                            self._latex[pos_1][columns] = "\\gate{T^\\dag}"
+                            circuit.add_gate(label, pylatex.NoEscape(
+                                'T\\dag'))
                         elif nm == "u0":
-                            self._latex[pos_1][columns] = "\\gate{U_0(%s)}" % (
-                                op["texparams"][0])
+                            circuit.add_gate(label,
+                                             'U_0(%s)' % op["texparams"][0])
                         elif nm == "u1":
-                            self._latex[pos_1][columns] = "\\gate{U_1(%s)}" % (
-                                op["texparams"][0])
+                            circuit.add_gate(label,
+                                             'U_1(%s)' % op["texparams"][0])
                         elif nm == "u2":
-                            self._latex[pos_1][columns] =\
-                                "\\gate{U_2\\left(%s,%s\\right)}" % (
-                                    op["texparams"][0], op["texparams"][1])
+                            circuit.add_gate(
+                                label,
+                                pylatex.NoEscape(
+                                    'U_2\\left(%s,%s\\right)' % (
+                                        op["texparams"][0],
+                                        op["texparams"][1])))
                         elif nm == "u3":
-                            self._latex[pos_1][columns] = "\\gate{U_3(%s,%s,%s)}" \
-                                % (op["texparams"][0], op["texparams"][1], op["texparams"][2])
+                            circuit.add_gate(
+                                label,
+                                pylatex.NoEscape(
+                                    'U_3(%s,%s)' % (
+                                        op["texparams"][0],
+                                        op["texparams"][1]))) 
                         elif nm == "rx":
-                            self._latex[pos_1][columns] = "\\gate{R_x(%s)}" % (
-                                op["texparams"][0])
+                            circuit.add_gate(label,
+                                             'R_x(%s)' % op["texparams"][0])
                         elif nm == "ry":
-                            self._latex[pos_1][columns] = "\\gate{R_y(%s)}" % (
-                                op["texparams"][0])
+                            circuit.add_gate(label,
+                                             'R_y(%s)' % op["texparams"][0])
                         elif nm == "rz":
-                            self._latex[pos_1][columns] = "\\gate{R_z(%s)}" % (
-                                op["texparams"][0])
+                            circuit.add_gate(label,
+                                             'R_z(%s)' % op["texparams"][0])
 
                         gap = pos_2 - pos_1
                         for i in range(self.cregs[if_reg]):
@@ -770,47 +774,57 @@ class QCircuitImage(object):
                             is_occupied = [False] * self.img_width
                             is_occupied[pos_1] = True
 
+                        label = list(
+                            circuit.circuit_list['qbits'].keys())[pos_1]
                         if nm == "x":
-                            self._latex[pos_1][columns] = "\\gate{X}"
+                            circuit.add_gate(label, 'X')
                         elif nm == "y":
-                            self._latex[pos_1][columns] = "\\gate{Y}"
+                            circuit.add_gate(label, 'Y')
                         elif nm == "z":
-                            self._latex[pos_1][columns] = "\\gate{Z}"
+                            circuit.add_gate(label, 'Z')
                         elif nm == "h":
-                            self._latex[pos_1][columns] = "\\gate{H}"
+                            circuit.add_gate(label, 'H')
                         elif nm == "s":
-                            self._latex[pos_1][columns] = "\\gate{S}"
+                            circuit.add_gate(label, 'S')
                         elif nm == "sdg":
-                            self._latex[pos_1][columns] = "\\gate{S^\\dag}"
+                            circuit.add_gate(label, pylatex.NoEscape(
+                                'S\\dag'))
                         elif nm == "t":
-                            self._latex[pos_1][columns] = "\\gate{T}"
+                            circuit.add_gate(label, 'T')
                         elif nm == "tdg":
-                            self._latex[pos_1][columns] = "\\gate{T^\\dag}"
+                            circuit.add_gate(label, pylatex.NoEscape(
+                                'T\\dag'))
                         elif nm == "u0":
-                            self._latex[pos_1][columns] = "\\gate{U_0(%s)}" % (
-                                op["texparams"][0])
+                            circuit.add_gate(label,
+                                             'U_0(%s)' % op["texparams"][0])
                         elif nm == "u1":
-                            self._latex[pos_1][columns] = "\\gate{U_1(%s)}" % (
-                                op["texparams"][0])
+                            circuit.add_gate(label,
+                                             'U_1(%s)' % op["texparams"][0])
                         elif nm == "u2":
-                            self._latex[pos_1][columns] = \
-                                "\\gate{U_2\\left(%s,%s\\right)}" % (
-                                    op["texparams"][0], op["texparams"][1])
+                            circuit.add_gate(
+                                label,
+                                pylatex.NoEscape(
+                                    'U_2\\left(%s,%s\\right)' % (
+                                        op["texparams"][0],
+                                        op["texparams"][1])))
                         elif nm == "u3":
-                            self._latex[pos_1][columns] = "\\gate{U_3(%s,%s,%s)}" \
-                                % (op["texparams"][0], op["texparams"][1], op["texparams"][2])
+                            circuit.add_gate(
+                                label,
+                                pylatex.NoEscape(
+                                    'U_3(%s,%s)' % (
+                                        op["texparams"][0],
+                                        op["texparams"][1])))
                         elif nm == "rx":
-                            self._latex[pos_1][columns] = "\\gate{R_x(%s)}" % (
-                                op["texparams"][0])
+                            circuit.add_gate(label,
+                                             'R_x(%s)' % op["texparams"][0])
                         elif nm == "ry":
-                            self._latex[pos_1][columns] = "\\gate{R_y(%s)}" % (
-                                op["texparams"][0])
+                            circuit.add_gate(label,
+                                             'R_y(%s)' % op["texparams"][0])
                         elif nm == "rz":
-                            self._latex[pos_1][columns] = "\\gate{R_z(%s)}" % (
-                                op["texparams"][0])
+                            circuit.add_gate(label,
+                                             'R_z(%s)' % op["texparams"][0])
                         elif nm == "reset":
-                            self._latex[pos_1][columns] = \
-                                "\\push{\\rule{.6em}{0em}\\ket{0}\\rule{.2em}{0em}} \\qw"
+                            circuit.add_reset()
 
                 elif len(qarglist) == 2:
                     pos_1 = self.img_regs[(qarglist[0][0], qarglist[0][1])]
@@ -1051,6 +1065,8 @@ class QCircuitImage(object):
                 pass
             else:
                 assert False, "bad node data"
+        #post processing
+        return circuit
 
     def _ffs(self, mask):
         """Find index of first set bit.
