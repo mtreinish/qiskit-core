@@ -351,7 +351,6 @@ class QCircuitImage(object):
 
 
     def _initialize_latex_array(self, aliases=None):
-        circuit = _latex_generator.LatexCircuit()
         # pylint: disable=unused-argument
         self.img_depth, self.sum_column_widths = self._get_image_depth(aliases)
         self.sum_row_heights = self.img_width
@@ -362,11 +361,14 @@ class QCircuitImage(object):
             self.row_separation = 0.2
         else:
             self.row_separation = 1.0
+        circuit = _latex_generator.LatexCircuit()
+
         self._latex = [
             ["\\cw" if self.wire_type[self.ordered_regs[j]]
              else "\\qw" for i in range(self.img_depth + 1)]
             for j in range(self.img_width)]
         self._latex.append([" "] * (self.img_depth + 1))
+
         for i in range(self.img_width):
             if self.wire_type[self.ordered_regs[i]]:
                 label = self._generate_latex_cbit_label(i)
@@ -1054,13 +1056,18 @@ class QCircuitImage(object):
                             is_occupied[j] = True
                         break
 
-                try:
-                    self._latex[pos_1][columns] = "\\meter"
-                    self._latex[pos_2][columns] = \
-                        "\\cw \\cwx[-" + str(pos_2 - pos_1) + "]"
-                except Exception as e:
-                    raise QISKitError('Error during Latex building: %s' %
-                                      str(e))
+                qbit_labels = list(circuit.circuit_list['qbits'].keys())
+                qbit_label = qbit_labels[pos_1]
+                for label in qbit_labels:
+                    if label != qbit_label:
+                        circuit.add_qw(label)
+                cbit_labels = list(
+                    circuit.circuit_list['cbits'].keys())
+                cbit_label = cbit_labels[pos_2 - len(qbit_labels)]
+                for label in cbit_labels:
+                    circuit.add_cw(label)
+                circuit.add_meter(qbit_label, cbit_label)
+                circuit.add_cwx(cbit_label, qbit_label)
             elif op['name'] == "barrier":
                 pass
             else:

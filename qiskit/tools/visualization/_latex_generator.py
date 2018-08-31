@@ -19,13 +19,23 @@ class Equation(pylatex.base_classes.Environment):
 class QcircuitCommand(pylatex.base_classes.CommandBase):
     _latex_name = 'Qcircuit'
 
-    def __init__(self, arguments=None):
+    def __init__(self, arguments=None, column_sep=None, row_sep=None):
         self.circuit = arguments
-
+        self.size_info = {}
+        if not column_sep is None:
+            self.size_info['c_sep'] = column_sep
+        else:
+            self.size_info['c_sep'] = 0.5
+        if not row_sep is None:
+            self.size_info['r_sep'] = row_sep
+        else:
+            self.size_info['r_sep'] = 0.0
         super().__init__()
 
     def dumps(self):
-        return r'\%s{%s}' % (self.latex_name, self.circuit)
+        return r'\%s @C%.1fem @R%.1fem @!R {%s}' % (
+            self.latex_name, self.size_info['c_sep'], self.size_info['r_sep'],
+            self.circuit)
 
 
 class Qcircuit(pylatex.base_classes.Environment):
@@ -106,6 +116,7 @@ class Measure(pylatex.base_classes.CommandBase):
     _latex_name = 'meter'
 
     def __init__(self, cbit_label):
+        super(Measure, self).__init__()
         self.cbit_label = cbit_label
 
 
@@ -139,6 +150,7 @@ class ClassicWireX(pylatex.base_classes.CommandBase):
     span = None
 
     def __init__(self, label):
+        super(ClassicWireX, self).__init__()
         self.label = label
 
     def set_span(self, span):
@@ -148,7 +160,7 @@ class ClassicWireX(pylatex.base_classes.CommandBase):
 
 class LatexCircuit(object):
 
-    def __init__(self):
+    def __init__(self, ):
         self.circuit_list = {'qbits': OrderedDict(), 'cbits': OrderedDict()}
 
     def add_qbit(self, qbit_label):
@@ -191,21 +203,27 @@ class LatexCircuit(object):
         end_gate = self.circuit_list['cbits'][cbit_label][-1]
         self.circuit_list['cbits'][cbit_label][-1] = [end_gate, cwx]
 
+    def fill_circuit(self, width):
+        for qbit in self.circuit_list['qbits']:
+            current_length = len(self.circuit_list['qbits'][qbit]) + 1
+            if current_length < width:
+                for _ in range(width - (current_length + 1)):
+                    self.add_qw(qbit)
+        for cbit in self.circuit_list['cbits']:
+            current_length = len(self.circuit_list['cbits'][cbit]) + 1
+            if current_length < width:
+                for _ in range(width - current_length):
+                    self.add_cw(cbit)
+
     def generate_circuit_latex(self, doc, width=None):
+        if width:
+            self.fill_circuit(width)
         with doc.create(Qcircuit()) as circuit:
             for qbit in self.circuit_list['qbits']:
-                if not width is None:
-                    current_length = len(self.circuit_list['qbits'][qbit])
-                    if current_length < width:
-                        for _ in range(width - current_length):
-                            self.add_qw(qbit)
                 row = [qbit] + self.circuit_list['qbits'][qbit]
                 circuit.add_row(row)
             for cbit in self.circuit_list['cbits']:
-                if not width is None:
-                    current_length = len(self.circuit_list['cbits'][cbit])
-                    if current_length < width:
-                        for _ in range(width - current_length):
-                            self.add_cw(cbit)
                 row = [cbit] + self.circuit_list['cbits'][cbit]
                 circuit.add_row(row)
+
+        
