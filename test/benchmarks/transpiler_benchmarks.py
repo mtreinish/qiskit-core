@@ -13,36 +13,75 @@ import qiskit
 class TranspilerBenchSuite:
 
     def _build_cx_circuit(self):
-        cx_register = qiskit.QuantumRegister(2)
-        cx_circuit = qiskit.QuantumCircuit(cx_register)
-        cx_circuit.h(cx_register[0])
-        cx_circuit.h(cx_register[0])
-        cx_circuit.cx(cx_register[0], cx_register[1])
-        cx_circuit.cx(cx_register[0], cx_register[1])
-        cx_circuit.cx(cx_register[0], cx_register[1])
-        cx_circuit.cx(cx_register[0], cx_register[1])
-        return cx_circuit
+        if self.local_qasm_simulator is None:
+            qp = qiskit.QuantumProgram()
+            cx_register = qp.create_quantum_register('qr', 2)
+            cx_circuit = qp.create_circuit("cx_circuit", [cx_register])
+            cx_circuit.h(cx_register[0])
+            cx_circuit.h(cx_register[0])
+            cx_circuit.cx(cx_register[0], cx_register[1])
+            cx_circuit.cx(cx_register[0], cx_register[1])
+            cx_circuit.cx(cx_register[0], cx_register[1])
+            cx_circuit.cx(cx_register[0], cx_register[1])
+            return qp
+        else:
+            cx_register = qiskit.QuantumRegister(2)
+            cx_circuit = qiskit.QuantumCircuit(cx_register)
+            cx_circuit.h(cx_register[0])
+            cx_circuit.h(cx_register[0])
+            cx_circuit.cx(cx_register[0], cx_register[1])
+            cx_circuit.cx(cx_register[0], cx_register[1])
+            cx_circuit.cx(cx_register[0], cx_register[1])
+            cx_circuit.cx(cx_register[0], cx_register[1])
+            return cx_circuit
 
     def _build_single_gate_circuit(self):
-        single_register = qiskit.QuantumRegister(1)
-        single_gate_circuit = qiskit.QuantumCircuit(single_register)
-        single_gate_circuit.h(single_register[0])
-        return single_gate_circuit
+        if self.local_qasm_simulator is None:
+            qp = qiskit.QuantumProgram()
+            single_register = qp.create_quantum_register('qr', 1)
+            single_gate_circuit = qp.create_circuit('single_gate',
+                                                    [single_register])
+            single_gate_circuit.h(single_register[0])
+            return qp
+        else:
+            single_register = qiskit.QuantumRegister(1)
+            single_gate_circuit = qiskit.QuantumCircuit(single_register)
+            single_gate_circuit.h(single_register[0])
+            return single_gate_circuit
 
     def setup(self):
-        self.local_qasm_simulator = qiskit.get_backend('local_qasm_simulator')
+        version_parts = qiskit.__version__.split('.')
+        if version_parts[0] == '0' and int(version_parts[1]) < 5:
+            self.local_qasm_simulator = None
+        else:
+            self.local_qasm_simulator = qiskit.get_backend(
+                'local_qasm_simulator')
         self.single_gate_circuit = self._build_single_gate_circuit()
         self.cx_circuit = self._build_cx_circuit()
         self.qasm_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), 'qasm'))
         pea_3_pi_8_path = os.path.join(self.qasm_path, 'pea_3_pi_8.qasm')
-        self.pea_3_pi_8 = qiskit.load_qasm_file(pea_3_pi_8_path)
+        if self.local_qasm_simulator is None:
+            self.pea_3_pi_8 = qiskit.QuantumProgram()
+            self.pea_3_pi_8.load_qasm_file(pea_3_pi_8_path,
+                                           name='pea_3_pi_8')
+        else:
+            self.pea_3_pi_8 = qiskit.load_qasm_file(pea_3_pi_8_path)
 
     def time_single_gate_transpile(self):
-        qiskit.compile(self.single_gate_circuit, self.local_qasm_simulator)
+        if self.local_qasm_simulator is None:
+            self.single_gate_circuit.compile('single_gate')
+        else:
+            qiskit.compile(self.single_gate_circuit, self.local_qasm_simulator)
 
     def time_cx_transpile(self):
-        qiskit.compile(self.cx_circuit, self.local_qasm_simulator)
+        if self.local_qasm_simulator is None:
+            self.cx_circuit.compile('cx_circuit')
+        else:
+            qiskit.compile(self.cx_circuit, self.local_qasm_simulator)
 
     def time_pea_3_pi_8(self):
-        qiskit.compile(self.pea_3_pi_8, self.local_qasm_simulator)
+        if self.local_qasm_simulator is None:
+            self.pea_3_pi_8.compile('pea_3_pi_8')
+        else:
+            qiskit.compile(self.pea_3_pi_8, self.local_qasm_simulator)
