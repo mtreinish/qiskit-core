@@ -54,19 +54,20 @@ class TranspilerBenchSuite:
         if version_parts[0] == '0' and int(version_parts[1]) < 5:
             self.local_qasm_simulator = None
         else:
-            self.local_qasm_simulator = qiskit.get_backend(
-                'local_qasm_simulator')
+            if hasattr(qiskit, 'get_backend'):
+                self.local_qasm_simulator = qiskit.get_backend(
+                    'local_qasm_simulator')
         self.single_gate_circuit = self._build_single_gate_circuit()
         self.cx_circuit = self._build_cx_circuit()
         self.qasm_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), 'qasm'))
         pea_3_pi_8_path = os.path.join(self.qasm_path, 'pea_3_pi_8.qasm')
-        if self.local_qasm_simulator is None:
+        if hasattr(qiskit, 'load_qasm_file'):
+            self.pea_3_pi_8 = qiskit.load_qasm_file(pea_3_pi_8_path)
+        else:
             self.pea_3_pi_8 = qiskit.QuantumProgram()
             self.pea_3_pi_8.load_qasm_file(pea_3_pi_8_path,
                                            name='pea_3_pi_8')
-        else:
-            self.pea_3_pi_8 = qiskit.load_qasm_file(pea_3_pi_8_path)
 
     def time_single_gate_transpile(self):
         if self.local_qasm_simulator is None:

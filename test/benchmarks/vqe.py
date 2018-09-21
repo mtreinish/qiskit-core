@@ -42,8 +42,7 @@ class TimeVqeSuite:
     timeout = 360.0
 
     def setup(self):
-        version_parts = qiskit.__version__.split('.')
-        if version_parts[0] == '0' and int(version_parts[1]) < 5:
+        if hasattr(qiskit, 'QuantumProgram'):
             self.use_quantum_program = True
         else:
             self.use_quantum_program = False
@@ -86,9 +85,13 @@ class TimeVqeSuite:
         exact = np.amin(la.eig(H)[0]).real
         print('The exact ground state energy is: {}'.format(exact))
 
-        # Optimization
-        device = 'local_qiskit_simulator'
         qp = qiskit.QuantumProgram()
+        # Optimization
+        try:
+            device = 'local_qiskit_simulator'
+            qp.get_backend_configuration(device)
+        except LookupError:
+            device = 'local_qasm_simulator'
 
         if shots != 1:
             H = optimization.group_paulis(pauli_list)

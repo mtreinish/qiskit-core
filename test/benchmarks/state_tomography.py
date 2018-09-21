@@ -25,8 +25,7 @@ class StateTomographyBench:
     timeout = 360.0
 
     def setup(self, n_qubits):
-        version_parts = qiskit.__version__.split('.')
-        if version_parts[0] == '0' and int(version_parts[1]) < 5:
+        if hasattr(qiskit, 'QuantumProgram'):
             self.use_quantum_program = True
         else:
             self.use_quantum_program = False
@@ -66,8 +65,12 @@ class StateTomographyBench:
                 qr = qp.create_quantum_register('qr', n_qubits)
                 cr = qp.create_classical_register('cr', n_qubits)
                 random = qp.create_circuit('prep', [qr], [cr])
-                random.initialize(
-                    "Qinit", target, [qr[i] for i in range(n_qubits)])
+                try:
+                    random.initialize(
+                        "Qinit", target, [qr[i] for i in range(n_qubits)])
+                except:
+                    random.initialize(
+                        target, [qr[i] for i in range(n_qubits)])
             return qp
 
     # add basis measurements to the circuit for tomography
@@ -119,14 +122,17 @@ class StateTomographyBench:
 
     def _state_tomography_quantum_program(self, target, state, n_qubits,
                                           shots=1):
-        backend = 'local_qiskit_simulator'
-
         qp = qiskit.QuantumProgram()
+        try:
+            backend = 'local_qiskit_simulator'
+            qp.get_backend_configuration(backend)
+        except LookupError:
+            backend = 'local_qasm_simulator'
 
         # Prepared target state and assess quality
         qp = self.target_prep(state, target, n_qubits, qp=qp)
         prep_result = qp.execute(['prep'],
-                                 backend='local_qasm_simulator', shots=1)
+                                 backend=backend, shots=1)
         prep_state = prep_result.get_data('prep')['quantum_state']
         F_prep = state_fidelity(prep_state, target)
         print('Prepared state fidelity =', F_prep)
