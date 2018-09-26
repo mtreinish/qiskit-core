@@ -12,8 +12,10 @@ Interface to C++ quantum circuit simulator with realistic noise.
 import json
 import logging
 import os
+import signal
 import subprocess
 from subprocess import PIPE
+import sys
 import platform
 
 import numpy as np
@@ -37,6 +39,17 @@ DEFAULT_SIMULATOR_PATHS = [
     os.path.abspath(os.path.join(os.path.dirname(__file__),
                                  'qasm_simulator_cpp' + EXTENSION)),
 ]
+
+PROC = None
+
+
+def _handle_sig(sig, frame):
+    if PROC:
+        PROC.terminate()
+    sys.exit(1)
+
+signal.signal(signal.SIGINT, _handle_sig)
+signal.signal(signal.SIGTERM, _handle_sig)
 
 
 class QasmSimulatorCpp(BaseBackend):
@@ -218,6 +231,7 @@ def run(qobj, executable):
     try:
         with subprocess.Popen([executable, '-'],
                               stdin=PIPE, stdout=PIPE, stderr=PIPE) as proc:
+            PROC = proc
             cin = json.dumps(qobj_to_dict(qobj, version='0.0.1'),
                              cls=QASMSimulatorEncoder).encode()
             cout, cerr = proc.communicate(cin)
