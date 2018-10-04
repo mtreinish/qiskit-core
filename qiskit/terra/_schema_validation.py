@@ -12,8 +12,8 @@ import os
 import logging
 import jsonschema
 
-from qiskit import QISKitError
-from qiskit import __path__ as qiskit_path
+from qiskit.terra import _qiskiterror
+from qiskit.terra import __path__ as qiskit_path
 
 logger = logging.getLogger(__name__)
 
@@ -214,12 +214,12 @@ def _format_causes(err, level=0):
     return '\n'.join(lines)
 
 
-class SchemaValidationError(QISKitError):
+class SchemaValidationError(_qiskiterror.QISKitError):
     """Represents an error during JSON Schema validation."""
     pass
 
 
-class _SummaryValidationError(QISKitError):
+class _SummaryValidationError(_qiskiterror.QISKitError):
     """Cut off the message of a jsonschema.ValidationError for compactness.
 
     Cut off the message of a jsonschema.ValidationError to avoid printing

@@ -8,8 +8,10 @@
 """
 Instruction collection.
 """
-from ._instruction import Instruction
-from ._qiskiterror import QISKitError
+from qiskit.terra import _instruction
+from qiskit.terra import _qiskiterror
+
+__all__ = ['InstructionSet']
 
 
 class InstructionSet(object):
@@ -21,9 +23,9 @@ class InstructionSet(object):
 
     def add(self, gate):
         """Add instruction to set."""
-        if not isinstance(gate, Instruction):
-            raise QISKitError("attempt to add non-Instruction" +
-                              " to InstructionSet")
+        if not isinstance(gate, _instruction.Instruction):
+            raise _qiskiterror.QISKitError("attempt to add non-Instruction" +
+                                           " to InstructionSet")
         self.instructions.add(gate)
 
     def inverse(self):

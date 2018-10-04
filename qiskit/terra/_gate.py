@@ -8,12 +8,14 @@
 """
 Unitary gate.
 """
-from ._instruction import Instruction
-from ._quantumregister import QuantumRegister
-from ._qiskiterror import QISKitError
+from qiskit.terra import _instruction
+from qiskit.terra import _qiskiterror
+from qiskit.terra import _quantumregister
+
+__all__ = ['Gate']
 
 
-class Gate(Instruction):
+class Gate(_instruction.Instruction):
     """Unitary gate."""
 
     def __init__(self, name, param, args, circuit=None):
@@ -28,17 +30,17 @@ class Gate(Instruction):
         self._qubit_coupling = [arg[1] for arg in args]
         self._is_multi_qubit = (len(args) > 1)
         for argument in args:
-            if not isinstance(argument[0], QuantumRegister):
-                raise QISKitError("argument not (QuantumRegister, int) "
-                                  + "tuple")
+            if not isinstance(argument[0], _quantumregister.QuantumRegister):
+                raise _qiskiterror.QISKitError(
+                    "argument not (QuantumRegister, int) " + "tuple")
 
         super().__init__(name, param, args, circuit)
 
     def inverse(self):
         """Invert this gate."""
-        raise QISKitError("inverse not implemented")
+        raise _qiskiterror.QISKitError("inverse not implemented")
 
     def q_if(self, *qregs):
         """Add controls to this gate."""
         # pylint: disable=unused-argument
-        raise QISKitError("control not implemented")
+        raise _qiskiterror.QISKitError("control not implemented")

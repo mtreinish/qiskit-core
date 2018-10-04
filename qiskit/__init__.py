@@ -1,59 +1,54 @@
 # -*- coding: utf-8 -*-
 
-# Copyright 2017, IBM.
+# Copyright 2018, IBM.
 #
 # This source code is licensed under the Apache License, Version 2.0 found in
 # the LICENSE.txt file in the root directory of this source tree.
 
-# pylint: disable=wrong-import-order
-# pylint: disable=redefined-builtin
+__all__ = []
 
-"""Main QISKit public functionality."""
+# Terra Top Level
+from qiskit.terra import _classicalregister
+from qiskit.terra import _compositegate
+from qiskit.terra import _gate
+from qiskit.terra import _instruction
+from qiskit.terra import _instructionset
+from qiskit.terra import _measure
+from qiskit.terra import _qiskiterror
+from qiskit.terra import _quantumregister
+from qiskit.terra import _reset
+from qiskit.terra import result
 
-import os
-import pkgutil
-
-# First, check for required Python and API version
-from . import _util
-
-from ._qiskiterror import QISKitError
-from ._classicalregister import ClassicalRegister
-from ._quantumregister import QuantumRegister
-from ._quantumcircuit import QuantumCircuit
-from ._gate import Gate
-from ._compositegate import CompositeGate
-from ._instruction import Instruction
-from ._instructionset import InstructionSet
-from ._reset import Reset
-from ._measure import Measure
-from ._schema_validation import (validate_json_against_schema,
-                                 SchemaValidationError)
-from .result import Result
-
-# The qiskit.extensions.x imports needs to be placed here due to the
-# mechanism for adding gates dynamically.
-import qiskit.extensions.standard
-import qiskit.extensions.quantum_initializer
-
-# Please note these are global instances, not modules.
-from qiskit.backends.ibmq import IBMQ
-from qiskit.backends.aer import Aer  # pylint: disable=invalid-name
-
-# Allow extending this namespace. Please note that currently this line needs
-# to be placed *before* the wrapper imports or any non-import code.
-__path__ = pkgutil.extend_path(__path__, __name__)
-
-from .wrapper._wrapper import (compile, execute, load_qasm_string,
-                               load_qasm_file, least_busy, qobj_to_circuits)
-
-# To be deprecated methods
-from .wrapper._wrapper import (available_backends, get_backend, register,
-                               unregister, registered_providers)
+__all__.extend(_qiskiterror.__all__)
+__all__.extend(_classicalregister.__all__)
+__all__.extend(_quantumregister.__all__)
+__all__.extend(_gate.__all__)
+__all__.extend(_compositegate.__all__)
+__all__.extend(_instruction.__all__)
+__all__.extend(_reset.__all__)
+__all__.extend(_measure.__all__)
+__all__.extend(_instructionset.__all__)
+__all__.extend(result.__all__)
 
 
-# Import the wrapper, to make it available when doing "import qiskit".
-from . import wrapper
+from qiskit.terra.extensions import quantum_initializer  # noqa
+from qiskit.terra.extensions import standard  # noqa
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(ROOT_DIR, "VERSION.txt"), "r") as version_file:
-    __version__ = version_file.read().strip()
+# Standard backend top level
+from qiskit import aer
+from qiskit import ibmq
+
+__all__.extend(ibmq.__all__)
+__all__.extend(aer.__all__)
+
+from qiskit.terra import dagcircuit
+from qiskit.terra import extensions
+from qiskit.terra import backends
+from qiskit.terra import mapper
+from qiskit.terra import qasm
+from qiskit.terra import qobj
+from qiskit.terra import result
+from qiskit.terra import tools
+from qiskit.terra import transpiler
+from qiskit.terra import unroll
+from qiskit.terra import wrapper

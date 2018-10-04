@@ -8,10 +8,12 @@
 """
 Qubit reset to computational zero.
 """
-from ._instruction import Instruction
+from qiskit.terra import _instruction
+
+__all__ = ['Reset']
 
 
-class Reset(Instruction):
+class Reset(_instruction.Instruction):
     """Qubit reset."""
 
     def __init__(self, qubit, circ=None):

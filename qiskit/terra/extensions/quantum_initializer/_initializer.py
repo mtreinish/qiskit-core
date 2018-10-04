@@ -13,18 +13,18 @@ import math
 import numpy as np
 import scipy
 
-from qiskit import CompositeGate
-from qiskit import Gate
-from qiskit import QISKitError
-from qiskit import QuantumCircuit
-from qiskit.extensions.standard.cx import CnotGate
-from qiskit.extensions.standard.ry import RYGate
-from qiskit.extensions.standard.rz import RZGate
+from qiskit.terra import _compositegate
+from qiskit.terra import _gate
+from qiskit.terra import _qiskiterror
+from qiskit.terra import _quantumcircuit
+from qiskit.terra.extensions.standard.cx import CnotGate
+from qiskit.terra.extensions.standard.ry import RYGate
+from qiskit.terra.extensions.standard.rz import RZGate
 
 _EPS = 1e-10  # global variable used to chop very small numbers to zero
 
 
-class InitializeGate(CompositeGate):
+class InitializeGate(_compositegate.CompositeGate):
     """Complex amplitude initialization.
 
     Class that implements the (complex amplitude) initialization of some
@@ -38,13 +38,13 @@ class InitializeGate(CompositeGate):
     Additionally implements some extra optimizations: remove zero rotations and
     double cnots.`
 
-    It inherits from CompositeGate in the same way that the Fredkin (cswap)
+    It inherits from _compositegate.CompositeGate in the same way that the Fredkin (cswap)
     gate does. Therefore self.data is the list of gates (in order) that must
     be applied to implement this meta-gate.
 
     param = list of complex amplitudes
     arg = list of qubits
-    circ = QuantumCircuit or CompositeGate containing this gate
+    circ = _quantumcircuit.QuantumCircuit or _compositegate.CompositeGate containing this gate
     """
     def __init__(self, param, arg, circ=None):
         """Create new initialize composite gate."""
@@ -52,19 +52,19 @@ class InitializeGate(CompositeGate):
 
         # Check if param is a power of 2
         if num_qubits == 0 or not num_qubits.is_integer():
-            raise QISKitError("Desired vector not a positive power of 2.")
+            raise _qiskiterror.QISKitError("Desired vector not a positive power of 2.")
 
         self.num_qubits = int(num_qubits)
 
         # Check if number of desired qubits agrees with available qubits
         if len(arg) != self.num_qubits:
-            raise QISKitError("Number of complex amplitudes do not correspond "
+            raise _qiskiterror.QISKitError("Number of complex amplitudes do not correspond "
                               "to the number of qubits.")
 
         # Check if probabilities (amplitudes squared) sum to 1
         if not math.isclose(sum(np.absolute(param) ** 2), 1.0,
                             abs_tol=_EPS):
-            raise QISKitError("Sum of amplitudes-squared does not equal one.")
+            raise _qiskiterror.QISKitError("Sum of amplitudes-squared does not equal one.")
 
         super().__init__("init", param, arg, circ)
 
@@ -210,7 +210,7 @@ class InitializeGate(CompositeGate):
 
         # calc the combo angles
         list_of_angles = angle_weight.dot(np.array(list_of_angles)).tolist()
-        combine_composite_gates = CompositeGate(
+        combine_composite_gates = _compositegate.CompositeGate(
             "multiplex" + local_num_qubits.__str__(), [], self.arg)
 
         # recursive step on half the angles fulfilling the above assumption
@@ -228,7 +228,7 @@ class InitializeGate(CompositeGate):
         # second lower-level multiplex)
         sub_gate = self._multiplex(
             bottom_gate, bottom_qubit_index, list_of_angles[(list_len // 2):])
-        if isinstance(sub_gate, CompositeGate):
+        if isinstance(sub_gate, _compositegate.CompositeGate):
             combine_composite_gates._attach(sub_gate.reverse())
         else:
             combine_composite_gates._attach(sub_gate)
@@ -258,12 +258,12 @@ class InitializeGate(CompositeGate):
 
 def reverse(self):
     """
-    Reverse (recursively) the sub-gates of this CompositeGate. Note this does
+    Reverse (recursively) the sub-gates of this _compositegate.CompositeGate. Note this does
     not invert the gates!
     """
     new_data = []
     for gate in reversed(self.data):
-        if isinstance(gate, CompositeGate):
+        if isinstance(gate, _compositegate.CompositeGate):
             new_data.append(gate.reverse())
         else:
             new_data.append(gate)
@@ -275,8 +275,8 @@ def reverse(self):
     return self
 
 
-QuantumCircuit.reverse = reverse
-CompositeGate.reverse = reverse
+_quantumcircuit.QuantumCircuit.reverse = reverse
+_compositegate.CompositeGate.reverse = reverse
 
 
 def optimize_gates(self):
@@ -286,8 +286,8 @@ def optimize_gates(self):
         pass
 
 
-QuantumCircuit.optimize_gates = optimize_gates
-CompositeGate.optimize_gates = optimize_gates
+_quantumcircuit.QuantumCircuit.optimize_gates = optimize_gates
+_compositegate.CompositeGate.optimize_gates = optimize_gates
 
 
 def remove_zero_rotations(self):
@@ -299,12 +299,12 @@ def remove_zero_rotations(self):
     zero_rotation_removed = False
     new_data = []
     for gate in self.data:
-        if isinstance(gate, CompositeGate):
+        if isinstance(gate, _compositegate.CompositeGate):
             zero_rotation_removed |= gate.remove_zero_rotations()
             if gate.data:
                 new_data.append(gate)
         else:
-            if ((not isinstance(gate, Gate)) or
+            if ((not isinstance(gate, _gate.Gate)) or
                     (not (gate.name == "rz" or gate.name == "ry" or
                           gate.name == "rx") or
                      (InitializeGate.chop_num(gate.param[0]) != 0))):
@@ -317,24 +317,24 @@ def remove_zero_rotations(self):
     return zero_rotation_removed
 
 
-QuantumCircuit.remove_zero_rotations = remove_zero_rotations
-CompositeGate.remove_zero_rotations = remove_zero_rotations
+_quantumcircuit.QuantumCircuit.remove_zero_rotations = remove_zero_rotations
+_compositegate.CompositeGate.remove_zero_rotations = remove_zero_rotations
 
 
 def number_atomic_gates(self):
     """Count the number of leaf gates. """
     num = 0
     for gate in self.data:
-        if isinstance(gate, CompositeGate):
+        if isinstance(gate, _compositegate.CompositeGate):
             num += gate.number_atomic_gates()
         else:
-            if isinstance(gate, Gate):
+            if isinstance(gate, _gate.Gate):
                 num += 1
     return num
 
 
-QuantumCircuit.number_atomic_gates = number_atomic_gates
-CompositeGate.number_atomic_gates = number_atomic_gates
+_quantumcircuit.QuantumCircuit.number_atomic_gates = number_atomic_gates
+_compositegate.CompositeGate.number_atomic_gates = number_atomic_gates
 
 
 def remove_double_cnots_once(self):
@@ -348,21 +348,21 @@ def remove_double_cnots_once(self):
         return False
     else:
         if num_high_level_gates == 1 and isinstance(self.data[0],
-                                                    CompositeGate):
+                                                    _compositegate.CompositeGate):
             return self.data[0].remove_double_cnots_once()
 
     # Removed at least one double cnot.
     double_cnot_removed = False
 
     # last gate might be composite
-    if isinstance(self.data[num_high_level_gates - 1], CompositeGate):
+    if isinstance(self.data[num_high_level_gates - 1], _compositegate.CompositeGate):
         double_cnot_removed = \
             double_cnot_removed or\
             self.data[num_high_level_gates - 1].remove_double_cnots_once()
 
     # don't start with last gate, using reversed so that can del on the go
     for i in reversed(range(num_high_level_gates - 1)):
-        if isinstance(self.data[i], CompositeGate):
+        if isinstance(self.data[i], _compositegate.CompositeGate):
             double_cnot_removed =\
                 double_cnot_removed \
                 or self.data[i].remove_double_cnots_once()
@@ -377,7 +377,7 @@ def remove_double_cnots_once(self):
 
         if ((left_gate_host is not None) and
                 left_gate_host[left_gate_index].name == "cx"):
-            if isinstance(self.data[i + 1], CompositeGate):
+            if isinstance(self.data[i + 1], _compositegate.CompositeGate):
                 right_gate_host = self.data[i + 1].first_atomic_gate_host()
                 right_gate_index = 0
             else:
@@ -395,36 +395,36 @@ def remove_double_cnots_once(self):
     return double_cnot_removed
 
 
-QuantumCircuit.remove_double_cnots_once = remove_double_cnots_once
-CompositeGate.remove_double_cnots_once = remove_double_cnots_once
+_quantumcircuit.QuantumCircuit.remove_double_cnots_once = remove_double_cnots_once
+_compositegate.CompositeGate.remove_double_cnots_once = remove_double_cnots_once
 
 
 def first_atomic_gate_host(self):
     """Return the host list of the leaf gate on the left edge."""
     if self.data:
-        if isinstance(self.data[0], CompositeGate):
+        if isinstance(self.data[0], _compositegate.CompositeGate):
             return self.data[0].first_atomic_gate_host()
         return self.data
 
     return None
 
 
-QuantumCircuit.first_atomic_gate_host = first_atomic_gate_host
-CompositeGate.first_atomic_gate_host = first_atomic_gate_host
+_quantumcircuit.QuantumCircuit.first_atomic_gate_host = first_atomic_gate_host
+_compositegate.CompositeGate.first_atomic_gate_host = first_atomic_gate_host
 
 
 def last_atomic_gate_host(self):
     """Return the host list of the leaf gate on the right edge."""
     if self.data:
-        if isinstance(self.data[-1], CompositeGate):
+        if isinstance(self.data[-1], _compositegate.CompositeGate):
             return self.data[-1].last_atomic_gate_host()
         return self.data
 
     return None
 
 
-QuantumCircuit.last_atomic_gate_host = last_atomic_gate_host
-CompositeGate.last_atomic_gate_host = last_atomic_gate_host
+_quantumcircuit.QuantumCircuit.last_atomic_gate_host = last_atomic_gate_host
+_compositegate.CompositeGate.last_atomic_gate_host = last_atomic_gate_host
 
 
 def initialize(self, params, qubits):
@@ -438,5 +438,5 @@ def initialize(self, params, qubits):
     return self._attach(InitializeGate(params, qubits, self))
 
 
-QuantumCircuit.initialize = initialize
-CompositeGate.initialize = initialize
+_quantumcircuit.QuantumCircuit.initialize = initialize
+_compositegate.CompositeGate.initialize = initialize

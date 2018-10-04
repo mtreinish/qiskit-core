@@ -9,10 +9,12 @@
 Exception for errors when there's an error in the Result
 """
 
-from qiskit import QISKitError
+from qiskit import _qiskiterror
+
+__all__ = ['ResultError']
 
 
-class ResultError(QISKitError):
+class ResultError(_qiskiterror.QISKitError):
     """Exceptions raised due to errors in result output.
 
     It may be better for the QISKit API to raise this exception.

@@ -10,10 +10,12 @@ Classical register reference object.
 """
 import itertools
 
-from ._register import Register
+from qiskit.terra import _register
+
+__all__ = ['ClassicalRegister']
 
 
-class ClassicalRegister(Register):
+class ClassicalRegister(_register.Register):
     """Implement a classical register."""
 
     # Counter for the number of instances in this class.

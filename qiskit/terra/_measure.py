@@ -8,10 +8,12 @@
 """
 Quantum measurement in the computational basis.
 """
-from ._instruction import Instruction
+from qiskit.terra import _instruction
+
+__all__ = ['Measure']
 
 
-class Measure(Instruction):
+class Measure(_instruction.Instruction):
     """Quantum measurement in the computational basis."""
 
     def __init__(self, qubit, bit, circuit=None):

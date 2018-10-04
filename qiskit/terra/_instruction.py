@@ -8,10 +8,12 @@
 """
 Quantum computer instruction.
 """
-from sympy import Number, Basic
+import sympy
 
-from ._qiskiterror import QISKitError
-from ._register import Register
+from qiskit.terra import _qiskiterror
+from qiskit.terra import _register
+
+__all__ = ['Instruction']
 
 
 class Instruction(object):
@@ -26,15 +28,16 @@ class Instruction(object):
         circuit = QuantumCircuit or CompositeGate containing this instruction
         """
         for i in arg:
-            if not isinstance(i[0], Register):
-                raise QISKitError("argument not (Register, int) tuple")
+            if not isinstance(i[0], _register.Register):
+                raise _qiskiterror.QISKitError(
+                    "argument not (Register, int) tuple")
         self.name = name
         self.param = []
         for single_param in param:
-            if not isinstance(single_param, (Basic, complex)):
+            if not isinstance(single_param, (sympy.Basic, complex)):
                 # If the item in param is not symbolic and not complex (used
                 # by InitializeGate), make it symbolic.
-                self.param.append(Number(single_param))
+                self.param.append(sympy.Number(single_param))
             else:
                 self.param.append(single_param)
         self.arg = arg
@@ -44,14 +47,16 @@ class Instruction(object):
     def check_circuit(self):
         """Raise exception if self.circuit is None."""
         if self.circuit is None:
-            raise QISKitError("Instruction's circuit not assigned")
+            raise _qiskiterror.QISKitError(
+                "Instruction's circuit not assigned")
 
     def c_if(self, classical, val):
         """Add classical control on register classical and value val."""
         self.check_circuit()
         self.circuit._check_creg(classical)
         if val < 0:
-            raise QISKitError("control value should be non-negative")
+            raise _qiskiterror.QISKitError(
+                "control value should be non-negative")
         self.control = (classical, val)
         return self
 
@@ -60,8 +65,8 @@ class Instruction(object):
         if self.control is not None:
             self.check_circuit()
             if not gate.circuit.has_register(self.control[0]):
-                raise QISKitError("control register %s not found"
-                                  % self.control[0].name)
+                raise _qiskiterror.QISKitError(
+                    "control register %s not found" % self.control[0].name)
             gate.c_if(self.control[0], self.control[1])
 
     def _qasmif(self, string):

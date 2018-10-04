@@ -7,5 +7,7 @@
 
 """Module for working with results."""
 
-from ._result import Result
-from ._resulterror import ResultError
+from qiskit.terra.result import _result
+from qiskit.terra.result import _resulterror
+
+__all__ = _result.__all__ + _resulterror.__all__

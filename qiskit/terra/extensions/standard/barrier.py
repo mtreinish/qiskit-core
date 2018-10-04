@@ -8,14 +8,14 @@
 """
 Barrier instruction.
 """
-from qiskit import Instruction
-from qiskit import QuantumCircuit
-from qiskit import CompositeGate
-from qiskit import QuantumRegister
-from qiskit.extensions.standard import header  # pylint: disable=unused-import
+from qiskit.terra import _instruction
+from qiskit.terra import _quantumcircuit
+from qiskit.terra import _compositegate
+from qiskit.terra import _quantumregister
+from qiskit.terra.extensions.standard import header  # pylint: disable=unused-import
 
 
-class Barrier(Instruction):
+class Barrier(_instruction.Instruction):
     """Barrier instruction."""
 
     def __init__(self, qubits, circ):
@@ -47,8 +47,8 @@ class Barrier(Instruction):
 def barrier(self, *args):
     """Apply barrier to circuit.
     If args is None, applies to all the qbits.
-    Args is a list of QuantumRegister or single qubits.
-    For QuantumRegister, applies barrier to all the qbits in that register."""
+    Args is a list of _quantumregister.QuantumRegister or single qubits.
+    For _quantumregister.QuantumRegister, applies barrier to all the qbits in that register."""
     qubits = []
 
     if not args:  # None
@@ -57,7 +57,7 @@ def barrier(self, *args):
                 qubits.append((qreg, j))
 
     for arg in args:
-        if isinstance(arg, QuantumRegister):
+        if isinstance(arg, _quantumregister.QuantumRegister):
             for j in range(arg.size):
                 qubits.append((arg, j))
         else:
@@ -69,5 +69,5 @@ def barrier(self, *args):
     return self._attach(Barrier(qubits, self))
 
 
-QuantumCircuit.barrier = barrier
-CompositeGate.barrier = barrier
+_quantumcircuit.QuantumCircuit.barrier = barrier
+_compositegate.CompositeGate.barrier = barrier

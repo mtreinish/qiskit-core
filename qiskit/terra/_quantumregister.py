@@ -10,10 +10,13 @@ Quantum register reference object.
 """
 import itertools
 
-from ._register import Register
+from qiskit.terra import _register
 
 
-class QuantumRegister(Register):
+__all__ = ['QuantumRegister']
+
+
+class QuantumRegister(_register.Register):
     """Implement a quantum register."""
     # Counter for the number of instances in this class.
     instances_counter = itertools.count()

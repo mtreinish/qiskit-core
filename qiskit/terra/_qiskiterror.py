@@ -9,6 +9,8 @@
 Exception for errors raised by the QISKit SDK.
 """
 
+__all__ = ['QISKitError']
+
 
 class QISKitError(Exception):
     """Base class for errors raised by the QISKit SDK."""
