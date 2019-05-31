@@ -14,4 +14,4 @@
 
 """Methods for generating random quantum information objects."""
 
-from .utils import random_unitary, random_state, random_density_matrix
+from .utils import random_unitary, random_state, random_density_matrix, random_circuit
