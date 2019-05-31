@@ -31,8 +31,8 @@ generate or the random seed to use .
   Defaults to 5.
 * ``QISKIT_RANDOM_DEPTH`` - Set to an integer for the number of gates to use
   in the circuit. Defaults to 42.
-* ``QISKIT_RANDOM_SEED`` - Set to an integer for the random seed to use, if
-  one isn't specified it will be picked at random.
+* ``QISKIT_RANDOM_QASMDIR`` - Set to a path to store generated qasm files for
+  failed test runs. If one is not set use default TEMPDIR.
 
 You can run a test using these by just specifying the env variables when running
 the tests, for example::

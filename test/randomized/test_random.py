@@ -32,9 +32,7 @@ class RandomCircuitTestCase(TestCase):
             cls.backend = BasicAer.get_backend('unitary_simulator')
         cls.qubits = int(os.getenv('QISKIT_RANDOM_QUBITS', 5))
         cls.depth = int(os.getenv('QISKIT_RANDOM_DEPTH', 42))
-        cls.seed = os.getenv('QISKIT_RANDOM_SEED', None)
-        if cls.seed:
-            cls.seed = int(cls.seed)
+        cls.qasm_dir = os.getenv('QISKIT_RANDOM_QASMDIR', None)
 
     def compare_circuits(self, circuit_a, circuit_b, qasm_path, t_qasm_path,
                          unitary_compare=False):
@@ -62,13 +60,14 @@ class RandomCircuitTestCase(TestCase):
 
     def test_random_circuits_lvl_3(self):
         _, qasm_path = tempfile.mkstemp(suffix='.qasm',
-                                        prefix='qiskit-random')
+                                        prefix='qiskit-random-level-3-',
+                                        dir=self.qasm_dir)
         circuit = random_circuit(self.qubits, self.depth, self.seed)
         with open(qasm_path, 'w') as fd:
             fd.write(circuit.qasm())
         transpiled_circuit = transpile(circuit, self.backend,
                                        optimization_level=3)
-        trans_qasm_path = qasm_path + '-traspiled'
+        trans_qasm_path = qasm_path + '-transpiled'
         with open(trans_qasm_path, 'w') as fd:
             fd.write(transpiled_circuit.qasm())
 
@@ -79,13 +78,14 @@ class RandomCircuitTestCase(TestCase):
 
     def test_random_circuits_lvl_2(self):
         _, qasm_path = tempfile.mkstemp(suffix='.qasm',
-                                        prefix='qiskit-random')
+                                        prefix='qiskit-random-level-2-',
+                                        dir=self.qasm_dir)
         circuit = random_circuit(self.qubits, self.depth, self.seed)
         with open(qasm_path, 'w') as fd:
             fd.write(circuit.qasm())
         transpiled_circuit = transpile(circuit, self.backend,
                                        optimization_level=2)
-        trans_qasm_path = qasm_path + '-traspiled'
+        trans_qasm_path = qasm_path + '-transpiled'
         with open(trans_qasm_path, 'w') as fd:
             fd.write(transpiled_circuit.qasm())
         self.compare_circuits(circuit, transpiled_circuit, qasm_path,
@@ -95,13 +95,14 @@ class RandomCircuitTestCase(TestCase):
 
     def test_random_circuits_lvl_1(self):
         _, qasm_path = tempfile.mkstemp(suffix='.qasm',
-                                        prefix='qiskit-random')
+                                        prefix='qiskit-random-level-1-',
+                                        dir=self.qasm_dir)
         circuit = random_circuit(self.qubits, self.depth, self.seed)
         with open(qasm_path, 'w') as fd:
             fd.write(circuit.qasm())
         transpiled_circuit = transpile(circuit, self.backend,
                                        optimization_level=1)
-        trans_qasm_path = qasm_path + '-traspiled'
+        trans_qasm_path = qasm_path + '-transpiled'
         with open(trans_qasm_path, 'w') as fd:
             fd.write(transpiled_circuit.qasm())
         self.compare_circuits(circuit, transpiled_circuit, qasm_path,
@@ -111,13 +112,14 @@ class RandomCircuitTestCase(TestCase):
 
     def test_random_circuits_lvl_0(self):
         _, qasm_path = tempfile.mkstemp(suffix='.qasm',
-                                        prefix='qiskit-random')
+                                        prefix='qiskit-random-level-0-',
+                                        dir=self.qasm_dir)
         circuit = random_circuit(self.qubits, self.depth, self.seed)
         with open(qasm_path, 'w') as fd:
             fd.write(circuit.qasm())
         transpiled_circuit = transpile(circuit, self.backend,
                                        optimization_level=0)
-        trans_qasm_path = qasm_path + '-traspiled'
+        trans_qasm_path = qasm_path + '-transpiled'
         with open(trans_qasm_path, 'w') as fd:
             fd.write(transpiled_circuit.qasm())
         self.compare_circuits(circuit, transpiled_circuit, qasm_path,
