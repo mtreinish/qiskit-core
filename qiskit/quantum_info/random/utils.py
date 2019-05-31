@@ -155,10 +155,10 @@ def __random_density_bures(N, rank=None, seed=None):
     return G / np.trace(G)
 
 
-def _get_random_qubits(register, n_qubits, rng):
+def _get_random_qubits(register, n_qubits):
     qubits = []
     while len(qubits) < n_qubits:
-        qubit = rng.choice(register, 1)[0]
+        qubit = np.random.choice(register, 1)[0]
         if qubit not in qubits:
             qubits.append(qubit)
 
@@ -172,61 +172,57 @@ def random_circuit(n_qubits, depth=20, seed=None):
     param_2_gates_1q = ['u2']
     param_3_gates_1q = ['u3']
     standard_gates_2q = ['cx', 'cy', 'cz', 'swap', 'ch']
-    param_1_gates_2q = ['rzz', 'crz', 'cu1']
+    # TODO(mtreinish): Add rzz when working
+    param_1_gates_2q = ['crz', 'cu1']
     param_3_gates_2q = ['cu3']
     standard_gates_3q = ['ccx', 'cswap']
 
     qr = QuantumRegister(n_qubits)
     qc = QuantumCircuit(qr)
     # Determine gates to be used
-    valid_gates = [standard_gates_1q, param_1_gates_1q, param_2_gates_1q,
-                   param_3_gates_1q]
+    valid_gates = [*standard_gates_1q, *param_1_gates_1q, *param_2_gates_1q,
+                   *param_3_gates_1q]
     if n_qubits >= 2:
-        valid_gates.append(standard_gates_2q)
-        valid_gates.append(param_1_gates_2q)
-        valid_gates.append(param_3_gates_2q)
+        # TODO(mtreinish) Add CU3 when working
+        valid_gates += standard_gates_2q
+        valid_gates += param_1_gates_2q
     if n_qubits >= 3:
-        valid_gates.append(standard_gates_3q)
+        valid_gates += standard_gates_3q
 
-    if seed is None:
-        seed = np.random.randint(0, np.iinfo(np.int32).max)
-    rng = np.random.RandomState(seed)
-
-    for i in range(depth):
-        gate_list = rng.choice(valid_gates, 1)[0]
-        gate = rng.choice(gate_list, 1)[0]
+    gate_list = np.random.choice(valid_gates, depth)
+    for gate in gate_list:
         if gate in standard_gates_3q:
-            qubits = _get_random_qubits(qr, 3, rng)
+            qubits = _get_random_qubits(qr, 3)
             getattr(qc, gate)(*qubits)
         elif gate in standard_gates_2q:
-            qubits = _get_random_qubits(qr, 2, rng)
+            qubits = _get_random_qubits(qr, 2)
             getattr(qc, gate)(*qubits)
         elif gate in standard_gates_1q:
-            qubits = _get_random_qubits(qr, 1, rng)
+            qubits = _get_random_qubits(qr, 1)
             getattr(qc, gate)(*qubits)
         elif gate in param_1_gates_2q:
-            qubits = _get_random_qubits(qr, 2, rng)
+            qubits = _get_random_qubits(qr, 2)
             func = getattr(qc, gate)
-            param = rng.random_sample()
+            param = np.random.random_sample()
             func(param, *qubits)
         elif gate in param_3_gates_2q:
-            qubits = _get_random_qubits(qr, 2, rng)
+            qubits = _get_random_qubits(qr, 2)
             func = getattr(qc, gate)
-            params = [rng.random_sample() for _ in range(3)]
+            params = [np.random.random_sample() for _ in range(3)]
             func(*params, *qubits)
         elif gate in param_3_gates_1q:
-            qubits = _get_random_qubits(qr, 1, rng)
+            qubits = _get_random_qubits(qr, 1)
             func = getattr(qc, gate)
-            params = [rng.random_sample() for _ in range(3)]
+            params = [np.random.random_sample() for _ in range(3)]
             func(*params, *qubits)
         elif gate in param_2_gates_1q:
-            qubits = _get_random_qubits(qr, 1, rng)
+            qubits = _get_random_qubits(qr, 1)
             func = getattr(qc, gate)
-            params = [rng.random_sample() for _ in range(2)]
+            params = [np.random.random_sample() for _ in range(2)]
             func(*params, *qubits)
         else:
-            qubits = _get_random_qubits(qr, 1, rng)
+            qubits = _get_random_qubits(qr, 1)
             func = getattr(qc, gate)
-            param = rng.random_sample()
+            param = np.random.random_sample()
             func(param, *qubits)
     return qc
