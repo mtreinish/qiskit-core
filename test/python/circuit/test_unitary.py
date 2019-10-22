@@ -166,9 +166,18 @@ class TestUnitaryCircuit(QiskitTestCase):
         self.assertEqual(instr.name, 'unitary')
         assert_allclose(numpy.array(instr.params[0]).astype(numpy.complex64), matrix)
         # check conversion to dict
-        qobj_dict = qobj.to_dict()
+        qobj_dict = qobj.to_dict(validate=True)
+        class NumpyEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, numpy.ndarray):
+                    return obj.tolist()
+                if isinstance(obj, complex):
+                    return (obj.real, obj.imag)
+                return json.JSONEncoder.default(self, obj)
+
         # check json serialization
-        self.assertTrue(isinstance(json.dumps(qobj_dict), str))
+        self.assertTrue(isinstance(json.dumps(qobj_dict, cls=NumpyEncoder),
+                                   str))
 
     def test_labeled_unitary(self):
         """test qobj output with unitary matrix"""

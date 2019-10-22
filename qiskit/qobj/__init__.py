@@ -14,17 +14,23 @@
 
 """Module for the Qobj structure."""
 
-from .models.base import (QobjInstruction, QobjExperimentHeader, QobjExperimentConfig,
-                          QobjExperiment, QobjConfig, QobjHeader)
+from .models.base import (QobjInstruction, QobjExperimentHeader,
+                          QobjExperiment, QobjConfig)
 
 from .models.pulse import (PulseQobjInstruction, PulseQobjExperimentConfig,
                            PulseQobjExperiment, PulseQobjConfig,
                            QobjMeasurementOption, PulseLibraryItem,
                            PulseLibraryItemSchema, PulseQobjInstructionSchema)
 
-from .models.qasm import (QasmQobjInstruction, QasmQobjExperimentConfig,
-                          QasmQobjExperiment, QasmQobjConfig)
 
-from .qobj import Qobj, QasmQobj, PulseQobj
+from .qobj import Qobj, PulseQobj
+
+from qiskit.qobj.qasm_qobj import QasmQobj
+from qiskit.qobj.qasm_qobj import QasmQobjInstruction
+from qiskit.qobj.qasm_qobj import QasmQobjExperiment
+from qiskit.qobj.qasm_qobj import QasmQobjConfig
+from qiskit.qobj.qasm_qobj import QobjExperimentHeader
+from qiskit.qobj.qasm_qobj import QasmQobjExperimentConfig
+from qiskit.qobj.qasm_qobj import QobjHeader
 
 from .utils import validate_qobj_against_schema

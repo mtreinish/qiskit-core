@@ -19,7 +19,6 @@ from marshmallow.validate import Equal, OneOf
 
 from qiskit.qobj.models.base import QobjExperimentSchema, QobjConfigSchema, QobjHeaderSchema
 from qiskit.qobj.models.pulse import PulseQobjExperimentSchema, PulseQobjConfigSchema
-from qiskit.qobj.models.qasm import QasmQobjExperimentSchema, QasmQobjConfigSchema
 from qiskit.validation.base import BaseModel, BaseSchema, bind_schema
 from qiskit.validation.fields import Nested, String
 from .utils import QobjType
@@ -51,22 +50,6 @@ class QobjSchema(BaseSchema):
     def add_schema_version(self, data, **_):
         """Add the schema version on loading."""
         data['schema_version'] = QOBJ_VERSION
-        return data
-
-
-class QasmQobjSchema(QobjSchema):
-    """Schema for QasmQobj."""
-
-    # Required properties.
-    config = Nested(QasmQobjConfigSchema, required=True)
-    experiments = Nested(QasmQobjExperimentSchema, required=True, many=True)
-
-    type = String(required=True, validate=Equal(QobjType.QASM))
-
-    @pre_load
-    def add_type(self, data, **_):
-        """Add the Qobj type (QASM) on loading."""
-        data['type'] = QobjType.QASM.value
         return data
 
 
@@ -109,27 +92,6 @@ class Qobj(BaseModel):
         self.type = type
 
         super().__init__(**kwargs)
-
-
-@bind_schema(QasmQobjSchema)
-class QasmQobj(Qobj):
-    """Model for QasmQobj inherit from Qobj.
-
-    Please note that this class only describes the required fields. For the
-    full description of the model, please check ``QasmQobjSchema``.
-
-    Attributes:
-        qobj_id (str): Qobj identifier.
-        config (QASMQobjConfig): config settings for the Qobj.
-        experiments (list[QASMQobjExperiment]): list of experiments.
-        header (QobjHeader): headers.
-    """
-    def __init__(self, qobj_id, config, experiments, header, **kwargs):
-        super().__init__(qobj_id=qobj_id,
-                         config=config,
-                         experiments=experiments,
-                         header=header,
-                         **kwargs)
 
 
 @bind_schema(PulseQobjSchema)
