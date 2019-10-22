@@ -67,7 +67,7 @@ class TestQASMQobj(QiskitTestCase):
         }
 
         self.bad_qobj = copy.deepcopy(self.valid_qobj)
-        self.bad_qobj.experiments = None  # set experiments to None to cause the qobj to be invalid
+        self.bad_qobj.experiments = []
 
     def test_to_dict_against_schema(self):
         """Test dictionary representation of Qobj against its schema."""

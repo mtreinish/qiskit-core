@@ -16,7 +16,9 @@
 
 from enum import Enum
 
-from qiskit.validation.jsonschema import validate_json_against_schema
+from fastjsonschema.exceptions import JsonSchemaException
+
+from qiskit.validation.jsonschema.exceptions import SchemaValidationError
 
 
 class QobjType(str, Enum):
@@ -37,7 +39,7 @@ def validate_qobj_against_schema(qobj):
     Args:
         qobj (Qobj): Qobj to be validated.
     """
-    validate_json_against_schema(
-        qobj.to_dict(), 'qobj',
-        err_msg='Qobj failed validation. Set Qiskit log level to DEBUG '
-                'for further information.')
+    try:
+        qobj.to_dict(validate=True)
+    except JsonSchemaException:
+        raise SchemaValidationError('Qobj failed validation.')
