@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8 -*-
 
 # This code is part of Qiskit.
 #
@@ -44,6 +44,8 @@ from qiskit.circuit.quantumregister import QuantumRegister
 from qiskit.circuit.classicalregister import ClassicalRegister
 from qiskit.qobj.models.qasm import QasmQobjInstruction
 from qiskit.circuit.parameter import ParameterExpression, Parameter
+from qiskit.qobj.fast_qobj import FastQasmInstruction
+from qiskit.circuit.parameter import ParameterExpression
 
 _CUTOFF_PRECISION = 1E-10
 
@@ -234,6 +236,29 @@ class Instruction:
         # conversion will be deleted by the assembler.
         if self.condition:
             instruction._condition = self.condition
+        return instruction
+
+    def fast_assemble(self):
+        instruction = FastQasmInstruction(self.name)
+        if self.params:
+            params = [
+                x.evalf() if hasattr(x, 'evalf') else x for x in self.params
+            ]
+            params = [
+                sympy.matrix2numpy(x, dtype=complex) if isinstance(
+                    x, sympy.Matrix) else x for x in params
+            ]
+            instruction.params = params
+        # Add placeholder for qarg and carg params
+        if self.num_qubits:
+            instruction.qubits = list(range(self.num_qubits))
+        if self.num_clbits:
+            instruction.memory = list(range(self.num_clbits))
+        # Add condition parameters for assembler. This is needed to convert
+        # to a qobj conditional instruction at assemble time and after
+        # conversion will be deleted by the assembler.
+        if self.condition:
+            instruction.condition = self.condition
         return instruction
 
     def mirror(self):
