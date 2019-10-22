@@ -86,6 +86,11 @@ class FastQasmInstruction:
     def to_dict(self):
         return self._data
 
+    @classmethod
+    def from_dict(self, data):
+        name = data.pop('name')
+        return cls(name, **data)
+
 
 class FastQasmExperiment:
     def __init__(self, config, header, instructions):
@@ -98,7 +103,6 @@ class FastQasmExperiment:
 
         """
         super(FastQasmExperiment, self).__init__()
-        self._data = {}
         self.config = config
         self.header = header
         self.instructions = instructions
@@ -111,6 +115,88 @@ class FastQasmExperiment:
         }
         return out_dict
 
+    @classmethod
+    def from_dict(cls, data):
+        config = data.pop('name')
+        header = data.pop('header')
+        instructions = data.pop('instructions')
+        return cls(config, header, instructions)
+
+
+class FastRunConfig:
+
+    def __init__(self, shots=None, max_credits=None, seed_simulator=None,
+                 memory=None, parameter_binds=None, **kwargs):
+        """Model for RunConfig.
+
+        Please note that this class only describes the required fields. For the
+        full description of the model, please check ``RunConfigSchema``.
+
+        Attributes:
+            shots (int): the number of shots.
+            max_credits (int): the max_credits to use on the IBMQ public devices.
+            seed_simulator (int): the seed to use in the simulator
+            memory (bool): whether to request memory from backend (per-shot readouts)
+            parameter_binds (list[dict]): List of parameter bindings
+        """
+        self._data = {}
+        if shots is not None:
+            self._data['shots'] = int(shots)
+
+        if max_credits is not None:
+            self._data['max_credits'] = int(max_credits)
+
+        if seed_simulator is not None:
+            self._data['seed_simulator'] = int(seed_simulator)
+
+        if memory is not None:
+            self._data['memory'] = bool(memory)
+
+        if parameter_binds is not None:
+            self._data['parameter_binds'] = parameter_binds
+
+        if kwargs:
+            self._data.update(kwargs)
+
+    @property
+    def shots(self):
+        return self._data.get('shots')
+
+    @shots.setter
+    def shots(self, value):
+        self._data['shots'] = value
+
+    @property
+    def max_credits(self):
+        return self._data.get('max_credits')
+
+    @max_credits.setter
+    def max_credits(self, value):
+        self._data['max_credits'] = value
+
+    @property
+    def memory(self):
+        return self._data.get('memory')
+
+    @memory.setter
+    def memory(self, value):
+        self._data['memory'] = value
+
+    @property
+    def parameter_binds(self):
+        return self._data.get('parameter_binds')
+
+    @parameter_binds.setter
+    def parameter_binds(self, value):
+        self._data['parameter_binds'] = value
+
+    def to_dict(self):
+        return self._data
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(**data)
+
 
 class FastQasmQobj:
     def __init__(self, qobj_id=None, config=None, experiments=None,
@@ -119,21 +205,21 @@ class FastQasmQobj:
 
         Args:
             qobj_id str: An identifier for the qobj
-            config dict: A config for the entire run
+            config FastRunConfig: A config for the entire run
             experiments list: A list of lists of :class:`FastQasmExperiment`
                 objects representing an experiment
 
         """
         self.header = header or {}
-        self.config = config or {}
+        self.config = config or FastRunConfig()
         self.experiments = experiments or []
         self.qobj_id = qobj_id
 
-    def to_dict(self, validate=True):
+    def to_dict(self, validate=False):
         out_dict = {
             'qobj_id': self.qobj_id,
             'header': self.header,
-            'config': self.config,
+            'config': self.config.to_dict,
             'schema_version': '1.1.0',
             'type': 'QASM',
             'experiments': [x.to_dict for x in self.experiments]
