@@ -254,7 +254,7 @@ class Instruction:
         # to a qobj conditional instruction at assemble time and after
         # conversion will be deleted by the assembler.
         if self.condition:
-            instruction.condition = self.condition
+            instruction._condition = self.condition
         return instruction
 
     def mirror(self):

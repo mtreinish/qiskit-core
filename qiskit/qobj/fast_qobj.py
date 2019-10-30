@@ -20,7 +20,8 @@ with open('/tmp/jsonschema.py', 'w') as f:
 
 class FastQasmInstruction:
     def __init__(self, name, params=None, qubits=None, register=None,
-                 memory=None, condition=None, label=None):
+                 memory=None, condition=None, label=None, mask=None,
+                 relation=None, val=None):
         super(FastQasmInstruction, self).__init__()
         self._data = {}
         self._data['name'] = name
@@ -36,17 +37,12 @@ class FastQasmInstruction:
             self._data['_condition'] = condition
         if label:
             self._data['label'] = label
-
-    def __str__(self):
-        if hasattr(self, 'memory'):
-            out_str = "FastQasmInstruction(memory=%s, name='%s'" % (
-                self.memory, self.name)
-        else:
-            out_str = "FastQasmInstruction(name='%s'" % self.name
-        if hasattr(self, 'params'):
-            out_str += ', params=%s' % self.params
-        out_str += ', qubits=%s)' % self.qubits
-        return out_str
+        if mask:
+            self._data['mask'] = mask
+        if relation:
+            self._data['relation'] = relation
+        if val:
+            self._data['val'] = val
 
     @property
     def name(self):
@@ -69,7 +65,10 @@ class FastQasmInstruction:
 
     @property
     def qubits(self):
-        return self._data['qubits']
+        qbits = self._data.get('qubits')
+        if qbits is None:
+            raise AttributeError
+        return qbits
 
     @qubits.setter
     def qubits(self, value):
@@ -108,6 +107,21 @@ class FastQasmInstruction:
     def _condition(self, value):
         self._data['_condition'] = value
 
+    @_condition.deleter
+    def _condition(self):
+        del self._data['_condition']
+
+    @property
+    def conditional(self):
+        cond = self._data.get('conditional')
+        if cond is None:
+            raise AttributeError
+        return cond
+
+    @conditional.setter
+    def conditional(self, value):
+        self._data['conditional'] = value
+
     @property
     def label(self):
         return self._data.get('label')
@@ -115,6 +129,30 @@ class FastQasmInstruction:
     @label.setter
     def label(self, value):
         self._data['label'] = value
+
+    @property
+    def mask(self):
+        return self._data.get('mask')
+
+    @mask.setter
+    def mask(self, value):
+        self._data['mask'] = value
+
+    @property
+    def relation(self):
+        return self._data.get('relation')
+
+    @relation.setter
+    def relation(self, value):
+        self._data['relation'] = value
+
+    @property
+    def val(self):
+        return self._data.get('val')
+
+    @val.setter
+    def val(self, value):
+        self._data['val'] = value
 
     def to_dict(self):
         return self._data
