@@ -244,10 +244,6 @@ class Instruction:
             params = [
                 x.evalf() if hasattr(x, 'evalf') else x for x in self.params
             ]
-            params = [
-                sympy.matrix2numpy(x, dtype=complex) if isinstance(
-                    x, sympy.Matrix) else x for x in params
-            ]
             instruction.params = params
         # Add placeholder for qarg and carg params
         if self.num_qubits:

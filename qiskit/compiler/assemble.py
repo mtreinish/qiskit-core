@@ -21,6 +21,7 @@ from qiskit.exceptions import QiskitError
 from qiskit.pulse import ScheduleComponent, LoConfig
 from qiskit.assembler.run_config import RunConfig
 from qiskit.assembler import assemble_circuits, assemble_schedules
+from qiskit.assembler.assemble_circuits import fast_assemble_circuits
 from qiskit.qobj import QobjHeader
 from qiskit.validation.exceptions import ModelValidationError
 
@@ -33,7 +34,7 @@ def assemble(experiments,
              qubit_lo_freq=None, meas_lo_freq=None,
              qubit_lo_range=None, meas_lo_range=None,
              schedule_los=None, meas_level=2, meas_return='avg', meas_map=None,
-             memory_slot_size=100, rep_time=None, parameter_binds=None,
+             memory_slot_size=100, rep_time=None, parameter_binds=None, fast=False,
              **run_config):
     """Assemble a list of circuits or pulse schedules into a Qobj.
 
@@ -140,13 +141,16 @@ def assemble(experiments,
 
     # assemble either circuits or schedules
     if all(isinstance(exp, QuantumCircuit) for exp in experiments):
-        run_config = _parse_circuit_args(parameter_binds, **run_config_common_dict)
+            run_config = _parse_circuit_args(parameter_binds, **run_config_common_dict)
 
-        # If circuits are parameterized, bind parameters and remove from run_config
-        bound_experiments, run_config = _expand_parameters(circuits=experiments,
-                                                           run_config=run_config)
-        return assemble_circuits(circuits=bound_experiments, qobj_id=qobj_id,
-                                 qobj_header=qobj_header, run_config=run_config)
+            # If circuits are parameterized, bind parameters and remove from run_config
+            bound_experiments, run_config = _expand_parameters(circuits=experiments,
+                                                               run_config=run_config)
+            if fast:
+                return fast_assemble_circuits(bound_experiments, run_config.to_dict(), qobj_id, qobj_header.to_dict())
+            else:
+                return assemble_circuits(circuits=bound_experiments, qobj_id=qobj_id,
+                                         qobj_header=qobj_header, run_config=run_config)
 
     elif all(isinstance(exp, ScheduleComponent) for exp in experiments):
         run_config = _parse_pulse_args(backend, qubit_lo_freq, meas_lo_freq,

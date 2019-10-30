@@ -17,7 +17,7 @@ from qiskit.qobj import (QasmQobj, QobjExperimentHeader,
                          QasmQobjInstruction, QasmQobjExperimentConfig, QasmQobjExperiment,
                          QasmQobjConfig)
 
-from qiskit.qobj.fast_qobj import FastQasmQobj, FastQasmExperiment
+from qiskit.qobj.fast_qobj import FastQasmQobj, FastQasmExperiment, FastRunConfig
 
 def assemble_circuits(circuits, run_config, qobj_id, qobj_header):
     """Assembles a list of circuits into a qobj which can be run on the backend.
@@ -155,7 +155,9 @@ def fast_assemble_circuits(circuits, run_config, qobj_id, qobj_header):
     Returns:
         QasmQobj: the Qobj to be run on the backends
     """
-    qobj_config = run_config or {}
+    run_config = run_config or {}
+    qobj_config = FastRunConfig(**run_config)
+
 
     # Pack everything into the Qobj
     experiments = []
@@ -259,8 +261,8 @@ def fast_assemble_circuits(circuits, run_config, qobj_id, qobj_header):
         if memory_slots > max_memory_slots:
             max_memory_slots = memory_slots
 
-    qobj_config['memory_slots'] = max_memory_slots
-    qobj_config['n_qubits'] = max_n_qubits
+    qobj_config.memory_slots = max_memory_slots
+    qobj_config.n_qubits = max_n_qubits
 
     return FastQasmQobj(
         qobj_id=qobj_id,

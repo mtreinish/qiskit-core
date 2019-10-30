@@ -34,13 +34,23 @@ def _experiments_to_circuits(qobj):
     if qobj.experiments:
         circuits = []
         for x in qobj.experiments:
-            quantum_registers = [QuantumRegister(i[1], name=i[0])
-                                 for i in x.header.qreg_sizes]
-            classical_registers = [ClassicalRegister(i[1], name=i[0])
-                                   for i in x.header.creg_sizes]
-            circuit = QuantumCircuit(*quantum_registers,
-                                     *classical_registers,
-                                     name=x.header.name)
+            if isinstance(x.header, dict):
+                quantum_registers = [QuantumRegister(i[1], name=i[0])
+                                     for i in x.header['qreg_sizes']]
+                classical_registers = [ClassicalRegister(i[1], name=i[0])
+                                       for i in x.header['creg_sizes']]
+                circuit = QuantumCircuit(*quantum_registers,
+                                         *classical_registers,
+                                         name=x.header['name'])
+
+            else:
+                quantum_registers = [QuantumRegister(i[1], name=i[0])
+                                     for i in x.header.qreg_sizes]
+                classical_registers = [ClassicalRegister(i[1], name=i[0])
+                                       for i in x.header.creg_sizes]
+                circuit = QuantumCircuit(*quantum_registers,
+                                         *classical_registers,
+                                         name=x.header.name)
             qreg_dict = collections.OrderedDict()
             creg_dict = collections.OrderedDict()
             for reg in quantum_registers:
@@ -56,7 +66,10 @@ def _experiments_to_circuits(qobj):
                 params = getattr(i, 'params', [])
                 try:
                     for qubit in i.qubits:
-                        qubit_label = x.header.qubit_labels[qubit]
+                        if isinstance(x.header, dict):
+                            qubit_label = x.header['qubit_labels'][qubit]
+                        else:
+                            qubit_label = x.header.qubit_labels[qubit]
                         qubits.append(
                             qreg_dict[qubit_label[0]][qubit_label[1]])
                 except Exception:  # pylint: disable=broad-except
@@ -64,7 +77,10 @@ def _experiments_to_circuits(qobj):
                 clbits = []
                 try:
                     for clbit in i.memory:
-                        clbit_label = x.header.clbit_labels[clbit]
+                        if isinstance(x.header, dict):
+                            clbit_label = x.header['clbit_labels'][clbit]
+                        else:
+                            clbit_label = x.header.clbit_labels[clbit]
                         clbits.append(
                             creg_dict[clbit_label[0]][clbit_label[1]])
                 except Exception:  # pylint: disable=broad-except
@@ -137,7 +153,10 @@ def disassemble(qobj):
             * user_qobj_header (dict): The dict of any user headers in the qobj
     """
     run_config = qobj.config.to_dict()
-    user_qobj_header = qobj.header.to_dict()
+    if not isinstance(qobj.header, dict):
+        user_qobj_header = qobj.header.to_dict()
+    else:
+        user_qobj_header = qobj.header
     circuits = _experiments_to_circuits(qobj)
 
     return circuits, run_config, user_qobj_header

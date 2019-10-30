@@ -20,7 +20,7 @@ with open('/tmp/jsonschema.py', 'w') as f:
 
 class FastQasmInstruction:
     def __init__(self, name, params=None, qubits=None, register=None,
-                 memory=None, condition=None):
+                 memory=None, condition=None, label=None):
         super(FastQasmInstruction, self).__init__()
         self._data = {}
         self._data['name'] = name
@@ -34,6 +34,15 @@ class FastQasmInstruction:
             self._data['memory'] = memory
         if condition:
             self._data['_condition'] = condition
+        if label:
+            self._data['label'] = label
+
+    def __str__(self):
+        out_str = "FastQasmInstruction(name='%s'" % self.name
+        if hasattr(self, 'params'):
+            out_str += ', params=%s' % self.params
+        out_str += ', qubits=%s)' % self.qubits
+        return out_str
 
     @property
     def name(self):
@@ -45,7 +54,10 @@ class FastQasmInstruction:
 
     @property
     def params(self):
-        return self._data.get('params')
+        param = self._data.get('params')
+        if param is None:
+            raise AttributeError
+        return param
 
     @params.setter
     def params(self, value):
@@ -61,7 +73,10 @@ class FastQasmInstruction:
 
     @property
     def register(self):
-        return self._data.get('register')
+        reg = self._data.get('register')
+        if reg is None:
+            raise AttributeError
+        return reg
 
     @register.setter
     def register(self, value):
@@ -69,7 +84,10 @@ class FastQasmInstruction:
 
     @property
     def memory(self):
-        return self._data['memory']
+        mem = self._data.get('memory')
+        if mem is None:
+            raise AttributeError
+        return mem
 
     @memory.setter
     def memory(self, value):
@@ -82,6 +100,14 @@ class FastQasmInstruction:
     @_condition.setter
     def _condition(self, value):
         self._data['_condition'] = value
+
+    @property
+    def _condition(self):
+        return self._data.get('label')
+
+    @_condition.setter
+    def _condition(self, value):
+        self._data['label'] = value
 
     def to_dict(self):
         return self._data
@@ -111,7 +137,7 @@ class FastQasmExperiment:
         out_dict = {
             'config': self.config,
             'header': self.header,
-            'instructions': [x.to_dict for x in self.instructions]
+            'instructions': [x.to_dict() for x in self.instructions]
         }
         return out_dict
 
@@ -138,6 +164,8 @@ class FastRunConfig:
             seed_simulator (int): the seed to use in the simulator
             memory (bool): whether to request memory from backend (per-shot readouts)
             parameter_binds (list[dict]): List of parameter bindings
+            memory_slots (int): The number of memory slots on the device
+            n_qubits (int): The number of qubits in the device
         """
         self._data = {}
         if shots is not None:
@@ -190,6 +218,22 @@ class FastRunConfig:
     def parameter_binds(self, value):
         self._data['parameter_binds'] = value
 
+    @property
+    def memory_slots(self):
+        self._data.get('memory_slots')
+
+    @memory_slots.setter
+    def memory_slots(self, value):
+        self._data['memory_slots'] = value
+
+    @property
+    def n_qubits(self):
+        self._data.get('n_qubits')
+
+    @n_qubits.setter
+    def n_qubits(self, value):
+        self._data['n_qubits'] = value
+
     def to_dict(self):
         return self._data
 
@@ -219,10 +263,10 @@ class FastQasmQobj:
         out_dict = {
             'qobj_id': self.qobj_id,
             'header': self.header,
-            'config': self.config.to_dict,
+            'config': self.config.to_dict(),
             'schema_version': '1.1.0',
             'type': 'QASM',
-            'experiments': [x.to_dict for x in self.experiments]
+            'experiments': [x.to_dict() for x in self.experiments]
         }
         if validate:
             validator(out_dict)
