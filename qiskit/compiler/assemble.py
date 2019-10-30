@@ -21,7 +21,6 @@ from qiskit.exceptions import QiskitError
 from qiskit.pulse import ScheduleComponent, LoConfig
 from qiskit.assembler.run_config import RunConfig
 from qiskit.assembler import assemble_circuits, assemble_schedules
-from qiskit.assembler.assemble_circuits import fast_assemble_circuits
 from qiskit.qobj import QobjHeader
 from qiskit.validation.exceptions import ModelValidationError
 
@@ -147,7 +146,7 @@ def assemble(experiments,
             bound_experiments, run_config = _expand_parameters(circuits=experiments,
                                                                run_config=run_config)
             if fast:
-                return fast_assemble_circuits(bound_experiments, run_config.to_dict(), qobj_id, qobj_header.to_dict())
+                return assemble_circuits(bound_experiments, run_config, qobj_id, qobj_header.to_dict(), fast)
             else:
                 return assemble_circuits(circuits=bound_experiments, qobj_id=qobj_id,
                                          qobj_header=qobj_header, run_config=run_config)

@@ -38,7 +38,11 @@ class FastQasmInstruction:
             self._data['label'] = label
 
     def __str__(self):
-        out_str = "FastQasmInstruction(name='%s'" % self.name
+        if hasattr(self, 'memory'):
+            out_str = "FastQasmInstruction(memory=%s, name='%s'" % (
+                self.memory, self.name)
+        else:
+            out_str = "FastQasmInstruction(name='%s'" % self.name
         if hasattr(self, 'params'):
             out_str += ', params=%s' % self.params
         out_str += ', qubits=%s)' % self.qubits
@@ -95,25 +99,28 @@ class FastQasmInstruction:
 
     @property
     def _condition(self):
-        return self._data.get('_condition')
+        cond = self._data.get('_condition')
+        if cond is None:
+            raise AttributeError
+        return cond
 
     @_condition.setter
     def _condition(self, value):
         self._data['_condition'] = value
 
     @property
-    def _condition(self):
+    def label(self):
         return self._data.get('label')
 
-    @_condition.setter
-    def _condition(self, value):
+    @label.setter
+    def label(self, value):
         self._data['label'] = value
 
     def to_dict(self):
         return self._data
 
     @classmethod
-    def from_dict(self, data):
+    def from_dict(cls, data):
         name = data.pop('name')
         return cls(name, **data)
 
