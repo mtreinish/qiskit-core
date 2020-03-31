@@ -50,6 +50,7 @@ Commands (:mod:`~qiskit.pulse.commands`)
    ConstantPulse
    Acquire
    Snapshot
+   SetFrequency
 
 .. _pulse-channels:
 
