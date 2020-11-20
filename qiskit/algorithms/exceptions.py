@@ -17,7 +17,7 @@ Exception for errors raised by Aqua.
 from qiskit import QiskitError
 
 
-class AquaError(QiskitError):
+class AlgorithmError(QiskitError):
     """Base class for errors raised by Aqua."""
 
     def __init__(self, *message) -> None:
