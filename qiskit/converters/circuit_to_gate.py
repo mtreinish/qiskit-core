@@ -49,7 +49,7 @@ def circuit_to_gate(circuit, parameter_map=None, equivalence_library=None, label
         raise QiskitError('Circuit with classical bits cannot be converted '
                           'to gate.')
 
-    for inst, _, _ in circuit.data:
+    for inst, _, _ in circuit._data:
         if not isinstance(inst, Gate):
             raise QiskitError(('One or more instructions cannot be converted to'
                                ' a gate. "{}" is not a gate instruction').format(
@@ -87,7 +87,7 @@ def circuit_to_gate(circuit, parameter_map=None, equivalence_library=None, label
     if equivalence_library is not None:
         equivalence_library.add_equivalence(gate, target)
 
-    rules = target.data
+    rules = target._data
 
     if gate.num_qubits > 0:
         q = QuantumRegister(gate.num_qubits, 'q')

@@ -20,8 +20,8 @@ from numbers import Number
 
 import numpy as np
 
-from qiskit.circuit.quantumcircuit import QuantumCircuit
-from qiskit.circuit.instruction import Instruction
+from qiskit.circuit import quantumcircuit as qc
+from qiskit.circuit import instruction as inst
 from qiskit.circuit.library.standard_gates import IGate, XGate, YGate, ZGate, HGate, SGate, TGate
 from qiskit.exceptions import QiskitError
 from qiskit.quantum_info.operators.predicates import is_unitary_matrix, matrix_equal
@@ -74,7 +74,7 @@ class Operator(BaseOperator, TolerancesMixin):
         if isinstance(data, (list, np.ndarray)):
             # Default initialization from list or numpy array matrix
             self._data = np.asarray(data, dtype=complex)
-        elif isinstance(data, (QuantumCircuit, Instruction)):
+        elif isinstance(data, (qc.QuantumCircuit, inst.Instruction)):
             # If the input is a Terra QuantumCircuit or Instruction we
             # perform a simulation to construct the unitary operator.
             # This will only work if the circuit or instruction can be
@@ -491,7 +491,7 @@ class Operator(BaseOperator, TolerancesMixin):
         dimension = 2 ** instruction.num_qubits
         op = Operator(np.eye(dimension))
         # Convert circuit to an instruction
-        if isinstance(instruction, QuantumCircuit):
+        if isinstance(instruction, qc.QuantumCircuit):
             instruction = instruction.to_instruction()
         op._append_instruction(instruction)
         return op
@@ -499,7 +499,7 @@ class Operator(BaseOperator, TolerancesMixin):
     @classmethod
     def _instruction_to_matrix(cls, obj):
         """Return Operator for instruction if defined or None otherwise."""
-        if not isinstance(obj, Instruction):
+        if not isinstance(obj, inst.Instruction):
             raise QiskitError('Input is not an instruction.')
         mat = None
         if hasattr(obj, 'to_matrix'):
@@ -530,7 +530,7 @@ class Operator(BaseOperator, TolerancesMixin):
             # cannot compose this gate and raise an error.
             if obj.definition is None:
                 raise QiskitError('Cannot apply Instruction: {}'.format(obj.name))
-            if not isinstance(obj.definition, QuantumCircuit):
+            if not isinstance(obj.definition, qc.QuantumCircuit):
                 raise QiskitError('Instruction "{}" '
                                   'definition is {} but expected QuantumCircuit.'.format(
                                       obj.name, type(obj.definition)))
@@ -541,7 +541,7 @@ class Operator(BaseOperator, TolerancesMixin):
                     qargs=qargs)
                 self._data = op.data
             flat_instr = obj.definition.to_instruction()
-            for instr, qregs, cregs in flat_instr.definition.data:
+            for instr, qregs, cregs in flat_instr.definition._data:
                 if cregs:
                     raise QiskitError(
                         'Cannot apply instruction with classical registers: {}'.format(

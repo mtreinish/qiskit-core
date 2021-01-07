@@ -93,7 +93,7 @@ def circuit_to_instruction(circuit, parameter_map=None, equivalence_library=None
     if equivalence_library is not None:
         equivalence_library.add_equivalence(instruction, target)
 
-    definition = target.data
+    definition = target._data
 
     regs = []
     if instruction.num_qubits > 0:

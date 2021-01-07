@@ -18,22 +18,22 @@ from typing import List, Optional, Union
 from qiskit.circuit.exceptions import CircuitError
 
 # pylint: disable=cyclic-import
-from .quantumcircuit import QuantumCircuit
-from .gate import Gate
-from .quantumregister import QuantumRegister
-from ._utils import _ctrl_state_to_int
+from qiskit.circuit import quantumcircuit as qc
+from qiskit.circuit import gate 
+from qiskit.circuit import quantumregister as qr
+from qiskit.circuit import _utils
 
 # pylint: disable=missing-return-doc
 
 
-class ControlledGate(Gate):
+class ControlledGate(gate.Gate):
     """Controlled unitary gate."""
 
     def __init__(self, name: str, num_qubits: int, params: List,
                  label: Optional[str] = None, num_ctrl_qubits: Optional[int] = 1,
                  definition: Optional['QuantumCircuit'] = None,
                  ctrl_state: Optional[Union[int, str]] = None,
-                 base_gate: Optional[Gate] = None):
+                 base_gate: Optional[gate.Gate] = None):
         """Create a new ControlledGate. In the new gate the first ``num_ctrl_qubits``
         of the gate are the controls.
 
@@ -106,8 +106,8 @@ class ControlledGate(Gate):
             closed_gate = self.copy()
             closed_gate.ctrl_state = None
             bit_ctrl_state = bin(self.ctrl_state)[2:].zfill(self.num_ctrl_qubits)
-            qreg = QuantumRegister(self.num_qubits, 'q')
-            qc_open_ctrl = QuantumCircuit(qreg)
+            qreg = qr.QuantumRegister(self.num_qubits, 'q')
+            qc_open_ctrl = qc.QuantumCircuit(qreg)
             for qind, val in enumerate(bit_ctrl_state[::-1]):
                 if val == '0':
                     qc_open_ctrl.x(qind)
@@ -125,7 +125,7 @@ class ControlledGate(Gate):
 
         Args:
             excited_def: The circuit with all closed controls."""
-        super(Gate, self.__class__).definition.fset(self, excited_def)
+        super(gate.Gate, self.__class__).definition.fset(self, excited_def)
 
     @property
     def num_ctrl_qubits(self):
@@ -167,7 +167,8 @@ class ControlledGate(Gate):
         Raises:
             CircuitError: ctrl_state is invalid.
         """
-        self._ctrl_state = _ctrl_state_to_int(ctrl_state, self.num_ctrl_qubits)
+        self._ctrl_state = _utils._ctrl_state_to_int(ctrl_state,
+                                                     self.num_ctrl_qubits)
 
     @property
     def params(self):

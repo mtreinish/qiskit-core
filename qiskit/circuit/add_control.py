@@ -12,6 +12,7 @@
 
 """Add control to operation if supported."""
 
+import copy
 from typing import Union, Optional
 
 from qiskit.circuit.exceptions import CircuitError
@@ -115,7 +116,7 @@ def control(operation: Union[Gate, ControlledGate],
         unrolled_gate = _unroll_gate(operation, basis_gates=basis)
         if unrolled_gate.definition.global_phase:
             global_phase += unrolled_gate.definition.global_phase
-        for gate, qreg, _ in unrolled_gate.definition.data:
+        for gate, qreg, _ in unrolled_gate.definition._data:
             if gate.name == 'x':
                 controlled_circ.mct(q_control, q_target[qreg[0].index],
                                     q_ancillae)
@@ -222,14 +223,13 @@ def _gate_to_circuit(operation):
 
 
 def _gate_to_dag(operation):
-    from qiskit.converters.circuit_to_dag import circuit_to_dag
     if hasattr(operation, 'definition') and operation.definition is not None:
-        return circuit_to_dag(operation.definition)
+        return copy.copy(operation.definition._data)
     else:
         qr = QuantumRegister(operation.num_qubits)
         qc = QuantumCircuit(qr, name=operation.name)
         qc.append(operation, qr)
-        return circuit_to_dag(qc)
+        return copy.copy(qc._data)
 
 
 def _unroll_gate(operation, basis_gates):

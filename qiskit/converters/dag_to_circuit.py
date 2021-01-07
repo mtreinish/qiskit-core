@@ -12,6 +12,8 @@
 
 """Helper function for converting a dag to a circuit."""
 
+import copy
+
 from qiskit.circuit.quantumcircuit import QuantumCircuit
 
 
@@ -51,13 +53,7 @@ def dag_to_circuit(dag):
                              global_phase=dag.global_phase)
     circuit.metadata = dag.metadata
     circuit.calibrations = dag.calibrations
-
-    for node in dag.topological_op_nodes():
-        # Get arguments for classical control (if any)
-        inst = node.op.copy()
-        inst.condition = node.condition
-        circuit._append(inst, node.qargs, node.cargs)
-
     circuit.duration = dag.duration
     circuit.unit = dag.unit
+    circuit._data = copy.copy(dag)
     return circuit

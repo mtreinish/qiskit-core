@@ -15,7 +15,8 @@ Multiple-Controlled U3 gate. Not using ancillary qubits.
 
 import logging
 from math import pi
-from qiskit.circuit import QuantumCircuit, QuantumRegister, Qubit
+from qiskit.circuit import quantumcircuit as qc
+from qiskit.circuit import quantumregister as qr
 from qiskit.circuit.library.standard_gates.x import MCXGate
 from qiskit.circuit.library.standard_gates.u3 import _generate_gray_code
 from qiskit.exceptions import QiskitError
@@ -93,7 +94,7 @@ def mcrx(self, theta, q_controls, q_target, use_basis_gates=False):
     """
 
     # check controls
-    if isinstance(q_controls, QuantumRegister):
+    if isinstance(q_controls, qr.QuantumRegister):
         control_qubits = list(q_controls)
     elif isinstance(q_controls, list):
         control_qubits = q_controls
@@ -102,7 +103,7 @@ def mcrx(self, theta, q_controls, q_target, use_basis_gates=False):
             'The mcrx gate needs a list of qubits or a quantum register for controls.')
 
     # check target
-    if isinstance(q_target, Qubit):
+    if isinstance(q_target, qr.Qubit):
         target_qubit = q_target
     else:
         raise QiskitError('The mcrx gate needs a single qubit as target.')
@@ -141,7 +142,7 @@ def mcry(self, theta, q_controls, q_target, q_ancillae=None, mode=None,
     """
 
     # check controls
-    if isinstance(q_controls, QuantumRegister):
+    if isinstance(q_controls, qr.QuantumRegister):
         control_qubits = list(q_controls)
     elif isinstance(q_controls, list):
         control_qubits = q_controls
@@ -150,7 +151,7 @@ def mcry(self, theta, q_controls, q_target, q_ancillae=None, mode=None,
                           'register for controls.')
 
     # check target
-    if isinstance(q_target, Qubit):
+    if isinstance(q_target, qr.Qubit):
         target_qubit = q_target
     else:
         raise QiskitError('The mcry gate needs a single qubit as target.')
@@ -158,7 +159,7 @@ def mcry(self, theta, q_controls, q_target, q_ancillae=None, mode=None,
     # check ancilla
     if q_ancillae is None:
         ancillary_qubits = []
-    elif isinstance(q_ancillae, QuantumRegister):
+    elif isinstance(q_ancillae, qr.QuantumRegister):
         ancillary_qubits = list(q_ancillae)
     elif isinstance(q_ancillae, list):
         ancillary_qubits = q_ancillae
@@ -214,7 +215,7 @@ def mcrz(self, lam, q_controls, q_target, use_basis_gates=False):
     """
 
     # check controls
-    if isinstance(q_controls, QuantumRegister):
+    if isinstance(q_controls, qr.QuantumRegister):
         control_qubits = list(q_controls)
     elif isinstance(q_controls, list):
         control_qubits = q_controls
@@ -223,7 +224,7 @@ def mcrz(self, lam, q_controls, q_target, use_basis_gates=False):
             'The mcrz gate needs a list of qubits or a quantum register for controls.')
 
     # check target
-    if isinstance(q_target, Qubit):
+    if isinstance(q_target, qr.Qubit):
         target_qubit = q_target
     else:
         raise QiskitError('The mcrz gate needs a single qubit as target.')
@@ -243,6 +244,6 @@ def mcrz(self, lam, q_controls, q_target, use_basis_gates=False):
                             target_qubit, use_basis_gates=use_basis_gates)
 
 
-QuantumCircuit.mcrx = mcrx
-QuantumCircuit.mcry = mcry
-QuantumCircuit.mcrz = mcrz
+qc.QuantumCircuit.mcrx = mcrx
+qc.QuantumCircuit.mcry = mcry
+qc.QuantumCircuit.mcrz = mcrz

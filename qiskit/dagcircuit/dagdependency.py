@@ -19,11 +19,10 @@ from collections import OrderedDict, defaultdict
 import numpy as np
 import retworkx as rx
 
-from qiskit.circuit.quantumregister import QuantumRegister
-from qiskit.circuit.classicalregister import ClassicalRegister
+from qiskit.circuit import quantumregister as qr
+from qiskit.circuit import classicalregister as cr
 from qiskit.dagcircuit.exceptions import DAGDependencyError
 from qiskit.dagcircuit.dagdepnode import DAGDepNode
-from qiskit.quantum_info.operators import Operator
 
 
 class DAGDependency:
@@ -172,8 +171,8 @@ class DAGDependency:
 
     def add_qreg(self, qreg):
         """Add qubits in a quantum register."""
-        if not isinstance(qreg, QuantumRegister):
-            raise DAGDependencyError("not a QuantumRegister instance.")
+        if not isinstance(qreg, qr.QuantumRegister):
+            raise DAGDependencyError("not a qr.QuantumRegister instance.")
         if qreg.name in self.qregs:
             raise DAGDependencyError("duplicate register %s" % qreg.name)
         self.qregs[qreg.name] = qreg
@@ -182,8 +181,8 @@ class DAGDependency:
 
     def add_creg(self, creg):
         """Add clbits in a classical register."""
-        if not isinstance(creg, ClassicalRegister):
-            raise DAGDependencyError("not a ClassicalRegister instance.")
+        if not isinstance(creg, cr.ClassicalRegister):
+            raise DAGDependencyError("not a cr.ClassicalRegister instance.")
         if creg.name in self.cregs:
             raise DAGDependencyError("duplicate register %s" % creg.name)
         self.cregs[creg.name] = creg
@@ -531,6 +530,7 @@ def _does_commute(node1, node2):
     Return:
         bool: True if the nodes commute and false if it is not the case.
     """
+    from qiskit.quantum_info import operators
 
     # Create set of qubits on which the operation acts
     qarg1 = [node1.qargs[i].index for i in range(0, len(node1.qargs))]
@@ -575,7 +575,7 @@ def _does_commute(node1, node2):
     qarg1 = [qarg.index(q) for q in node1.qargs]
     qarg2 = [qarg.index(q) for q in node2.qargs]
 
-    id_op = Operator(np.eye(2 ** qbit_num))
+    id_op = operators.Operator(np.eye(2 ** qbit_num))
 
     op12 = id_op.compose(node1.op, qargs=qarg1).compose(node2.op, qargs=qarg2)
     op21 = id_op.compose(node2.op, qargs=qarg2).compose(node1.op, qargs=qarg1)

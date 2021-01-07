@@ -17,6 +17,7 @@ from collections.abc import MutableSequence
 
 from qiskit.circuit.exceptions import CircuitError
 from qiskit.circuit.instruction import Instruction
+from qiskit.dagcircuit import dagnode
 
 
 class QuantumCircuitData(MutableSequence):
@@ -26,8 +27,11 @@ class QuantumCircuitData(MutableSequence):
     def __init__(self, circuit):
         self._circuit = circuit
 
+    def __iter__(self):
+        return iter(self._circuit._data)
+
     def __getitem__(self, i):
-        return self._circuit._data[i]
+        return self._circuit[i]
 
     def __setitem__(self, key, value):
         instruction, qargs, cargs = value
@@ -62,14 +66,17 @@ class QuantumCircuitData(MutableSequence):
         self._circuit._update_parameter_table(instruction)
 
     def insert(self, index, value):
-        self._circuit._data.insert(index, None)
-        self[index] = value
+        instruction, qargs, cargs = value
+        self._circuit._data.insert_node_front(
+            self._circuit._dag_index_map[index],
+            instruction, qars, cargs)
 
     def __delitem__(self, i):
-        del self._circuit._data[i]
+        node_index = self._circuit._dag_node_map.pop(i)
+        self._circuit._data.remove_op_node(node_index)
 
     def __len__(self):
-        return len(self._circuit._data)
+        return len(self._circuit._data.op_nodes())
 
     def __cast(self, other):
         return other._circuit._data if isinstance(other, QuantumCircuitData) else other

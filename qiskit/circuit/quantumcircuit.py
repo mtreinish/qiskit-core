@@ -30,6 +30,8 @@ from qiskit.circuit.gate import Gate
 from qiskit.circuit.parameter import Parameter
 from qiskit.qasm.qasm import Qasm
 from qiskit.circuit.exceptions import CircuitError
+from qiskit.dagcircuit import dagcircuit
+from qiskit.dagcircuit import dagnode
 from qiskit.utils.deprecation import deprecate_function
 from .parameterexpression import ParameterExpression
 from .quantumregister import QuantumRegister, Qubit, AncillaRegister
@@ -171,9 +173,8 @@ class QuantumCircuit:
 
         self.name = name
 
-        # Data contains a list of instructions and their contexts,
-        # in the order they were applied.
-        self._data = []
+        self._data = dagcircuit.DAGCircuit()
+        self._dag_index_map = {}
 
         # This is a map of registers bound to this circuit, by name.
         self.qregs = []
@@ -242,9 +243,14 @@ class QuantumCircuit:
 
         # If data_input is QuantumCircuitData(self), clearing self._data
         # below will also empty data_input, so make a shallow copy first.
-        data_input = data_input.copy()
-        self._data = []
+        data_input = copy.copy(data_input)
+        self._data = dagcircuit.DAGCircuit()
+        self._dag_index_map = {}
         self._parameter_table = ParameterTable()
+        for reg in self.qregs:
+            self._data.add_qreg(reg)
+        for reg in self.cregs:
+            self._data.add_creg(reg)
 
         for inst, qargs, cargs in data_input:
             self.append(inst, qargs, cargs)
@@ -276,9 +282,7 @@ class QuantumCircuit:
         if not isinstance(other, QuantumCircuit):
             return False
 
-        # TODO: remove the DAG from this function
-        from qiskit.converters import circuit_to_dag
-        return circuit_to_dag(self) == circuit_to_dag(other)
+        return self._data == other._data
 
     @classmethod
     def _increment_instances(cls):
@@ -423,8 +427,8 @@ class QuantumCircuit:
         inverse_circ = QuantumCircuit(*self.qregs, *self.cregs,
                                       name=self.name + '_dg', global_phase=-self.global_phase)
 
-        for inst, qargs, cargs in reversed(self._data):
-            inverse_circ._append(inst.inverse(), qargs, cargs)
+        for node in self._data.topological_op_nodes(reverse=True):
+            inverse_circ._append(node.op.inverse(), node.qargs, node.cargs)
         return inverse_circ
 
     def repeat(self, reps):
@@ -659,7 +663,7 @@ class QuantumCircuit:
                 return None
             return dest
 
-        instrs = other.data
+        instrs = other._data
 
         if other.num_qubits > self.num_qubits or \
            other.num_clbits > self.num_clbits:
@@ -696,15 +700,16 @@ class QuantumCircuit:
             n_instr = instr.copy()
 
             if instr.condition is not None:
-                from qiskit.dagcircuit import DAGCircuit  # pylint: disable=cyclic-import
-                n_instr.condition = DAGCircuit._map_condition(edge_map, instr.condition)
+                n_instr.condition = dagcircuit.DAGCircuit._map_condition(edge_map, instr.condition)
 
             mapped_instrs.append((n_instr, n_qargs, n_cargs))
 
         if front:
-            dest._data = mapped_instrs + dest._data
+            dest._data.compose(other._data, front=True,
+                               inplace=True)
         else:
-            dest._data += mapped_instrs
+            dest._data.compose(other._data, front=False,
+                               inplace=True)
 
         for instr, _, _ in mapped_instrs:
             dest._update_parameter_table(instr)
@@ -816,11 +821,17 @@ class QuantumCircuit:
 
     def __len__(self):
         """Return number of operations in circuit."""
-        return len(self._data)
+        return len(self._data.op_nodes())
 
     def __getitem__(self, item):
         """Return indexed operation."""
-        return self._data[item]
+        return self._data[self._dag_index_map[item]]
+
+    def __setitem__(self, key, value):
+        (op, qargs, cargs) = value
+        node = dagnode.DAGNode(type="op", op=op, name=op.name, qargs=qargs,
+                               cargs=cargs)
+        self._data._multi_graph[key] = node
 
     @staticmethod
     def cast(value, _type):
@@ -959,7 +970,9 @@ class QuantumCircuit:
 
         # add the instruction onto the given wires
         instruction_context = instruction, qargs, cargs
-        self._data.append(instruction_context)
+        new_index = self._data.apply_operation_back(instruction, qargs, cargs)._node_id
+        op_index = len(self._dag_index_map)
+        self._dag_index_map[op_index] = new_index
 
         self._update_parameter_table(instruction)
 
@@ -1022,9 +1035,11 @@ class QuantumCircuit:
             if isinstance(register, QuantumRegister):
                 self.qregs.append(register)
                 self._qubits.extend(register)
+                self._data.add_qreg(register)
             elif isinstance(register, ClassicalRegister):
                 self.cregs.append(register)
                 self._clbits.extend(register)
+                self._data.add_creg(register)
             else:
                 raise CircuitError("expected a register")
 
@@ -1090,11 +1105,11 @@ class QuantumCircuit:
         """
         # pylint: disable=cyclic-import
         from qiskit.transpiler.passes.basis.decompose import Decompose
-        from qiskit.converters.circuit_to_dag import circuit_to_dag
-        from qiskit.converters.dag_to_circuit import dag_to_circuit
         pass_ = Decompose()
-        decomposed_dag = pass_.run(circuit_to_dag(self))
-        return dag_to_circuit(decomposed_dag)
+        decomposed_dag = pass_.run(self._data.copy())
+        out_circ = self.copy()
+        out_circ.data = decomposed_dag
+        return out_circ
 
     def _check_compatible_regs(self, rhs):
         """Raise exception if the circuits are defined on incompatible registers"""
@@ -1743,8 +1758,7 @@ class QuantumCircuit:
             for param in self._parameter_table
         })
 
-        cpy._data = [(instr_copies[id(inst)], qargs.copy(), cargs.copy())
-                     for inst, qargs, cargs in self._data]
+        cpy.data = copy.copy(self._data)
 
         cpy._calibrations = copy.deepcopy(self._calibrations)
 
@@ -1788,13 +1802,11 @@ class QuantumCircuit:
         Returns:
             QuantumCircuit: Returns circuit with measurements when `inplace = False`.
         """
-        from qiskit.converters.circuit_to_dag import circuit_to_dag
         if inplace:
             circ = self
         else:
             circ = self.copy()
-        dag = circuit_to_dag(circ)
-        qubits_to_measure = [qubit for qubit in circ.qubits if qubit not in dag.idle_wires()]
+        qubits_to_measure = [qubit for qubit in circ.qubits if qubit not in self._data.idle_wires()]
         new_creg = circ._create_creg(len(qubits_to_measure), 'measure')
         circ.add_register(new_creg)
         circ.barrier()
@@ -1847,16 +1859,14 @@ class QuantumCircuit:
         """
         # pylint: disable=cyclic-import
         from qiskit.transpiler.passes import RemoveFinalMeasurements
-        from qiskit.converters import circuit_to_dag
 
         if inplace:
             circ = self
         else:
             circ = self.copy()
 
-        dag = circuit_to_dag(circ)
         remove_final_meas = RemoveFinalMeasurements()
-        new_dag = remove_final_meas.run(dag)
+        new_dag = remove_final_meas.run(self._data)
 
         # Set circ cregs and instructions to match the new DAGCircuit's
         circ.data.clear()
