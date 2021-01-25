@@ -46,6 +46,7 @@ from qiskit.transpiler.passes import Optimize1qGatesDecomposition
 from qiskit.transpiler.passes import CommutativeCancellation
 from qiskit.transpiler.passes import ApplyLayout
 from qiskit.transpiler.passes import CheckCXDirection
+from qiskit.transpiler.passes import Layout2qDistance
 from qiskit.transpiler.passes import Collect2qBlocks
 from qiskit.transpiler.passes import ConsolidateBlocks
 from qiskit.transpiler.passes import UnitarySynthesis
@@ -100,7 +101,21 @@ def level_2_pass_manager(pass_manager_config: PassManagerConfig) -> PassManager:
     def _choose_layout_condition(property_set):
         return not property_set['layout']
 
-    _choose_layout_1 = CSPLayout(coupling_map, call_limit=1000, time_limit=10)
+    _choose_layout_0 = [TrivialLayout(coupling_map),
+                        Layout2qDistance(coupling_map,
+                                         property_name='trivial_layout_score')]
+    _choose_layout_1 = [CSPLayout(coupling_map, call_limit=1000, time_limit=10),
+                        Layout2qDistance(coupling_map,
+                                         property_name='trivial_layout_score')]
+
+    def _not_perfect_yet(property_set):
+        if property_set['trivial_layout_score'] is not None:
+            if property_set['trivial_layout_score'] != 0:
+                property_set['layout']._wrapped = None
+                return True
+            return False
+        return False
+
     if layout_method == 'trivial':
         _choose_layout_2 = TrivialLayout(coupling_map)
     elif layout_method == 'dense':
@@ -190,7 +205,8 @@ def level_2_pass_manager(pass_manager_config: PassManagerConfig) -> PassManager:
     pm2 = PassManager()
     if coupling_map:
         pm2.append(_given_layout)
-        pm2.append(_choose_layout_1, condition=_choose_layout_condition)
+        pm2.append(_choose_layout_0, condition=_choose_layout_condition)
+        pm2.append(_choose_layout_1, condition=_not_perfect_yet)
         pm2.append(_choose_layout_2, condition=_choose_layout_condition)
         pm2.append(_embed)
         pm2.append(_unroll3q)
