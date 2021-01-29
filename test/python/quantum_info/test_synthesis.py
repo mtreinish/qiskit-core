@@ -190,6 +190,7 @@ class TestOneQubitEulerDecomposer(CheckDecompositions):
                               ('U1X', 1e-7),
                               ('PSX', 1e-7),
                               ('ZSX', 1e-7),
+                              ('ZSXX', 1e-7),
                               ('RR', 1e-12)],
              name='test_one_qubit_hard_thetas_{basis_tolerance[0]}_basis')
     # Lower tolerance for U1X test since decomposition since it is
@@ -201,7 +202,7 @@ class TestOneQubitEulerDecomposer(CheckDecompositions):
             self.check_one_qubit_euler_angles(Operator(gate), basis_tolerance[0],
                                               basis_tolerance[1])
 
-    @combine(basis=['U3', 'U1X', 'PSX', 'ZSX', 'ZYZ', 'ZXZ', 'XYX', 'RR'], seed=range(50),
+    @combine(basis=['U3', 'U1X', 'PSX', 'ZSX', 'ZYZ', 'ZXZ', 'XYX', 'RR', 'ZSXX'], seed=range(50),
              name='test_one_qubit_random_{basis}_basis_{seed}')
     def test_one_qubit_random_all_basis(self, basis, seed):
         """Verify for {basis} basis and random_unitary (seed={seed})."""
