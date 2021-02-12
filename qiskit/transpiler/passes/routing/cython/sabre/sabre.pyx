@@ -28,6 +28,9 @@ from copy import copy
 import time
 from itertools import cycle
 import numpy as np
+import sys
+#fd = open('/tmp/test.log', 'w')
+#sys.stdout = fd
 
 from qiskit.dagcircuit import DAGNode
 from qiskit.circuit.library.standard_gates import SwapGate
@@ -46,35 +49,34 @@ def heuristic_search(cpplist[unsigned int] front_layer, object dag,
                      const double[:, ::1] adj_matrix,
                      NLayout current_layout,
                      const double[:, ::1] cdist,
-                     unsigned int heuristic,
+                     unsigned short heuristic,
                      object rng):
-    """ A single iteration of the tchastic swap mapping routine.
+    """The internal implementation of sabre swap
 
     Args:
-        front_layer (unsigned int): The node ids in thenumber of physical qubits.
-        dag (DAGCircuit): The DAGCircuit object for the numeric (integer) representation of 
-                              the initial_layout.
-
-        int_qubit_subset (ndarray): Int ndarray listing qubits in set.
+        front_layer (list): The node ids for the front layer
+        dag (DAGCircuit): The DAGCircuit object for the circuit
+        qubits_decay (ndarray): Double array that contains a decay factor
+            for each qubuit use to heuristically penalize recently used qubits
+        num_qubits (unsigned int): The number of qubits in the coupling map
+        adj_matrix (ndarray): The adjacency matrix of the coupling map
+        current_layout (NLayout): The current layout object
         cdist (ndarray): Array of doubles that gives the distance graph.
-        edges (ndarray): Int array of edges in coupling map.
-        scale (ndarray): A double array that holds the perturbed cdist2 array.
+        heuristic (unsigned short): The heuristic method to use, 1: 'basic',
+            2: 'lookahead', 3: 'decay'
         rng (default_rng): An instance of the NumPy default_rng.
 
     Returns:
-        double: Best distance achieved in this trial.
-        EdgeCollection: Collection of optimal edges found.
+        DAGCircuit: A mapped circuit
         NLayout: The optimal layout found.
-        int: The number of depth steps required in mapping.
     """
 
     cdef cset[unsigned int] applied_gates
     cdef unsigned int num_search_steps = 0
     cdef vector[unsigned int] execute_gate_list
-    cdef cpplist[unsigned int] extended_set
+    cdef cset[unsigned int] extended_set
     cdef vector[unsigned int *] swap_candidates
     cdef double[::1] swap_scores
-    cdef unsigned int count
     cdef list best_swaps = []
     cdef dict qubit_map = {
             qubit: qubit.index for qubit in dag.qubits}
@@ -84,23 +86,12 @@ def heuristic_search(cpplist[unsigned int] front_layer, object dag,
     # Preserve input DAG's name, regs, wire_map, etc. but replace the graph.
     mapped_dag = dag._copy_circuit_metadata()
     while not front_layer.empty():
-        start = time.time()
-        print([x for x in front_layer])
-        print([x for x in execute_gate_list])
+        start_time = time.time()
         execute_gate_list.clear()
         for node_id in front_layer:
             node = dag._multi_graph[node_id]
-            print(node)
-            print(node.qargs)
             if len(node.qargs) == 2:
                 v0, v1 = node.qargs
-                print(current_layout.logic_to_phys[qubit_map[v0]])
-                print(current_layout.logic_to_phys[qubit_map[v1]])
-                print(np.array(adj_matrix))
-                print("edge: %s" % adj_matrix[current_layout.logic_to_phys[qubit_map[v1]],
-                                              current_layout.logic_to_phys[qubit_map[v0]]])
-                if current_layout.logic_to_phys[qubit_map[v0]] == 10 or current_layout.logic_to_phys[qubit_map[v1]] == 10:
-                    raise Exception()
                 if adj_matrix[current_layout.logic_to_phys[qubit_map[v1]],
                               current_layout.logic_to_phys[qubit_map[v0]]] != 0:
                     execute_gate_list.push_back(node_id)
@@ -125,29 +116,33 @@ def heuristic_search(cpplist[unsigned int] front_layer, object dag,
 
                 if node.qargs:
                     _reset_qubits_decay(num_qubits, qubits_decay)
+            # Diagnostics
+            print('free! %s' % [(dag._multi_graph[n].name,
+                                 dag._multi_graph[n].qargs) for n in execute_gate_list])
+            print('front_layer: %s' % [(dag._multi_graph[n].name,
+                                        dag._multi_graph[n].qargs) for n in front_layer])
             continue
 
         extended_set = obtain_extended_set(dag, front_layer)
         swap_candidates = obtain_swaps(adj_matrix, front_layer,
-                                        current_layout, dag, qubit_map)
+                                       current_layout, dag, qubit_map)
 
         swap_scores = np.zeros(swap_candidates.size(), dtype=np.float64)
-        count = 0
-        for swap_qubits in swap_candidates:
+        for i in range(swap_candidates.size()):
+            swap_qubits = swap_candidates[i]
             trial_layout = current_layout.copy()
+            print([swap_qubits[0], swap_qubits[1]])
             trial_layout.swap(swap_qubits[0], swap_qubits[1])
             score = score_heuristic(heuristic, cdist, front_layer,
                                     extended_set, trial_layout, qubits_decay,
                                     swap_qubits, dag, qubit_map)
-            swap_scores[count] = score
-            count += 1
+            swap_scores[i] = score
         min_score = np.amin(swap_scores)
-        count = 0
         best_swaps = []
-        for score in swap_scores:
+        for i in range(swap_scores.size):
+            score = swap_scores[i]
             if score == min_score:
-                best_swaps.append([swap_candidates[count][0], swap_candidates[count][1]])
-            count += 1
+                best_swaps.append([swap_candidates[i][0], swap_candidates[i][1]])
         best_swaps.sort(key=lambda x: (x[0], x[1]))
         best_swap = rng.choice(best_swaps)
         swap_node = DAGNode(op=SwapGate(),
@@ -164,12 +159,19 @@ def heuristic_search(cpplist[unsigned int] front_layer, object dag,
             qubits_decay[best_swap[0]] += DECAY_RATE
             qubits_decay[best_swap[1]] += DECAY_RATE
         stop_time = time.time()
+        print('SWAP Selection...')
+        print('extended_set: %s' % [(dag._multi_graph[n].name,
+                                     dag._multi_graph[n].qargs) for n in extended_set])
+        print('swap scores: %s' % swap_scores)
+        print('best swap: %s' % best_swap)
+        print('qubits decay: %s' % qubits_decay)
+
         print("Iteration time: %s" % str(stop_time - start_time))
     return mapped_dag, current_layout
 
-cdef double score_heuristic(unsigned int heuristic, const double[:, ::1] cdist,
+cdef double score_heuristic(unsigned short heuristic, const double[:, ::1] cdist,
                             cpplist[unsigned int] front_layer,
-                            cpplist[unsigned int] extended_set, NLayout layout,
+                            cset[unsigned int] extended_set, NLayout layout,
                             double[::1] qubits_decay, unsigned int[2] swap_qubits,
                             object dag, dict qubit_map):
     """Return a heuristic score for a trial layout.
@@ -183,6 +185,7 @@ cdef double score_heuristic(unsigned int heuristic, const double[:, ::1] cdist,
     cdef unsigned int front
     cdef double sum = 0
     cdef unsigned int q0, q1
+    cdef cpplist[unsigned int] temp_front_layer
     if heuristic == 1:
         for node in front_layer:
             q = dag._multi_graph[node].qargs
@@ -193,8 +196,8 @@ cdef double score_heuristic(unsigned int heuristic, const double[:, ::1] cdist,
     elif heuristic == 2:
         first_cost = score_heuristic(1, cdist, front_layer, [], layout, qubits_decay, swap_qubits, dag, qubit_map)
         first_cost /= front_layer.size()
-
-        second_cost = score_heuristic(1, cdist, extended_set, [], layout, qubits_decay, swap_qubits, dag, qubit_map)
+        temp_front_layer = [x for x in extended_set]
+        second_cost = score_heuristic(1, cdist, temp_front_layer, set(), layout, qubits_decay, swap_qubits, dag, qubit_map)
         second_cost = 0.0 if extended_set.empty() else second_cost / extended_set.size()
         return first_cost + EXTENDED_SET_WEIGHT * second_cost
     elif heuristic == 3:
@@ -224,21 +227,24 @@ cdef vector[unsigned int *] obtain_swaps(
                 if adj_matrix[physical, neighbor] == 0.0:
                     continue
                 virtual_neighbor = current_layout.phys_to_logic[neighbor]
-                swap = array.array('I', sorted([qubit_map[virtual],
-                                                virtual_neighbor]))
-                swap_array = swap
+                virtual_neighbor_bit = dag.qubits[virtual_neighbor]
+                print(virtual)
+                print(virtual_neighbor_bit)
+                swap = sorted([virtual, virtual_neighbor_bit],
+                              key=lambda q: (q.register.name, q.index))
+                swap_array = array.array('I', [qubit_map[x] for x in swap])
                 candidate_swaps.push_back(swap_array)
 
     return candidate_swaps
 
 
 
-cdef cpplist[unsigned int] obtain_extended_set(object dag, cpplist[unsigned int] front_layer):
+cdef cset[unsigned int] obtain_extended_set(object dag, cpplist[unsigned int] front_layer):
     """Populate extended_set by looking ahead a fixed number of gates.
     For each existing element add a successor until reaching limit.
     """
     # TODO: use layers instead of bfs_successors so long range successors aren't included.
-    cdef cpplist[unsigned int] extended_set
+    cdef cset[unsigned int] extended_set
     bfs_successors_pernode = [dag.bfs_successors(dag._multi_graph[n]) for n in front_layer]
     cdef bool[:] node_lookahead_exhausted = np.array([False] * front_layer.size(),
                                                      dtype=np.bool8)
@@ -257,7 +263,7 @@ cdef cpplist[unsigned int] obtain_extended_set(object dag, cpplist[unsigned int]
         successors = iter(successors)
         while extended_set.size() < EXTENDED_SET_SIZE:
             try:
-                extended_set.push_back(next(successors)._node_id)
+                extended_set.insert(next(successors)._node_id)
             except StopIteration:
                 break
 

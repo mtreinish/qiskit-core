@@ -184,5 +184,5 @@ class SabreSwap(TransformationPass):
             rx.digraph_adjacency_matrix(self.coupling_map.graph),
             nlayout_from_layout(current_layout, qregs, self.coupling_map.size()),
             self.coupling_map.distance_matrix, heuristic, rng)
-        self.property_set['final_layout'] = current_layout
+        self.property_set['final_layout'] = current_layout.to_layout()
         return mapped_dag
