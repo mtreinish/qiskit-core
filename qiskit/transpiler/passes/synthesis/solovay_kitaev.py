@@ -22,12 +22,8 @@ import qiskit.circuit.library.standard_gates as gates
 from qiskit.converters import circuit_to_dag
 from qiskit.transpiler.basepasses import TransformationPass
 from qiskit.dagcircuit.dagcircuit import DAGCircuit
-
-from qiskit.transpiler.passes.synthesis.solovay_kitaev_utils import (
-    GateSequence,
-    commutator_decompose
-)
-
+from .cython.solovay_kitaev import basis_approx
+from .cython.solovay_kitaev.basis_approx import commutator_decompose
 
 class SolovayKitaev():
     """The Solovay Kitaev discrete decomposition algorithm.
@@ -89,7 +85,7 @@ class SolovayKitaev():
 
         sequences = []
         for i, gatestring in enumerate(gatestrings):
-            sequence = GateSequence()
+            sequence = basis_approx.GateSequence(None)
             sequence.gates = [self._1q_gates[element] for element in gatestring.split()]
             sequence.product = matrices[i]
             sequences.append(sequence)
@@ -99,8 +95,8 @@ class SolovayKitaev():
     @staticmethod
     def generate_basic_approximations(basis_gates: List[Union[str, Gate]], depth: int,
                                       filename: Optional[str] = None
-                                      ) -> Optional[List[GateSequence]]:
-        """Generates a list of ``GateSequence``s with the gates in ``basic_gates``.
+                                      ) -> Optional[List[basis_approx.GateSequence]]:
+        """Generates a list of ``basis_approx.GateSequence``s with the gates in ``basic_gates``.
 
         Args:
             basis_gates: The gates from which to create the sequences of gates.
@@ -108,7 +104,7 @@ class SolovayKitaev():
             filename: The file to store the approximations.
 
         Returns:
-            List of GateSequences using the gates in basic_gates.
+            List of basis_approx.GateSequences using the gates in basic_gates.
 
         Raises:
             ValueError: If ``basis_gates`` contains an invalid gate identifier.
@@ -126,13 +122,7 @@ class SolovayKitaev():
             products += list(list(comb)
                              for comb in itertools.product(*[basis_gates] * reps))
 
-        sequences = []
-        for item in products:
-            candidate = GateSequence(item)
-            _remove_inverse_follows_gate(candidate)
-            accept = _check_candidate(candidate, sequences)
-            if accept:
-                sequences.append(candidate)
+        sequences = basis_approx.generate_approximations(products)
 
         if filename is not None:
             gatestrings = []
@@ -158,10 +148,10 @@ class SolovayKitaev():
         """
         # make input matrix SU(2) and get the according global phase
         z = 1 / np.sqrt(np.linalg.det(gate_matrix))
-        gate_matrix_su2 = GateSequence.from_matrix(z * gate_matrix)
+        gate_matrix_su2 = basis_approx.GateSequence.from_matrix(z * gate_matrix)
         global_phase = np.arctan2(np.imag(z), np.real(z))
 
-        # get the decompositon as GateSequence type
+        # get the decompositon as basis_approx.GateSequence type
         decomposition = self._recurse(gate_matrix_su2, recursion_degree)
 
         # simplify
@@ -175,15 +165,15 @@ class SolovayKitaev():
 
         return circuit
 
-    def _recurse(self, sequence: GateSequence, n: int) -> GateSequence:
+    def _recurse(self, sequence: basis_approx.GateSequence, n: int) -> basis_approx.GateSequence:
         """Performs ``n`` iterations of the Solovay-Kitaev algorithm on ``sequence``.
 
         Args:
-            sequence: GateSequence to which the Solovay-Kitaev algorithm is applied.
+            sequence: basis_approx.GateSequence to which the Solovay-Kitaev algorithm is applied.
             n: number of iterations that the algorithm needs to run.
 
         Returns:
-            GateSequence that approximates ``sequence``.
+            basis_approx.GateSequence that approximates ``sequence``.
 
         Raises:
             ValueError: if ``u`` does not represent an SO(3)-matrix.
@@ -203,7 +193,7 @@ class SolovayKitaev():
         w_n1 = self._recurse(w_n, n - 1)
         return v_n1.dot(w_n1).dot(v_n1.adjoint()).dot(w_n1.adjoint()).dot(u_n1)
 
-    def find_basic_approximation(self, sequence: GateSequence) -> Gate:
+    def find_basic_approximation(self, sequence: basis_approx.GateSequence) -> Gate:
         """Finds gate in ``self._basic_approximations`` that best represents ``sequence``.
 
         Args:
@@ -372,7 +362,7 @@ class SolovayKitaevDecomposition(TransformationPass):
         return dag
 
 
-def _check_candidate(candidate: GateSequence, sequences: List[GateSequence]) -> bool:
+def _check_candidate(candidate: basis_approx.GateSequence, sequences: List[basis_approx.GateSequence]) -> bool:
     from qiskit.quantum_info.operators.predicates import matrix_equal
     # check if a matrix representation already exists
     for existing in sequences:

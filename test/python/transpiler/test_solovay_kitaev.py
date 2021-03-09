@@ -26,7 +26,7 @@ from qiskit.converters import circuit_to_dag, dag_to_circuit
 from qiskit.test import QiskitTestCase
 from qiskit.transpiler.passes import SolovayKitaevDecomposition
 from qiskit.transpiler.passes.synthesis.solovay_kitaev import commutator_decompose
-from qiskit.transpiler.passes.synthesis.solovay_kitaev_utils import GateSequence
+from qiskit.transpiler.passes.synthesis.cython.solovay_kitaev.basis_approx import GateSequence
 from qiskit.quantum_info import Operator
 
 
@@ -300,9 +300,13 @@ class TestSolovayKitaevUtils(QiskitTestCase):
     def test_commutator_decompose_decomposes_correctly(self, u_so3):
         """Test that ``commutator_decompose`` exactly decomposes the input."""
         v, w = commutator_decompose(u_so3)
-        v_so3 = v.product
-        w_so3 = w.product
+        v_so3 = np.asarray(v.product)
+        w_so3 = np.asarray(w.product)
         actual_commutator = np.dot(v_so3, np.dot(w_so3, np.dot(np.conj(v_so3).T, np.conj(w_so3).T)))
+        print(v_so3)
+        print(w_so3)
+        print(actual_commutator)
+        print(u_so3)
         self.assertTrue(np.allclose(actual_commutator, u_so3))
 
 
