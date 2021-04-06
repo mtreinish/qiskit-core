@@ -38,6 +38,7 @@ class Optimize1qGatesDecomposition(TransformationPass):
                 and the Euler basis.
         """
         super().__init__()
+        self._cache = {}
         self.basis = None
         if basis:
             self.basis = []
@@ -97,12 +98,17 @@ class Optimize1qGatesDecomposition(TransformationPass):
             operator = run[0].op.to_matrix()
             for gate in run[1:]:
                 operator = gate.op.to_matrix().dot(operator)
-            for decomposer in self.basis:
-                new_circs.append(decomposer._decompose(operator))
+            operator_str = operator.tobytes()
+            if operator_str in self._cache:
+                new_circs = [self._cache[operator_str]]
+            else:
+                for decomposer in self.basis:
+                    new_circs.append(decomposer._decompose(operator))
             if new_circs:
                 new_circ = min(new_circs, key=len)
                 if (len(run) > len(new_circ) or (single_u3 and
                                                  new_circ.data[0][0].name != 'u3')):
+                    self._cache[operator_str] = new_circ
                     new_dag = circuit_to_dag(new_circ)
                     dag.substitute_node_with_dag(run[0], new_dag)
                     # Delete the other nodes in the run

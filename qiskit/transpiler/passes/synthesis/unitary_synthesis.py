@@ -75,6 +75,7 @@ class UnitarySynthesis(TransformationPass):
         super().__init__()
         self._basis_gates = basis_gates
         self._approximation_degree = approximation_degree
+        self._cache = {}
 
     def run(self, dag: DAGCircuit) -> DAGCircuit:
         """Run the UnitarySynthesis pass on `dag`.
@@ -95,21 +96,23 @@ class UnitarySynthesis(TransformationPass):
             decomposer2q = TwoQubitBasisDecomposer(kak_gate, euler_basis=euler_basis)
 
         for node in dag.named_nodes('unitary'):
-
-            synth_dag = None
-            if len(node.qargs) == 1:
-                if decomposer1q is None:
-                    continue
-                synth_dag = circuit_to_dag(decomposer1q._decompose(node.op.to_matrix()))
-            elif len(node.qargs) == 2:
-                if decomposer2q is None:
-                    continue
-                synth_dag = circuit_to_dag(decomposer2q(node.op.to_matrix(),
-                                                        basis_fidelity=self._approximation_degree))
+            unitary = node.op.to_matrix()
+            unitary_str = unitary.tobytes()
+            if unitary_str in self._cache:
+                synth_circ = self._cache[unitary_str]
             else:
-                synth_dag = circuit_to_dag(
-                    isometry.Isometry(node.op.to_matrix(), 0, 0).definition)
+                if len(node.qargs) == 1:
+                    if decomposer1q is None:
+                        continue
+                    synth_circ = decomposer1q._decompose(node.op.to_matrix())
+                elif len(node.qargs) == 2:
+                    if decomposer2q is None:
+                        continue
+                    synth_circ = decomposer2q(node.op.to_matrix(), basis_fidelity=self._approximation_degree)
+                else:
+                    synth_circ = isometry.Isometry(node.op.to_matrix(), 0, 0).definition
+                self._cache[unitary_str] = synth_circ
 
-            dag.substitute_node_with_dag(node, synth_dag)
+            dag.substitute_node_with_dag(node, circuit_to_dag(synth_circ))
 
         return dag
