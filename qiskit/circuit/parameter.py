@@ -50,9 +50,10 @@ class Parameter(ParameterExpression):
         """
         self._name = name
 
-        from sympy import Symbol
-        symbol = Symbol(name)
-        super().__init__(symbol_map={self: symbol}, expr=symbol)
+        def symbol(**kwargs):
+            return kwargs[self._name]
+
+        super().__init__({self: symbol}, symbol, self._name)
 
     def subs(self, parameter_map: dict):
         """Substitute self with the corresponding parameter in ``parameter_map``."""

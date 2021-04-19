@@ -620,11 +620,15 @@ class TestUnrollerCompatability(QiskitTestCase):
 
         pass_ = UnrollCustomDefinitions(std_eqlib, ['u1', 'cx'])
         dag = pass_.run(dag)
+        dag.draw(filename='/tmp/test.png')
 
         unrolled_dag = BasisTranslator(std_eqlib, ['u1', 'cx']).run(dag)
-
+        unrolled_dag.draw(filename='/tmp/test_unrolled.png')
+        print(dag_to_circuit(unrolled_dag))
         expected = QuantumCircuit(qr, global_phase=-theta / 2)
         expected.append(U1Gate(theta), [qr[0]])
+        print(expected)
+        print(unrolled_dag.global_phase == expected.global_phase)
 
         self.assertEqual(circuit_to_dag(expected), unrolled_dag)
 

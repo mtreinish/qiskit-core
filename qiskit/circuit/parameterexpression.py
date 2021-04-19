@@ -14,6 +14,8 @@ ParameterExpression Class to enable creating simple expressions of Parameters.
 """
 from typing import Callable, Dict, Set, Union
 
+import cmath
+import math
 import numbers
 import operator
 
@@ -27,9 +29,10 @@ ParameterValueType = Union['ParameterExpression', float, int]
 class ParameterExpression:
     """ParameterExpression class to enable creating expressions of Parameters."""
 
-    __slots__ = ['_parameter_symbols', '_parameters', '_symbol_expr', '_names']
+    __slots__ = ['_parameter_symbols', '_parameters', '_symbol_expr', '_names', '_bound_values',
+                 '_parameter_map', '_str_expr']
 
-    def __init__(self, symbol_map: Dict, expr):
+    def __init__(self, symbol_map: Dict, expr, str_expr, bounds=None, parameter_map=None):
         """Create a new :class:`ParameterExpression`.
 
         Not intended to be called directly, but to be instantiated via operations
@@ -39,10 +42,19 @@ class ParameterExpression:
             symbol_map (Dict[Parameter, [ParameterExpression, float, or int]]):
                 Mapping of :class:`Parameter` instances to the :class:`sympy.Symbol`
                 serving as their placeholder in expr.
-            expr (sympy.Expr): Expression of :class:`sympy.Symbol` s.
+            expr (callable): Expression of s.
         """
         self._parameter_symbols = symbol_map
         self._parameters = set(self._parameter_symbols)
+        if parameter_map is None:
+            self._parameter_map = {}
+        else:
+            self._parameter_map = parameter_map
+        if bounds is None:
+            self._bound_values = {}
+        else:
+            self._bound_values = bounds
+        self._str_expr = str_expr
         self._symbol_expr = expr
         self._names = None
 
@@ -53,7 +65,11 @@ class ParameterExpression:
 
     def conjugate(self) -> 'ParameterExpression':
         """Return the conjugate."""
-        conjugated = ParameterExpression(self._parameter_symbols, self._symbol_expr.conjugate())
+
+        def _conj(**kwargs):
+            return self._symbol_expr(**kwargs).conjugate()
+
+        conjugated = ParameterExpression(self._parameter_symbols, _conj)
         return conjugated
 
     def assign(self, parameter, value: ParameterValueType) -> 'ParameterExpression':
@@ -94,26 +110,21 @@ class ParameterExpression:
         self._raise_if_passed_unknown_parameters(parameter_values.keys())
         self._raise_if_passed_nan(parameter_values)
 
-        symbol_values = {self._parameter_symbols[parameter]: value
-                         for parameter, value in parameter_values.items()}
-        bound_symbol_expr = self._symbol_expr.subs(symbol_values)
+        symbol_values = {key._name: value for key, value in parameter_values.items()}
 
-        # Don't use sympy.free_symbols to count remaining parameters here.
-        # sympy will in some cases reduce the expression and remove even
-        # unbound symbols.
-        # e.g. (sympy.Symbol('s') * 0).free_symbols == set()
-
-        free_parameters = self.parameters - parameter_values.keys()
+        free_parameters = self.parameters - parameter_values.keys() - self._bound_values.keys()
         free_parameter_symbols = {p: s for p, s in self._parameter_symbols.items()
-                                  if p in free_parameters}
+                                  if p in free_parameters or p in self._bound_values}
+        if not free_parameters:
+            bound_symbol_expr = self._symbol_expr(**symbol_values)
+            bounds = None
+        else:
+            bound_symbol_expr = self._symbol_expr
+            bounds = {}
+            bounds.update(self._bound_values)
+            bounds.update(parameter_values)
 
-        if bound_symbol_expr.is_infinite:
-            raise ZeroDivisionError('Binding provided for expression '
-                                    'results in division by zero '
-                                    '(Expression: {}, Bindings: {}).'.format(
-                                        self, parameter_values))
-
-        return ParameterExpression(free_parameter_symbols, bound_symbol_expr)
+        return ParameterExpression(free_parameter_symbols, bound_symbol_expr, self._str_expr, bounds=bounds)
 
     def subs(self,
              parameter_map: Dict) -> 'ParameterExpression':
@@ -140,26 +151,23 @@ class ParameterExpression:
         self._raise_if_passed_unknown_parameters(parameter_map.keys())
         self._raise_if_parameter_names_conflict(inbound_parameters, parameter_map.keys())
 
-        from sympy import Symbol
-        new_parameter_symbols = {p: Symbol(p.name)
-                                 for p in inbound_parameters}
+        def _subs(**kwargs):
+            new_kwargs = {}
+            for parameter, expr in parameter_map.items():
+                new_kwargs[parameter] = expr(**kwargs)
+
+            return self._symbol_expr(**new_kwargs)
 
         # Include existing parameters in self not set to be replaced.
+        new_parameter_symbols = parameter_map
         new_parameter_symbols.update({p: s
                                       for p, s in self._parameter_symbols.items()
                                       if p not in parameter_map})
+        str_expr = str(self)
+        for key, val in parameter_map.items():
+            str_expr.replace(key._name, str(val))
 
-        # If new_param is an expr, we'll need to construct a matching sympy expr
-        # but with our sympy symbols instead of theirs.
-
-        symbol_map = {
-            self._parameter_symbols[old_param]: new_param._symbol_expr
-            for old_param, new_param in parameter_map.items()
-        }
-
-        substituted_symbol_expr = self._symbol_expr.subs(symbol_map)
-
-        return ParameterExpression(new_parameter_symbols, substituted_symbol_expr)
+        return ParameterExpression(new_parameter_symbols, _subs, str_expr, parameter_map=parameter_map)
 
     def _raise_if_passed_unknown_parameters(self, parameters):
         unknown_parameters = parameters - self.parameters
@@ -193,6 +201,7 @@ class ParameterExpression:
 
     def _apply_operation(self, operation: Callable,
                          other: ParameterValueType,
+                         str_op: str,
                          reflected: bool = False) -> 'ParameterExpression':
         """Base method implementing math operations between Parameters and
         either a constant or a second ParameterExpression.
@@ -200,6 +209,7 @@ class ParameterExpression:
         Args:
             operation: One of operator.{add,sub,mul,truediv}.
             other: The second argument to be used with self in operation.
+            str_op: The sting representing the operator
             reflected: Optional - The default ordering is "self operator other".
                        If reflected is True, this is switched to "other operator self".
                        For use in e.g. __radd__, ...
@@ -227,11 +237,29 @@ class ParameterExpression:
             return NotImplemented
 
         if reflected:
-            expr = operation(other_expr, self_expr)
-        else:
-            expr = operation(self_expr, other_expr)
+            str_op = '%s %s %s' % (str(other), str_op, str(self))
 
-        return ParameterExpression(parameter_symbols, expr)
+            def expr(**kwargs):
+                self_value = self_expr(**kwargs)
+                if callable(other_expr):
+                    other_value = other_expr(**kwargs)
+                else:
+                    other_value = other_expr
+
+                return operation(other_value, self_value)
+
+        else:
+            str_op = '%s %s %s' % (str(self), str_op, str(other))
+
+            def expr(**kwargs):
+                self_value = self_expr(**kwargs)
+                if callable(other_expr):
+                    other_value = other_expr(**kwargs)
+                else:
+                    other_value = other_expr
+                return operation(self_value, other_value)
+
+        return ParameterExpression(parameter_symbols, expr, str_op)
 
     def gradient(self, param) -> Union['ParameterExpression', float]:
         """Get the derivative of a parameter expression w.r.t. a specified parameter expression.
@@ -250,8 +278,10 @@ class ParameterExpression:
         # Compute the gradient of the parameter expression w.r.t. param
         import sympy as sy
         key = self._parameter_symbols[param]
+        symbol = sy.Symbol(key)
+        sympy_expr = sy.parse_expr(self._str_expr)
         # TODO enable nth derivative
-        expr_grad = sy.Derivative(self._symbol_expr, key).doit()
+        expr_grad = sy.Derivative(sympy_expr, symbol).doit()
 
         # generate the new dictionary of symbols
         # this needs to be done since in the derivative some symbols might disappear (e.g.
@@ -262,90 +292,148 @@ class ParameterExpression:
                 parameter_symbols[parameter] = symbol
         # If the gradient corresponds to a parameter expression then return the new expression.
         if len(parameter_symbols) > 0:
-            return ParameterExpression(parameter_symbols, expr=expr_grad)
+            return ParameterExpression(parameter_symbols, expr_grad, 'deriv(%s)' % str(self))
         # If no free symbols left, return a float corresponding to the gradient.
         return float(expr_grad)
 
     def __add__(self, other):
-        return self._apply_operation(operator.add, other)
+        return self._apply_operation(operator.add, other, '+')
 
     def __radd__(self, other):
-        return self._apply_operation(operator.add, other, reflected=True)
+        return self._apply_operation(operator.add, other, '+', reflected=True)
 
     def __sub__(self, other):
-        return self._apply_operation(operator.sub, other)
+        return self._apply_operation(operator.sub, other, '-')
 
     def __rsub__(self, other):
-        return self._apply_operation(operator.sub, other, reflected=True)
+        return self._apply_operation(operator.sub, other, '-', reflected=True)
 
     def __mul__(self, other):
-        return self._apply_operation(operator.mul, other)
+        return self._apply_operation(operator.mul, other, '*')
 
     def __neg__(self):
-        return self._apply_operation(operator.mul, -1.0)
+        return self._apply_operation(operator.mul, -1.0, '*')
 
     def __rmul__(self, other):
-        return self._apply_operation(operator.mul, other, reflected=True)
+        return self._apply_operation(operator.mul, other, '*', reflected=True)
 
     def __truediv__(self, other):
         if other == 0:
             raise ZeroDivisionError('Division of a ParameterExpression by zero.')
-        return self._apply_operation(operator.truediv, other)
+        return self._apply_operation(operator.truediv, other, '/')
 
     def __rtruediv__(self, other):
-        return self._apply_operation(operator.truediv, other, reflected=True)
+        return self._apply_operation(operator.truediv, other, '/',
+                                     reflected=True)
 
-    def _call(self, ufunc):
+    def _call(self, ufunc, str_repr):
         return ParameterExpression(
             self._parameter_symbols,
-            ufunc(self._symbol_expr)
+            ufunc,
+            str_repr
         )
 
     def sin(self):
         """Sine of a ParameterExpression"""
-        from sympy import sin as _sin
-        return self._call(_sin)
+
+        def _sin(**kwargs):
+            value = self._symbol_expr(**kwargs)
+            if isinstance(value, complex):
+                return cmath.sin(value)
+            else:
+                return math.sin(value)
+
+        return self._call(_sin, 'sin(%s)' % self._str_expr)
 
     def cos(self):
         """Cosine of a ParameterExpression"""
-        from sympy import cos as _cos
-        return self._call(_cos)
+
+        def _cos(**kwargs):
+            value = self._symbol_expr(**kwargs)
+            if isinstance(value, complex):
+                return cmath.cos(value)
+            else:
+                return math.cos(value)
+
+        return self._call(_cos, 'cos(%s)' % self._str_expr)
 
     def tan(self):
         """Tangent of a ParameterExpression"""
-        from sympy import tan as _tan
-        return self._call(_tan)
+
+        def _tan(**kwargs):
+            value = self._symbol_expr(**kwargs)
+            if isinstance(value, complex):
+                return cmath.tan(value)
+            else:
+                return math.tan(value)
+
+        return self._call(_tan, 'tan(%s)' % self._str_expr)
 
     def arcsin(self):
         """Arcsin of a ParameterExpression"""
-        from sympy import asin as _asin
-        return self._call(_asin)
+
+        def _asin(**kwargs):
+            value = self._symbol_expr(**kwargs)
+            if isinstance(value, complex):
+                return cmath.asin(value)
+            else:
+                return math.asin(value)
+
+        return self._call(_asin, 'asin(%s)' % self._str_expr)
 
     def arccos(self):
         """Arccos of a ParameterExpression"""
-        from sympy import acos as _acos
-        return self._call(_acos)
+
+        def _acos(**kwargs):
+            value = self._symbol_expr(**kwargs)
+            if isinstance(value, complex):
+                return cmath.acos(value)
+            else:
+                return math.acos(value)
+
+        return self._call(_acos, 'acos(%s)' % self._str_expr)
 
     def arctan(self):
         """Arctan of a ParameterExpression"""
-        from sympy import atan as _atan
-        return self._call(_atan)
+
+        def _atan(**kwargs):
+            value = self._symbol_expr(**kwargs)
+            if isinstance(value, complex):
+                return cmath.atan(value)
+            else:
+                return math.atan(value)
+
+        return self._call(_atan, 'atan(%s)' % self._str_expr)
 
     def exp(self):
         """Exponential of a ParameterExpression"""
-        from sympy import exp as _exp
-        return self._call(_exp)
+
+        def _exp(**kwargs):
+            value = self._symbol_expr(**kwargs)
+            if isinstance(value, complex):
+                return cmath.exp(value)
+            else:
+                return math.exp(value)
+
+        return self._call(_exp, 'exp(%s)' % self._str_expr)
 
     def log(self):
         """Logarithm of a ParameterExpression"""
-        from sympy import log as _log
-        return self._call(_log)
+
+        def _log(**kwargs):
+            value = self._symbol_expr(**kwargs)
+            if isinstance(value, complex):
+                return cmath.log(value)
+            else:
+                return math.log(value)
+
+        return self._call(_log, 'log(%s)' % self._str_expr)
 
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__, str(self))
 
     def __str__(self):
-        return str(self._symbol_expr)
+        return str(self._str_expr)
 
     def __float__(self):
         if self.parameters:
@@ -385,7 +473,7 @@ class ParameterExpression:
         """
         if isinstance(other, ParameterExpression):
             return (self.parameters == other.parameters
-                    and self._symbol_expr.equals(other._symbol_expr))
+                    and self._str_expr == other._str_expr)
         elif isinstance(other, numbers.Number):
             return (len(self.parameters) == 0
                     and complex(self._symbol_expr) == other)
