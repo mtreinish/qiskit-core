@@ -93,31 +93,38 @@ def get_measured_qubits_from_qobj(qobj):
     return sorted(qubit_index), qubit_mappings
 
 
+def _build_measurement_error_mitigation_circuits(qubit_list, fitter_cls, backend,
+                                                 backend_config=None, compile_config=None,
+                                                 run_config=None):
+
+
+
 # pylint: disable=invalid-name
-def build_measurement_error_mitigation_qobj(qubit_list, fitter_cls, backend,
-                                            backend_config=None, compile_config=None,
-                                            run_config=None):
+def build_measurement_error_mitigation_circuits(qubit_list, fitter_cls, backend,
+                                                backend_config=None, compile_config=None,
+                                                run_config=None):
+    """Build measurement error mitigation circuits
+
+    Args:
+        qubit_list (list[int]): list of ordered qubits used in the algorithm
+        fitter_cls (callable): CompleteMeasFitter or TensoredMeasFitter
+        backend (BaseBackend): backend instance
+        backend_config (dict, optional): configuration for backend
+        compile_config (dict, optional): configuration for compilation
+        run_config (RunConfig, optional): configuration for running a circuit
+
+    Returns:
+        QasmQobj: the Qobj with calibration circuits at the beginning
+        list[str]: the state labels for build MeasFitter
+        list[str]: the labels of the calibration circuits
+
+    Raises:
+        QiskitError: when the fitter_cls is not recognizable.
+        MissingOptionalLibraryError: Qiskit-Ignis not installed
     """
-        Args:
-            qubit_list (list[int]): list of ordered qubits used in the algorithm
-            fitter_cls (callable): CompleteMeasFitter or TensoredMeasFitter
-            backend (BaseBackend): backend instance
-            backend_config (dict, optional): configuration for backend
-            compile_config (dict, optional): configuration for compilation
-            run_config (RunConfig, optional): configuration for running a circuit
-
-        Returns:
-            QasmQobj: the Qobj with calibration circuits at the beginning
-            list[str]: the state labels for build MeasFitter
-            list[str]: the labels of the calibration circuits
-
-        Raises:
-            QiskitError: when the fitter_cls is not recognizable.
-            MissingOptionalLibraryError: Qiskit-Ignis not installed
-        """
     try:
         from qiskit.ignis.mitigation.measurement import (complete_meas_cal,
-                                                         CompleteMeasFitter, TensoredMeasFitter)
+                                                        CompleteMeasFitter, TensoredMeasFitter)
     except ImportError as ex:
         raise MissingOptionalLibraryError(
             libname='qiskit-ignis',
@@ -144,7 +151,37 @@ def build_measurement_error_mitigation_qobj(qubit_list, fitter_cls, backend,
     tmp_compile_config = copy.deepcopy(compile_config)
     tmp_compile_config['initial_layout'] = qubit_list
     t_meas_calibs_circuits = compiler.transpile(meas_calibs_circuits, backend,
+                                                optimization_level=0,
                                                 **backend_config, **tmp_compile_config)
+    return t_meas_calibs_circuits, state_labels, circlabel
+
+
+# pylint: disable=invalid-name
+def build_measurement_error_mitigation_qobj(qubit_list, fitter_cls, backend,
+                                            backend_config=None, compile_config=None,
+                                            run_config=None):
+    """Build measurement error mitigation qobj
+
+    Args:
+        qubit_list (list[int]): list of ordered qubits used in the algorithm
+        fitter_cls (callable): CompleteMeasFitter or TensoredMeasFitter
+        backend (BaseBackend): backend instance
+        backend_config (dict, optional): configuration for backend
+        compile_config (dict, optional): configuration for compilation
+        run_config (RunConfig, optional): configuration for running a circuit
+
+    Returns:
+        QasmQobj: the Qobj with calibration circuits at the beginning
+        list[str]: the state labels for build MeasFitter
+        list[str]: the labels of the calibration circuits
+
+    Raises:
+        QiskitError: when the fitter_cls is not recognizable.
+        MissingOptionalLibraryError: Qiskit-Ignis not installed
+    """
+    t_meas_calibs_circuits, state_labels, circlabel = build_measurement_error_mitigation_circuits(
+        qubit_list, fitter_cls, backend, backend_config=backend_config,
+        compile_config=compile_config, run_config=run_config)
     cals_qobj = compiler.assemble(t_meas_calibs_circuits, backend, **run_config.to_dict())
     if hasattr(cals_qobj.config, 'parameterizations'):
         del cals_qobj.config.parameterizations
