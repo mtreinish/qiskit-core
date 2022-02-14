@@ -37,6 +37,8 @@ CYTHON_EXTS = {
         "qiskit.transpiler.passes.routing.cython.stochastic_swap.swap_trial"
     ),
     "qiskit/quantum_info/states/cython/exp_value": "qiskit.quantum_info.states.cython.exp_value",
+    'qiskit/transpiler/passes/routing/cython/sabre/sabre':
+        'qiskit.transpiler.passes.routing.cython.sabre.sabre',
 }
 
 INCLUDE_DIRS = []
