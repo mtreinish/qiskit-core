@@ -15,11 +15,16 @@ use pyo3::wrap_pymodule;
 use pyo3::Python;
 
 mod edge_collections;
+mod edge_list;
 mod nlayout;
+mod qubits_decay;
+mod sabre_swap;
 mod stochastic_swap;
+mod swap_scores;
 
 #[pymodule]
 fn _accelerate(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(stochastic_swap::stochastic_swap))?;
+    m.add_wrapped(wrap_pymodule!(sabre_swap::sabre_swap))?;
     Ok(())
 }
