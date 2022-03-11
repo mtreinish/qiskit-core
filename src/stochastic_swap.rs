@@ -42,14 +42,26 @@ fn compute_cost(
     gates: &[usize],
     num_gates: usize,
 ) -> f64 {
-    let values: Vec<f64> = (0..num_gates)
-        .map(|kk| {
-            let ii = layout.logic_to_phys[gates[2 * kk]];
-            let jj = layout.logic_to_phys[gates[2 * kk + 1]];
-            dist[[ii, jj]]
-        })
-        .collect();
-    fast_sum(&values)
+    let values_iter = (0..num_gates).map(|kk| {
+        let ii = layout.logic_to_phys[gates[2 * kk]];
+        let jj = layout.logic_to_phys[gates[2 * kk + 1]];
+        dist[[ii, jj]]
+    });
+    let mut result: f64 = 0.;
+    let mut accum: Vec<f64> = Vec::with_capacity(8);
+    for value in values_iter {
+        accum.push(value);
+        if accum.len() == 8 {
+            result += fast_sum(&accum);
+            accum.clear();
+        }
+    }
+    if !accum.is_empty() {
+        for value in accum {
+            result += value;
+        }
+    }
+    result
 }
 
 /// Computes the symmetric random scaling (perturbation) matrix,
