@@ -19,6 +19,7 @@ from copy import deepcopy
 from qiskit.exceptions import QiskitError
 from qiskit.result.result import Result
 from qiskit.result.postprocess import _bin_to_hex, _hex_to_bin
+from qiskit._accelerate.results import marginal_counts as marginal_counts_rs
 
 
 def marginal_counts(
@@ -122,28 +123,10 @@ def _marginalize(counts, indices=None):
     """Get the marginal counts for the given set of indices"""
     num_clbits = len(next(iter(counts)).replace(" ", ""))
 
-    # Check if we do not need to marginalize and if so, trim
-    # whitespace and '_' and return
-    if (indices is None) or set(range(num_clbits)) == set(indices):
-        ret = {}
-        for key, val in counts.items():
-            key = _remove_space_underscore(key)
-            ret[key] = val
-        return ret
-
-    if not indices or not set(indices).issubset(set(range(num_clbits))):
+    if indices is not None and (not indices or not set(indices).issubset(range(num_clbits))):
         raise QiskitError(f"indices must be in range [0, {num_clbits - 1}].")
 
-    # Sort the indices to keep in descending order
-    # Since bitstrings have qubit-0 as least significant bit
-    indices = sorted(indices, reverse=True)
-
-    # Build the return list
-    new_counts = Counter()
-    for key, val in counts.items():
-        new_key = "".join([_remove_space_underscore(key)[-idx - 1] for idx in indices])
-        new_counts[new_key] += val
-    return dict(new_counts)
+    return marginal_counts_rs(counts, indices)
 
 
 def _format_marginal(counts, marg_counts, indices):

@@ -177,9 +177,10 @@ class TestResultOperations(QiskitTestCase):
         )
         result = Result(results=[exp_result], **self.base_result_args)
         expected_marginal_counts = {"00": 4, "01": 27, "10": 23}
+        expected_marginal_counts_reverse = {"00": 4, "10": 27, "01": 23}
 
         self.assertEqual(marginal_counts(result.get_counts(), [0, 1]), expected_marginal_counts)
-        self.assertEqual(marginal_counts(result.get_counts(), [1, 0]), expected_marginal_counts)
+        self.assertEqual(marginal_counts(result.get_counts(), [1, 0]), expected_marginal_counts_reverse)
 
     def test_marginal_counts_result(self):
         """Test that a Result object containing counts marginalizes correctly."""
