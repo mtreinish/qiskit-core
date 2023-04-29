@@ -287,7 +287,8 @@ def _read_instruction(file_obj, circuit, registers, custom_operations, version, 
             elif gate_name in {"BreakLoopOp", "ContinueLoopOp"}:
                 params = [len(qargs), len(cargs)]
             gate = gate_class(*params)
-        gate.condition = condition_tuple
+        if condition_tuple:
+            gate = gate.c_if(*condition_tuple)
     if instruction.label_size > 0:
         gate.label = label
     if circuit is None:

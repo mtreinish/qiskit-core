@@ -16,11 +16,12 @@ import numpy as np
 
 from qiskit.circuit.gate import Gate
 from qiskit.circuit.quantumregister import QuantumRegister
+from qiskit.circuit.singleton_gate import SingletonGate
 from .rzx import RZXGate
 from .x import XGate
 
 
-class ECRGate(Gate):
+class ECRGate(SingletonGate):
     r"""An echoed cross-resonance gate.
 
     This gate is maximally entangling and is equivalent to a CNOT up to
@@ -80,9 +81,9 @@ class ECRGate(Gate):
                 \end{pmatrix}
     """
 
-    def __init__(self):
+    def __init__(self, label=None):
         """Create new ECR gate."""
-        super().__init__("ecr", 2, [])
+        super().__init__("ecr", 2, [], label=label)
 
     def _define(self):
         """

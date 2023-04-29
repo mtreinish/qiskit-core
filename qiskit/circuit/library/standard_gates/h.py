@@ -16,12 +16,13 @@ from typing import Optional, Union
 import numpy
 from qiskit.circuit.controlledgate import ControlledGate
 from qiskit.circuit.gate import Gate
+from qiskit.circuit.singleton_gate import SingletonGate, SingletonControlledGate
 from qiskit.circuit.quantumregister import QuantumRegister
 from .t import TGate, TdgGate
 from .s import SGate, SdgGate
 
 
-class HGate(Gate):
+class HGate(SingletonGate):
     r"""Single-qubit Hadamard gate.
 
     This gate is a \pi rotation about the X+Z axis, and has the effect of
@@ -91,7 +92,6 @@ class HGate(Gate):
         """
         if num_ctrl_qubits == 1:
             gate = CHGate(label=label, ctrl_state=ctrl_state)
-            gate.base_gate.label = self.label
             return gate
         return super().control(num_ctrl_qubits=num_ctrl_qubits, label=label, ctrl_state=ctrl_state)
 
