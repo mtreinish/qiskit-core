@@ -12,6 +12,7 @@
 """
 Singleton metaclass.
 """
+import copy
 from typing import Union
 
 from qiskit.circuit.gate import Gate
@@ -24,15 +25,18 @@ class SingletonGate(Gate):
     _instance = None
 
     def __new__(cls, *args, **kwargs):
-        if "label" in kwargs or "condition" in kwargs:
-            return super().__new__(cls)
-        #        bject.__new__(cls, *args, **kwargs)
+        if "label" in kwargs or "_condition" in kwargs:
+            return object.__new__(cls)
+#            return super(SingletonGate, cls).__new__(cls)#, *args, **kwargs)
         if cls._instance is None:
             cls._instance = object.__new__(cls, *args, **kwargs)
         return cls._instance
 
-    @classmethod
-    def c_if(cls, classical, val):
+    def __init__(self, *args, _condition=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._condition = _condition
+
+    def c_if(self, classical, val):
         if not isinstance(classical, (ClassicalRegister, Clbit)):
             raise CircuitError("c_if must be used with a classical register or classical bit")
         if val < 0:
@@ -41,8 +45,7 @@ class SingletonGate(Gate):
             # Casting the conditional value as Boolean when
             # the classical condition is on a classical bit.
             val = bool(val)
-        instance = cls()
-        instance._condition = (classical, val)
+        instance = type(self)(label=self.label, _condition=(classical, val))
         return instance
 
     @property
@@ -57,7 +60,7 @@ class SingletonGate(Gate):
         )
 
     @property
-    def condition(self) -> str:
+    def condition(self):
         return self._condition
 
     @condition.setter
@@ -68,18 +71,35 @@ class SingletonGate(Gate):
             "or via the .c_if() method"
         )
 
+    def __deepcopy__(self, _memo=None):
+        if self.condition is None and self.label is None:
+            return self
+        else:
+            return type(self)(label=self.label, _condition=self.condition)
+
+    def copy(self, name=None):
+        if name is not None and self.condition is None and self.label is None:
+            raise QiskitError(
+                "A custom name can not be set on a copy of a singleton gate"
+            )
+        return super().copy()
+
 
 class SingletonControlledGate(type):
     _instance = None
 
-    def __call__(cls, *args, **kwargs):
-        if "label" in kwargs or "condition" in kwargs or "ctrl_state" in kwargs:
+    def __new__(cls, *args, **kwargs):
+        if "label" in kwargs or "_condition" in kwargs or "ctrl_state" in kwargs:
             return object.__new__(cls, *args, **kwargs)
         if cls is None:
             cls._instances[cls] = super(SingletonControlledGateMetaClass, cls).__call__(
                 *args, **kwargs
             )
         return cls._instances[cls]
+
+    def __init__(self, *args, _condition=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._condition = _condition
 
     def c_if(cls, classical, val):
         if not isinstance(classical, (ClassicalRegister, Clbit)):
@@ -90,7 +110,7 @@ class SingletonControlledGate(type):
             # Casting the conditional value as Boolean when
             # the classical condition is on a classical bit.
             val = bool(val)
-        return super(SingletonGateMeta, cls).__call__(*args, condition=(classical, val), **kwargs)
+        return cls(label=self.label, _condition=(classical, val))
 
     @property
     def label(self) -> str:
