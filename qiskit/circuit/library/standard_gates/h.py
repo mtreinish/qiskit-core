@@ -91,7 +91,7 @@ class HGate(SingletonGate):
             ControlledGate: controlled version of this gate.
         """
         if num_ctrl_qubits == 1:
-            gate = CHGate(label=label, ctrl_state=ctrl_state)
+            gate = CHGate(label=label, ctrl_state=ctrl_state, _base_label=self.label)
             return gate
         return super().control(num_ctrl_qubits=num_ctrl_qubits, label=label, ctrl_state=ctrl_state)
 
@@ -171,10 +171,10 @@ class CHGate(ControlledGate):
         dtype=complex,
     )
 
-    def __init__(self, label: Optional[str] = None, ctrl_state: Optional[Union[int, str]] = None):
+    def __init__(self, label: Optional[str] = None, ctrl_state: Optional[Union[int, str]] = None, _base_label=None):
         """Create new CH gate."""
         super().__init__(
-            "ch", 2, [], num_ctrl_qubits=1, label=label, ctrl_state=ctrl_state, base_gate=HGate()
+            "ch", 2, [], num_ctrl_qubits=1, label=label, ctrl_state=ctrl_state, base_gate=HGate(label=_base_label)
         )
 
     def _define(self):
