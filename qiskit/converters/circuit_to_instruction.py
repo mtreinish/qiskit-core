@@ -114,6 +114,8 @@ def circuit_to_instruction(circuit, parameter_map=None, equivalence_library=None
         if condition:
             reg, val = condition
             if isinstance(reg, Clbit):
+                print(clbit_map)
+                print(reg)
                 rule.operation = rule.operation.c_if(clbit_map[reg], val)
             elif reg.size == c.size:
                 rule.operation = rule.operation.c_if(c, val)
