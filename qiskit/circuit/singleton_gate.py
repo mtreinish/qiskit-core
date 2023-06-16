@@ -89,7 +89,7 @@ class SingletonGate(Gate):
                 "condition on an instance. Instead you must set the label when instantiating a new "
                 "object or via the .c_if() method"
             )
-        self.condition = condition
+        self._condition = condition
 
     @property
     def duration(self):

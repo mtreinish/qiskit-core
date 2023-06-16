@@ -22,6 +22,7 @@ from qiskit.circuit import Instruction, InstructionSet
 from qiskit.circuit import QuantumCircuit
 from qiskit.circuit import QuantumRegister, ClassicalRegister, Qubit, Clbit
 from qiskit.circuit.library.standard_gates.h import HGate
+from qiskit.circuit.library.standard_gates.rz import RZGate
 from qiskit.circuit.library.standard_gates.x import CXGate
 from qiskit.circuit.library.standard_gates.s import SGate
 from qiskit.circuit.library.standard_gates.t import TGate
@@ -625,7 +626,7 @@ class TestInstructions(QiskitTestCase):
                 Instruction("h", 1, 0, [], label=0)
         with self.subTest("raises when a non-string label is provided to setter"):
             with self.assertRaisesRegex(TypeError, r"label expects a string or None"):
-                instruction = HGate()
+                instruction = RZGate(0)
                 instruction.label = 0
 
 
