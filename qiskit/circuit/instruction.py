@@ -418,7 +418,7 @@ class Instruction(Operation):
             # Casting the conditional value as Boolean when
             # the classical condition is on a classical bit.
             val = bool(val)
-        self.condition = (classical, val)
+        self._condition = (classical, val)
         return self
 
     def copy(self, name=None):
