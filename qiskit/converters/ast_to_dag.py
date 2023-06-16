@@ -254,7 +254,7 @@ class AstInterpreter:
         for idx, idy in zip(id0, id1):
             meas_gate = Measure()
             if self.condition:
-                meas_gate = meas_gate.c_if(*condition)
+                meas_gate = meas_gate.c_if(*self.condition)
             self.dag.apply_operation_back(meas_gate, [idx], [idy])
 
     def _process_if(self, node):

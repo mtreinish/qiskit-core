@@ -15,8 +15,7 @@ from math import sqrt, pi
 from typing import Optional, Union
 import numpy
 from qiskit.circuit.controlledgate import ControlledGate
-from qiskit.circuit.gate import Gate
-from qiskit.circuit.singleton_gate import SingletonGate, SingletonControlledGate
+from qiskit.circuit.singleton_gate import SingletonGate
 from qiskit.circuit.quantumregister import QuantumRegister
 from .t import TGate, TdgGate
 from .s import SGate, SdgGate

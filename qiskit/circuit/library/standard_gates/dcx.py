@@ -14,7 +14,6 @@
 
 import numpy as np
 from qiskit.circuit.singleton_gate import SingletonGate
-from qiskit.circuit.gate import Gate
 from qiskit.circuit.quantumregister import QuantumRegister
 
 

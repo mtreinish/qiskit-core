@@ -106,6 +106,7 @@ class Instruction(Operation):
 
     @property
     def condition(self):
+        """The classical condition on the instruction."""
         return self._condition
 
     @condition.setter

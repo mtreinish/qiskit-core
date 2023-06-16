@@ -12,23 +12,40 @@
 """
 Singleton metaclass.
 """
-import copy
-from typing import Union
-
 from qiskit.circuit.gate import Gate
-from qiskit.circuit.controlledgate import ControlledGate
-from qiskit.circuit.quantumcircuit import QuantumCircuit
 from qiskit.circuit.classicalregister import ClassicalRegister, Clbit
+from qiskit.exceptions import QiskitError
+from qiskit.circuit.exceptions import CircuitError
 
 
 class SingletonGate(Gate):
+    """A base class to use for Gate objects that by default are singleton instances
+
+
+    This class should be used for gate classes that have fixed definitions and
+    do not contain any unique state. The canonical example of something like
+    this is :class:`~.HGate` which has an immutable definition and any
+    instance of :class:`~.HGate` is the same. Using singleton gate enables using
+    as a base class for these types of gate classes it provides a large
+    advantage in the memory footprint and creation speed of multiple gates.
+
+    The exception to be aware of with this class though are the :class:`~.Gate`
+    attributes :attr:`.label`, :attr:`.condition`, :attr:`.duration`, and
+    :attr`.unit` which can be set differently for specific instances of gates.
+    For :class:`~.SingletonGate` usage to be sound setting these attributes
+    is not available and they can only be set at creation time. If any of these
+    attributes are used instead of using a single shared global instance of
+    the same gate a new separate instance will be created.
+    """
+
     _instance = None
 
-    def __new__(cls, *args, **kwargs):
-        if "label" in kwargs or "_condition" in kwargs:
-            return object.__new__(cls)
+    @classmethod
+    def __new__(cls, *_args, **kwargs):
+        if "label" in kwargs or "_condition" in kwargs or "duration" in kwargs or "unit" in kwargs:
+            return super().__new__(cls)
         if cls._instance is None:
-            cls._instance = object.__new__(cls, *args, **kwargs)
+            cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self, *args, _condition=None, **kwargs):

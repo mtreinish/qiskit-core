@@ -14,7 +14,6 @@
 from math import sqrt
 import numpy as np
 
-from qiskit.circuit.gate import Gate
 from qiskit.circuit.quantumregister import QuantumRegister
 from qiskit.circuit.singleton_gate import SingletonGate
 from .rzx import RZXGate
