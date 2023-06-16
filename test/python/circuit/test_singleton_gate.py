@@ -20,7 +20,7 @@ Tests for singleton gate behavior
 import copy
 
 from qiskit.circuit.library import HGate
-from qiskit.circuit import Clbit, QuantumCircuit
+from qiskit.circuit import Clbit, QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit.converters import dag_to_circuit, circuit_to_dag
 
 from qiskit.test.base import QiskitTestCase
@@ -189,3 +189,12 @@ class TestSingletonGate(QiskitTestCase):
         self.assertEqual(qc.data[0].operation, out.data[0].operation)
         self.assertEqual(out.data[0].operation.condition, (qc.cregs[0], 0))
         self.assertEqual(out.data[0].operation.label, "conditionally special")
+
+    def test_condition_via_instructionset(self):
+        gate = HGate()
+        qr = QuantumRegister(2, "qr")
+        cr = ClassicalRegister(1, "cr")
+        circuit = QuantumCircuit(qr, cr)
+        circuit.h(qr[0]).c_if(cr, 1)
+        self.assertIsNot(gate, circuit.data[0].operation)
+        self.assertEqual(circuit.data[0].operation.condition, (cr, 1))
