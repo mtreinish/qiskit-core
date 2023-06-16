@@ -52,7 +52,9 @@ class DCXGate(SingletonGate):
         if unit is None:
             unit = "dt"
 
-        super().__init__("dcx", 2, [], label=label, _condition=_condition, duration=duration, unit=unit)
+        super().__init__(
+            "dcx", 2, [], label=label, _condition=_condition, duration=duration, unit=unit
+        )
 
     def _define(self):
         """

@@ -69,29 +69,27 @@ class SingletonGate(Gate):
         return self._label
 
     @label.setter
-    def label(self, name: str):
+    def label(self, label: str):
         if self is self._instance:
             raise NotImplementedError(
                 f"This gate class {type(self)} does not support manually setting a "
                 "label on an instance. Instead you must set the label when instantiating a new object."
             )
-        else:
-            self._label = label
+        self._label = label
 
     @property
     def condition(self):
         return self._condition
 
     @condition.setter
-    def condition(self, name: str):
+    def condition(self, condition):
         if self is self._instance:
             raise NotImplementedError(
                 f"This gate class {type(self)} does not support manually setting a "
-                "condition on an instance. Instead you must set the label when instantiating a new object "
-                "or via the .c_if() method"
+                "condition on an instance. Instead you must set the label when instantiating a new "
+                "object or via the .c_if() method"
             )
-        else:
-            self.condition = condition
+        self.condition = condition
 
     @property
     def duration(self):
@@ -105,8 +103,7 @@ class SingletonGate(Gate):
                 "duration on an instance. Instead you must set the duration when instantiating a "
                 "new object."
             )
-        else:
-            self._duration = duration
+        self._duration = duration
 
     @property
     def unit(self):
@@ -120,8 +117,7 @@ class SingletonGate(Gate):
                 "unit on an instance. Instead you must set the unit when instantiating a "
                 "new object."
             )
-        else:
-            self._unit = unit
+        self._unit = unit
 
     def __deepcopy__(self, _memo=None):
         if self.condition is None and self.label is None:
