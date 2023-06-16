@@ -171,10 +171,21 @@ class CHGate(ControlledGate):
         dtype=complex,
     )
 
-    def __init__(self, label: Optional[str] = None, ctrl_state: Optional[Union[int, str]] = None, _base_label=None):
+    def __init__(
+        self,
+        label: Optional[str] = None,
+        ctrl_state: Optional[Union[int, str]] = None,
+        _base_label=None,
+    ):
         """Create new CH gate."""
         super().__init__(
-            "ch", 2, [], num_ctrl_qubits=1, label=label, ctrl_state=ctrl_state, base_gate=HGate(label=_base_label)
+            "ch",
+            2,
+            [],
+            num_ctrl_qubits=1,
+            label=label,
+            ctrl_state=ctrl_state,
+            base_gate=HGate(label=_base_label),
         )
 
     def _define(self):

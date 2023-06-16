@@ -62,7 +62,7 @@ class TestSingletonGate(QiskitTestCase):
         self.assertIs(gate, copied)
 
     def test_label_copy(self):
-        gate = HGate(label='special')
+        gate = HGate(label="special")
         copied = gate.copy()
         self.assertIsNot(gate, copied)
         self.assertEqual(gate, copied)
@@ -104,11 +104,11 @@ class TestSingletonGate(QiskitTestCase):
         self.assertIs(gate, copied)
 
     def test_deepcopy_with_label(self):
-        gate = HGate(label='special')
+        gate = HGate(label="special")
         copied = copy.deepcopy(gate)
         self.assertIsNot(gate, copied)
         self.assertEqual(gate, copied)
-        self.assertEqual(copied.label, 'special')
+        self.assertEqual(copied.label, "special")
 
     def test_deepcopy_with_condition(self):
         gate = HGate().c_if(Clbit(), 0)
@@ -124,7 +124,6 @@ class TestSingletonGate(QiskitTestCase):
         self.assertEqual(gate, copied)
         self.assertEqual(copied.label, "conditionally special")
         self.assertEqual(copied.condition, (clbit, 0))
-
 
     def test_label_deepcopy_new(self):
         gate = HGate()

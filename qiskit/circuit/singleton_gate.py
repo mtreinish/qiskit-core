@@ -27,7 +27,6 @@ class SingletonGate(Gate):
     def __new__(cls, *args, **kwargs):
         if "label" in kwargs or "_condition" in kwargs:
             return object.__new__(cls)
-#            return super(SingletonGate, cls).__new__(cls)#, *args, **kwargs)
         if cls._instance is None:
             cls._instance = object.__new__(cls, *args, **kwargs)
         return cls._instance
@@ -79,9 +78,7 @@ class SingletonGate(Gate):
 
     def copy(self, name=None):
         if name is not None and self.condition is None and self.label is None:
-            raise QiskitError(
-                "A custom name can not be set on a copy of a singleton gate"
-            )
+            raise QiskitError("A custom name can not be set on a copy of a singleton gate")
         return super().copy()
 
 
