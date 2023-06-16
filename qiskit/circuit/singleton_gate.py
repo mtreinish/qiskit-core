@@ -87,6 +87,30 @@ class SingletonGate(Gate):
             "or via the .c_if() method"
         )
 
+    @property
+    def duration(self):
+        return self._duration
+
+    @duration.setter
+    def duration(self, duration):
+        raise NotImplementedError(
+            f"This gate class {type(self)} does not support manually setting a "
+            "duration on an instance. Instead you must set the duration when instantiating a "
+            "new object."
+        )
+
+    @property
+    def unit(self):
+        return self._unit
+
+    @unit.setter
+    def unit(self, unit):
+        raise NotImplementedError(
+            f"This gate class {type(self)} does not support manually setting a "
+            "unit on an instance. Instead you must set the unit when instantiating a "
+            "new object."
+        )
+
     def __deepcopy__(self, _memo=None):
         if self.condition is None and self.label is None:
             return self
