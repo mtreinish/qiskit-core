@@ -1530,7 +1530,6 @@ class TestControlledGateLabel(QiskitTestCase):
     @unpack
     def test_control_label_1(self, gate, args):
         """Test gate(label=...).control(1, label=...)"""
-        print(gate)
         cgate = gate(*args, label="a gate").control(1, label="a controlled gate")
         self.assertEqual(cgate.label, "a controlled gate")
         self.assertEqual(cgate.base_gate.label, "a gate")
