@@ -20,7 +20,8 @@ Tests for singleton gate behavior
 import copy
 
 from qiskit.circuit.library import HGate
-from qiskit.circuit import Clbit
+from qiskit.circuit import Clbit, QuantumCircuit
+from qiskit.converters import dag_to_circuit, circuit_to_dag
 
 from qiskit.test.base import QiskitTestCase
 
@@ -149,3 +150,42 @@ class TestSingletonGate(QiskitTestCase):
         ch = gate.control(label="my_ch")
         self.assertEqual(ch.base_gate.label, "special")
         self.assertIsNot(ch.base_gate, singleton_gate)
+
+    def test_round_trip_dag_conversion(self):
+        qc = QuantumCircuit(1)
+        gate = HGate()
+        qc.append(gate, [0])
+        dag = circuit_to_dag(qc)
+        out = dag_to_circuit(dag)
+        self.assertIs(qc.data[0].operation, out.data[0].operation)
+
+    def test_round_trip_dag_conversion_with_label(self):
+        gate = HGate(label="special")
+        qc = QuantumCircuit(1)
+        qc.append(gate, [0])
+        dag = circuit_to_dag(qc)
+        out = dag_to_circuit(dag)
+        self.assertIsNot(qc.data[0].operation, out.data[0].operation)
+        self.assertEqual(qc.data[0].operation, out.data[0].operation)
+        self.assertEqual(out.data[0].operation.label, "special")
+
+    def test_round_trip_dag_conversion_with_condition(self):
+        qc = QuantumCircuit(1, 1)
+        gate = HGate().c_if(qc.cregs[0], 0)
+        qc.append(gate, [0])
+        dag = circuit_to_dag(qc)
+        out = dag_to_circuit(dag)
+        self.assertIsNot(qc.data[0].operation, out.data[0].operation)
+        self.assertEqual(qc.data[0].operation, out.data[0].operation)
+        self.assertEqual(out.data[0].operation.condition, (qc.cregs[0], 0))
+
+    def test_round_trip_dag_conversion_condition_label(self):
+        qc = QuantumCircuit(1, 1)
+        gate = HGate(label="conditionally special").c_if(qc.cregs[0], 0)
+        qc.append(gate, [0])
+        dag = circuit_to_dag(qc)
+        out = dag_to_circuit(dag)
+        self.assertIsNot(qc.data[0].operation, out.data[0].operation)
+        self.assertEqual(qc.data[0].operation, out.data[0].operation)
+        self.assertEqual(out.data[0].operation.condition, (qc.cregs[0], 0))
+        self.assertEqual(out.data[0].operation.label, "conditionally special")
