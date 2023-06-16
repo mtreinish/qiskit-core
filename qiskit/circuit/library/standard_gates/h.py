@@ -50,9 +50,13 @@ class HGate(SingletonGate):
             \end{pmatrix}
     """
 
-    def __init__(self, label: Optional[str] = None, _condition=None):
+    def __init__(self, label: Optional[str] = None, duration=None, unit=None, _condition=None):
         """Create new H gate."""
-        super().__init__("h", 1, [], label=label, _condition=_condition)
+        if unit is None:
+            unit = "dt"
+        super().__init__(
+            "h", 1, [], label=label, _condition=_condition, duration=duration, unit=unit
+        )
 
     def _define(self):
         """
