@@ -540,21 +540,21 @@ class TestInstructions(QiskitTestCase):
         arbitrary :obj:`.Clbit` and `:obj:`.ClassicalRegister` instances, but rejects integers."""
 
         with self.subTest("accepts arbitrary register"):
-            instruction = HGate()
+            instruction = RZGate(0)
             instructions = InstructionSet()
             instructions.add(instruction, [Qubit()], [])
             register = ClassicalRegister(2)
             instructions.c_if(register, 0)
             self.assertIs(instruction.condition[0], register)
         with self.subTest("accepts arbitrary bit"):
-            instruction = HGate()
+            instruction = RZGate(0)
             instructions = InstructionSet()
             instructions.add(instruction, [Qubit()], [])
             bit = Clbit()
             instructions.c_if(bit, 0)
             self.assertIs(instruction.condition[0], bit)
         with self.subTest("rejects index"):
-            instruction = HGate()
+            instruction = RZGate(0)
             instructions = InstructionSet()
             instructions.add(instruction, [Qubit()], [])
             with self.assertRaisesRegex(CircuitError, r"Cannot pass an index as a condition .*"):
@@ -579,7 +579,7 @@ class TestInstructions(QiskitTestCase):
 
         with self.subTest("calls requester with bit"):
             dummy_requester.reset_mock()
-            instruction = HGate()
+            instruction = RZGate(0)
             instructions = InstructionSet(resource_requester=dummy_requester)
             instructions.add(instruction, [Qubit()], [])
             bit = Clbit()
@@ -588,7 +588,7 @@ class TestInstructions(QiskitTestCase):
             self.assertIs(instruction.condition[0], sentinel_bit)
         with self.subTest("calls requester with index"):
             dummy_requester.reset_mock()
-            instruction = HGate()
+            instruction = RZGate(0)
             instructions = InstructionSet(resource_requester=dummy_requester)
             instructions.add(instruction, [Qubit()], [])
             index = 0
@@ -597,7 +597,7 @@ class TestInstructions(QiskitTestCase):
             self.assertIs(instruction.condition[0], sentinel_bit)
         with self.subTest("calls requester with register"):
             dummy_requester.reset_mock()
-            instruction = HGate()
+            instruction = RZGate(0)
             instructions = InstructionSet(resource_requester=dummy_requester)
             instructions.add(instruction, [Qubit()], [])
             register = ClassicalRegister(2)
@@ -606,7 +606,7 @@ class TestInstructions(QiskitTestCase):
             self.assertIs(instruction.condition[0], sentinel_register)
         with self.subTest("calls requester only once when broadcast"):
             dummy_requester.reset_mock()
-            instruction_list = [HGate(), HGate(), HGate()]
+            instruction_list = [RZGate(0), RZGate(0), RZGate(0)]
             instructions = InstructionSet(resource_requester=dummy_requester)
             for instruction in instruction_list:
                 instructions.add(instruction, [Qubit()], [])

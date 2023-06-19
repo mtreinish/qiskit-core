@@ -1322,6 +1322,7 @@ class DAGCircuit:
         # Adjust edge weights from in_dag
         def edge_weight_map(wire):
             return wire_map[wire]
+
         node_map = self._multi_graph.substitute_node_with_subgraph(
             node._node_id, in_dag._multi_graph, edge_map_fn, filter_fn, edge_weight_map
         )
