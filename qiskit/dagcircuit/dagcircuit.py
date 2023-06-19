@@ -1322,7 +1322,6 @@ class DAGCircuit:
         # Adjust edge weights from in_dag
         def edge_weight_map(wire):
             return wire_map[wire]
-
         node_map = self._multi_graph.substitute_node_with_subgraph(
             node._node_id, in_dag._multi_graph, edge_map_fn, filter_fn, edge_weight_map
         )
@@ -1343,7 +1342,9 @@ class DAGCircuit:
                 )
             elif getattr(old_node.op, "condition", None) is not None:
                 cond_target, cond_value = old_node.op.condition
-                m_op = copy.copy(old_node.op)
+                # Deepcopy needed here in case of singletone gate usage the condition will be sticky
+                # globally
+                m_op = copy.deepcopy(old_node.op)
                 if not isinstance(old_node.op, ControlFlowOp):
                     m_op = m_op.c_if(
                         self._map_classical_resource_with_import(cond_target, wire_map, creg_map),
