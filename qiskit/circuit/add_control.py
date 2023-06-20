@@ -17,6 +17,7 @@ from qiskit.circuit.exceptions import CircuitError
 from qiskit.extensions import UnitaryGate
 from . import ControlledGate, Gate, QuantumRegister, QuantumCircuit
 from ._utils import _ctrl_state_to_int
+from .singleton_gate import SingletonGate
 
 
 def add_control(
@@ -56,7 +57,10 @@ def add_control(
         operation._define()
     cgate = control(operation, num_ctrl_qubits=num_ctrl_qubits, label=label, ctrl_state=ctrl_state)
     if operation.label is not None:
-        cgate.base_gate.label = operation.label
+        if isinstance(cgate.base_gate, SingletonGate):
+            cgate.base_gate = type(cgate.base_gate)(label=operation.label, duration=operation.duration, unit=operation.unit)
+        else:
+            cgate.base_gate.label = operation.label
     return cgate
 
 

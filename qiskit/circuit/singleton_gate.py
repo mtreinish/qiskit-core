@@ -61,7 +61,7 @@ class SingletonGate(Gate):
             # Casting the conditional value as Boolean when
             # the classical condition is on a classical bit.
             val = bool(val)
-        instance = type(self)(label=self.label, _condition=(classical, val))
+        instance = type(self)(label=self.label, _condition=(classical, val), duration=self.duration, unit=self.unit)
         return instance
 
     @property
@@ -120,10 +120,10 @@ class SingletonGate(Gate):
         self._unit = unit
 
     def __deepcopy__(self, _memo=None):
-        if self.condition is None and self.label is None:
+        if self.condition is None and self.label is None and self.duration is None and self.unit == "dt":
             return self
         else:
-            return type(self)(label=self.label, _condition=self.condition)
+            return type(self)(label=self.label, _condition=self.condition, duration=self.duration, unit=self.unit)
 
     def copy(self, name=None):
         if name is not None and self.condition is None and self.label is None:

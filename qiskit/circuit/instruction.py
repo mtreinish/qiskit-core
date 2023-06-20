@@ -98,7 +98,6 @@ class Instruction(Operation):
         # list of instructions (and their contexts) that this instruction is composed of
         # empty definition means opaque or fundamental instruction
         self._definition = None
-
         self._duration = duration
         self._unit = unit
 
