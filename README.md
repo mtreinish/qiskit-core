@@ -107,7 +107,7 @@ For questions on quantum computing with Qiskit, use the `qiskit` tag in the [Qua
 
 ## Authors and Citation
 
-Qiskit Terra is the work of [many people](https://github.com/Qiskit/qiskit-terra/graphs/contributors) who contribute
+Qiskit is the work of [many people](https://github.com/Qiskit/qiskit-terra/graphs/contributors) who contribute
 to the project at different levels. If you use Qiskit, please cite as per the included [BibTeX file](CITATION.bib).
 
 ## Changelog and Release Notes
