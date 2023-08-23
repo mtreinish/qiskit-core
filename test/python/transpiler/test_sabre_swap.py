@@ -242,7 +242,7 @@ class TestSabreSwap(QiskitTestCase):
 
         with unittest.mock.patch.object(SwapGate, "__new__", leak_number_of_swaps):
             routed = routing_pass.run(qc)
-
+        print(routed)
         routed_ops = routed.count_ops()
         del routed_ops["swap"]
         self.assertEqual(routed_ops, qc.count_ops())

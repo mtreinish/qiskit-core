@@ -275,11 +275,9 @@ class SabreLayout(TransformationPass):
                 mapped_dag,
                 local_dag,
                 initial_layout_dict,
-                canonical_register,
                 original_layout,
                 sabre_result,
                 circuit_to_dag_dict,
-                component_map,
             )
         disjoint_utils.combine_barriers(mapped_dag, retain_uuid=False)
         return mapped_dag

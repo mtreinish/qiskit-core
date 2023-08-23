@@ -12,6 +12,7 @@
 
 #![allow(clippy::too_many_arguments)]
 
+pub mod gate_order;
 pub mod layer;
 pub mod neighbor_table;
 pub mod sabre_dag;
@@ -21,8 +22,8 @@ use std::cmp::Ordering;
 
 use hashbrown::HashMap;
 use ndarray::prelude::*;
+use numpy::IntoPyArray;
 use numpy::PyReadonlyArray2;
-use numpy::{IntoPyArray, ToPyArray};
 use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
@@ -40,6 +41,7 @@ use rustworkx_core::token_swapper::token_swapper;
 use crate::getenv_use_multiple_threads;
 use crate::nlayout::NLayout;
 
+use gate_order::SabreGateOrder;
 use layer::{ExtendedSet, FrontLayer};
 use neighbor_table::NeighborTable;
 use sabre_dag::SabreDAG;
@@ -66,17 +68,10 @@ pub enum Heuristic {
 pub struct SabreResult {
     #[pyo3(get)]
     pub map: SwapMap,
-    pub node_order: Vec<usize>,
+    #[pyo3(get)]
+    pub node_order: SabreGateOrder,
     #[pyo3(get)]
     pub node_block_results: NodeBlockResults,
-}
-
-#[pymethods]
-impl SabreResult {
-    #[getter]
-    fn node_order(&self, py: Python) -> PyObject {
-        self.node_order.to_pyarray(py).into()
-    }
 }
 
 #[pyclass(mapping, module = "qiskit._accelerate.sabre_swap")]
@@ -214,7 +209,6 @@ fn cmap_from_neighor_table(neighbor_table: &NeighborTable) -> DiGraph<(), ()> {
 ///     node ids that represents the traversal order used by sabre.
 #[pyfunction]
 pub fn build_swap_map(
-    py: Python,
     num_qubits: usize,
     dag: &SabreDAG,
     neighbor_table: &NeighborTable,
@@ -224,7 +218,7 @@ pub fn build_swap_map(
     num_trials: usize,
     seed: Option<u64>,
     run_in_parallel: Option<bool>,
-) -> (SwapMap, PyObject, NodeBlockResults) {
+) -> (SabreGateOrder, NodeBlockResults) {
     let dist = distance_matrix.as_array();
     let res = build_swap_map_inner(
         num_qubits,
@@ -237,11 +231,7 @@ pub fn build_swap_map(
         num_trials,
         run_in_parallel,
     );
-    (
-        res.map,
-        res.node_order.into_pyarray(py).into(),
-        res.node_block_results,
-    )
+    (res.node_order, res.node_block_results)
 }
 
 pub fn build_swap_map_inner(
@@ -329,7 +319,7 @@ fn swap_map_trial(
 ) -> (SabreResult, NLayout) {
     let max_iterations_without_progress = 10 * neighbor_table.neighbors.len();
     let mut out_map: HashMap<usize, Vec<[usize; 2]>> = HashMap::new();
-    let mut gate_order = Vec::with_capacity(dag.dag.node_count());
+    let mut gate_order = SabreGateOrder::new(dag.dag.node_count());
     let mut front_layer = FrontLayer::new(num_qubits);
     let mut extended_set = ExtendedSet::new(num_qubits, EXTENDED_SET_SIZE);
     let mut required_predecessors: Vec<u32> = vec![0; dag.dag.node_count()];
@@ -466,7 +456,7 @@ fn update_route<F>(
     dag: &SabreDAG,
     layout: &NLayout,
     coupling: &DiGraph<(), ()>,
-    gate_order: &mut Vec<usize>,
+    gate_order: &mut SabreGateOrder,
     out_map: &mut HashMap<usize, Vec<[usize; 2]>>,
     front_layer: &mut FrontLayer,
     extended_set: &mut ExtendedSet,
@@ -479,6 +469,9 @@ fn update_route<F>(
     // First node gets the swaps attached.  We don't add to the `gate_order` here because
     // `route_reachable_nodes` is responsible for that part.
     let py_node = dag.dag[nodes[0]].0;
+    for swap in &swaps {
+        gate_order.order.push((None, swap.to_vec()));
+    }
     out_map.insert(py_node, swaps);
     for node in nodes {
         front_layer.remove(node);
@@ -533,12 +526,8 @@ fn gen_swap_epilogue(
     swaps
         .into_iter()
         .map(|(l, r)| {
-            let ret = [
-                from_layout.phys_to_logic[l.index()],
-                from_layout.phys_to_logic[r.index()],
-            ];
             from_layout.swap_physical(l.index(), r.index());
-            ret
+            [l.index(), r.index()]
         })
         .collect()
 }
@@ -554,7 +543,7 @@ fn route_reachable_nodes<F>(
     dag: &SabreDAG,
     layout: &NLayout,
     coupling: &DiGraph<(), ()>,
-    gate_order: &mut Vec<usize>,
+    gate_order: &mut SabreGateOrder,
     front_layer: &mut FrontLayer,
     required_predecessors: &mut [u32],
     node_block_results: &mut HashMap<usize, Vec<BlockResult>>,
@@ -608,7 +597,13 @@ fn route_reachable_nodes<F>(
             },
         }
 
-        gate_order.push(*py_node);
+        gate_order.order.push((
+            Some(*py_node),
+            qubits
+                .iter()
+                .map(|x| layout.logic_to_phys[*x])
+                .collect(),
+        ));
         for edge in dag.dag.edges_directed(node, Direction::Outgoing) {
             let successor_node = edge.target();
             let successor_index = successor_node.index();
@@ -755,5 +750,6 @@ pub fn sabre_swap(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<BlockResult>()?;
     m.add_class::<NodeBlockResults>()?;
     m.add_class::<SabreResult>()?;
+    m.add_class::<SabreGateOrder>()?;
     Ok(())
 }

@@ -13,7 +13,7 @@
 """Routing via SWAP insertion using the SABRE method from Li et al."""
 
 import logging
-from copy import copy, deepcopy
+from copy import deepcopy
 
 import rustworkx
 
@@ -27,7 +27,7 @@ from qiskit.transpiler.exceptions import TranspilerError
 from qiskit.transpiler.layout import Layout
 from qiskit.transpiler.target import Target
 from qiskit.transpiler.passes.layout import disjoint_utils
-from qiskit.dagcircuit import DAGOpNode, DAGCircuit
+from qiskit.dagcircuit import DAGCircuit
 from qiskit.tools.parallel import CPU_COUNT
 
 from qiskit._accelerate.sabre_swap import (
@@ -258,7 +258,6 @@ class SabreSwap(TransformationPass):
                 mapped_dag,
                 dag,
                 self._qubit_indices,
-                canonical_register,
                 original_layout,
                 sabre_result,
                 circuit_to_dag_dict,
@@ -322,14 +321,10 @@ def _apply_sabre_result(
     mapped_dag,
     root_dag,
     qubit_indices,
-    canonical_register,
     initial_layout,
     sabre_result,
     circuit_to_dag_dict,
-    component_map=None,
 ):
-    bit_to_qreg_idx = {bit: idx for idx, bit in enumerate(canonical_register)}
-
     def empty_dag(node, block):
         out = DAGCircuit()
         for qreg in mapped_dag.qregs.values():
@@ -341,10 +336,13 @@ def _apply_sabre_result(
         return out
 
     def apply_inner(out_dag, current_layout, qubit_indices_inner, result, id_to_node):
-        node_order = result[1]
-        swap_map = result[0]
-        node_block_results = result[2]
-        for node_id in node_order:
+        node_order = result[0]
+        node_block_results = result[1]
+        for (node_id, qubits) in node_order:
+            if node_id is None:
+                out_dag.apply_operation_back(SwapGate(), (out_dag.qubits[x] for x in qubits))
+                current_layout.swap_physical(*qubits)
+                continue
             node = id_to_node[node_id]
             if isinstance(node.op, ControlFlowOp):
                 # Handle control flow op and continue.
@@ -364,7 +362,6 @@ def _apply_sabre_result(
                         mapped_block_layout,
                         block_qubit_indices,
                         (
-                            block_result.result.map,
                             block_result.result.node_order,
                             block_result.result.node_block_results,
                         ),
@@ -373,15 +370,10 @@ def _apply_sabre_result(
 
                     # Apply swap epilogue to bring each block to the same
                     # final layout.
-                    process_swaps(
-                        block_result.swap_epilogue,
-                        mapped_block_dag,
-                        mapped_block_layout,
-                        canonical_register,
-                        False,
-                        bit_to_qreg_idx,
-                        component_map,
-                    )
+                    for swap in block_result.swap_epilogue:
+                        mapped_block_dag.apply_operation_back(
+                            SwapGate(), (mapped_block_dag.qubits[x] for x in swap)
+                        )
 
                     # If the swap epilogue didn't return us to the initial layout,
                     # there's a bug.
@@ -403,75 +395,6 @@ def _apply_sabre_result(
                 continue
 
             # If we get here, the node isn't a control-flow gate.
-            if node_id in swap_map:
-                process_swaps(
-                    swap_map[node_id],
-                    out_dag,
-                    current_layout,
-                    canonical_register,
-                    False,
-                    bit_to_qreg_idx,
-                    component_map,
-                )
-            apply_gate(
-                out_dag,
-                node,
-                current_layout,
-                canonical_register,
-                False,
-                qubit_indices_inner,
-            )
+            out_dag.apply_operation_back(node.op, (out_dag.qubits[x] for x in qubits), node.cargs)
 
     apply_inner(mapped_dag, initial_layout, qubit_indices, sabre_result, root_dag._multi_graph)
-
-
-def process_swaps(
-    swap_list,
-    mapped_dag,
-    current_layout,
-    canonical_register,
-    fake_run,
-    qubit_indices,
-    component_map=None,
-):
-    """
-    Applies each swap in ``swap_list`` sequentially and updates
-    ``current_layout`` accordingly.
-    """
-    for swap in swap_list:
-        if component_map:
-            swap_qargs = [
-                canonical_register[component_map[swap[0]]],
-                canonical_register[component_map[swap[1]]],
-            ]
-        else:
-            swap_qargs = [canonical_register[swap[0]], canonical_register[swap[1]]]
-        apply_gate(
-            mapped_dag,
-            DAGOpNode(op=SwapGate(), qargs=swap_qargs),
-            current_layout,
-            canonical_register,
-            fake_run,
-            qubit_indices,
-        )
-        if component_map:
-            current_layout.swap_logical(component_map[swap[0]], component_map[swap[1]])
-        else:
-            current_layout.swap_logical(*swap)
-
-
-def apply_gate(mapped_dag, node, current_layout, canonical_register, fake_run, qubit_indices):
-    """Apply gate given the current layout."""
-    new_node = transform_gate_for_layout(node, current_layout, canonical_register, qubit_indices)
-    if fake_run:
-        return new_node
-    return mapped_dag.apply_operation_back(new_node.op, new_node.qargs, new_node.cargs)
-
-
-def transform_gate_for_layout(op_node, layout, device_qreg, qubit_indices):
-    """Return node implementing a virtual op on given layout."""
-    mapped_op_node = copy(op_node)
-    mapped_op_node.qargs = tuple(
-        device_qreg[layout.logical_to_physical(qubit_indices[x])] for x in op_node.qargs
-    )
-    return mapped_op_node
