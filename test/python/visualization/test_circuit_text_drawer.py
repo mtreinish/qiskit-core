@@ -1657,6 +1657,10 @@ class TestTextDrawerMultiQGates(QiskitTestCase):
         hgate = HGate(label="my h")
         controlh = hgate.control(label="my ch").c_if(cr, 1)
         circ.append(controlh, [0, 1])
+        print(hgate.label)
+        print(controlh.base_gate.label)
+        print(_text_circuit_drawer(circ, cregbundle=False, vertical_compression="medium"))
+        print(expected)
 
         self.assertEqual(
             str(_text_circuit_drawer(circ, cregbundle=False, vertical_compression="medium")),
