@@ -16,7 +16,7 @@ else
 fi
 
 # Build with instrumentation
-pip install --prefer-binary -c constraints.txt -r requirements.txt
+pip install --prefer-binary -c constraints.txt -r requirements.txt setuptools-rust wheel
 RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data" pip install --prefer-binary -c constraints.txt -e .
 RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data" python setup.py build_rust --release --inplace
 pip install -c constraints.txt --prefer-binary -r requirements-dev.txt
@@ -25,3 +25,5 @@ pip install -c constraints.txt --prefer-binary -r requirements-dev.txt
 stestr run
 
 deactivate
+
+llvm-profdata merge -o /tmp/pgo-data/merged.profdata /tmp/pgo-data
