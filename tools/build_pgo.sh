@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 
-set -xe
+set -e
 
+python -c 'import sys;assert sys.platform == "win32"'
+is_win=$?
+python -c 'import platform;assert "64" in platform.architecture()'
+is_64bit=$?
+
+set -x
 # Create venv for instrumented build and test
 python -m venv build_pgo
 
-python -c 'import sys;assert sys.platform == "win32"' || true
-is_win=$?
 if [[ $is_win -eq 0 ]]; then
+    if [[ $is_64bit -ne 0 ]];
+        exit 0
     source build_pgo/Scripts/activate
 else
     source build_pgo/bin/activate
