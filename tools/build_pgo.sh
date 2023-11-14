@@ -16,7 +16,8 @@ else
 fi
 
 # Build with instrumentation
-RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data" pip install -c constraints.txt -e .
+pip install --prefer-binary -c constraints.txt -r requirements.txt
+RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data" pip install --prefer-binary -c constraints.txt -e .
 RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data" python setup.py build_rust --release --inplace
 pip install -c constraints.txt --prefer-binary -r requirements-dev.txt
 # Run profile data generation
