@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-set -e
+set -x
 
 python -c 'import sys;assert sys.platform == "win32"'
 is_win=$?
 
-set -x
+set -e
 # Create venv for instrumented build and test
 python -m venv build_pgo
 
