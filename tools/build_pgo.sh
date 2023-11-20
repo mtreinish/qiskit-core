@@ -22,7 +22,7 @@ RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data" python setup.py build_rust --releas
 pip install -c constraints.txt --prefer-binary -r requirements-dev.txt
 # Run profile data generation
 
-stestr run
+stestr run --abbreviate
 
 deactivate
 
