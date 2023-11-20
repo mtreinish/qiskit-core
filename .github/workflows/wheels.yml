@@ -31,7 +31,7 @@ jobs:
           path: ./wheelhouse/*.whl
           name: shared-wheel-builds
   build_wheels_32bit:
-    name: Build wheels
+    name: Build wheels 32bit
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
