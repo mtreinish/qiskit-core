@@ -24,8 +24,8 @@ jobs:
         uses: pypa/cibuildwheel@v2.16.2
         env:
           CIBW_BEFORE_BUILD: 'bash ./tools/build_pgo.sh'
-          CIBW_ENVIRONMENT: 'RUSTUP_TOOLCHAIN="stable" RUSTFLAGS="-Cprofile-use=/tmp/pgo-data/merged.profdata -Cllvm-args=-pgo-warn-missing-function"'
-          CIBW_ENVIRONMENT_LINUX: 'PATH="$PATH:$HOME/.cargo/bin" CARGO_NET_GIT_FETCH_WITH_CLI="true" RUSTUP_TOOLCHAIN="stable" RUSTFLAGS="-Cprofile-use=/tmp/pgo-data/merged.profdata -Cllvm-args=-pgo-warn-missing-function"'
+          CIBW_ENVIRONMENT: 'RUSTUP_TOOLCHAIN="stable" RUSTFLAGS="-Cprofile-use=merged.profdata -Cllvm-args=-pgo-warn-missing-function"'
+          CIBW_ENVIRONMENT_LINUX: 'PATH="$PATH:$HOME/.cargo/bin" CARGO_NET_GIT_FETCH_WITH_CLI="true" RUSTUP_TOOLCHAIN="stable" RUSTFLAGS="-Cprofile-use=merged.profdata -Cllvm-args=-pgo-warn-missing-function"'
       - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
