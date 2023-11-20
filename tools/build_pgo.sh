@@ -26,4 +26,4 @@ stestr run --abbreviate
 
 deactivate
 
-${HOME}/.rustup/toolchains/*x86_64*/lib/rustlib/x86_64*/bin/llvm-profdata merge -o merged.profdata /tmp/pgo-data
+${HOME}/.rustup/toolchains/*x86_64*/lib/rustlib/x86_64*/bin/llvm-profdata merge -o /tmp/pgo-data/merged.profdata /tmp/pgo-data
