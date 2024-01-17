@@ -80,8 +80,3 @@ class Store(Instruction):
     def rvalue(self):
         """Get the r-value :class:`~.expr.Expr` node that is being written into the l-value."""
         return self.params[1]
-
-    def c_if(self, classical, val):
-        raise NotImplementedError(
-            "stores cannot be conditioned with `c_if`; use a full `if_test` context instead"
-        )

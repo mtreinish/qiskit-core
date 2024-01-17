@@ -15,6 +15,7 @@
 from qiskit.transpiler.basepasses import TransformationPass
 from qiskit.transpiler.passes.utils import control_flow
 from qiskit.circuit.library.standard_gates.x import XGate
+from qiskit.circuit.controlflow.if_else import IfElseOp
 from qiskit.circuit.reset import Reset
 from qiskit.circuit.measure import Measure
 from qiskit.dagcircuit.dagcircuit import DAGCircuit
@@ -36,7 +37,9 @@ class ResetAfterMeasureSimplification(TransformationPass):
         for node in dag.op_nodes(Measure):
             succ = next(dag.quantum_successors(node))
             if isinstance(succ, DAGOpNode) and isinstance(succ.op, Reset):
-                new_x = XGate().c_if(node.cargs[0], 1)
+                if_body = QuantumCircuit(1)
+                if_body.x(0)
+                new_x = IfElseOp((node.cargs[0], 1), if_body)
                 new_dag = DAGCircuit()
                 new_dag.add_qubits(node.qargs)
                 new_dag.add_clbits(node.cargs)

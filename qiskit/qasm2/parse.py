@@ -227,21 +227,21 @@ def from_bytecode(bytecode, custom_instructions: Iterable[CustomInstruction]):
             )
         elif opcode == OpCode.ConditionedGate:
             gate_id, parameters, op_qubits, creg, value = op.operands
-            gate = gates[gate_id](*parameters).c_if(qc.cregs[creg], value)
-            qc._append(CircuitInstruction(gate, [qubits[q] for q in op_qubits]))
+            with qc.if_test((qc.cregs[creg], value)):
+                qc._append(gates[gate_id](*parameters), [qubits[q] for q in op_qubits])
         elif opcode == OpCode.Measure:
             qubit, clbit = op.operands
             qc._append(CircuitInstruction(Measure(), (qubits[qubit],), (clbits[clbit],)))
         elif opcode == OpCode.ConditionedMeasure:
             qubit, clbit, creg, value = op.operands
-            measure = Measure().c_if(qc.cregs[creg], value)
-            qc._append(CircuitInstruction(measure, (qubits[qubit],), (clbits[clbit],)))
+            with qc.if_test((qc.cregs[creg], value)):
+                qc._append(Measure(), (qubits[qubit],) (clbits[clbit],))
         elif opcode == OpCode.Reset:
             qc._append(CircuitInstruction(Reset(), (qubits[op.operands[0]],)))
         elif opcode == OpCode.ConditionedReset:
             qubit, creg, value = op.operands
-            reset = Reset().c_if(qc.cregs[creg], value)
-            qc._append(CircuitInstruction(reset, (qubits[qubit],)))
+            with qc.if_test((qc.cregs[creg], value)):
+                qc._append(Reset(), (qubits[qubit],))
         elif opcode == OpCode.Barrier:
             op_qubits = op.operands[0]
             qc._append(CircuitInstruction(Barrier(len(op_qubits)), [qubits[q] for q in op_qubits]))

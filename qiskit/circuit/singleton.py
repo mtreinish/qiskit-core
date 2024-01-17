@@ -489,9 +489,6 @@ class _SingletonInstructionOverrides(Instruction):
         instruction._params = _frozenlist(instruction._params)
         return instruction
 
-    def c_if(self, classical, val):
-        return self.to_mutable().c_if(classical, val)
-
     def copy(self, name=None):
         if name is None:
             return self

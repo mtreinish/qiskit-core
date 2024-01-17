@@ -290,7 +290,8 @@ class TestSabreSwap(QiskitTestCase):
         with self.subTest("1 bit in register"):
             qc = QuantumCircuit(2, 1)
             qc.z(0)
-            qc.z(0).c_if(qc.cregs[0], 0)
+            with qc.if_test((qc.cregs[0], 0)):
+                qc.z(0)
             cm = CouplingMap([(0, 1), (1, 0)])
             expected = PassManager([TrivialLayout(cm)]).run(qc)
             actual = PassManager([TrivialLayout(cm), SabreSwap(cm)]).run(qc)
@@ -299,8 +300,10 @@ class TestSabreSwap(QiskitTestCase):
             cregs = [ClassicalRegister(3), ClassicalRegister(4)]
             qc = QuantumCircuit(QuantumRegister(2, name="q"), *cregs)
             qc.z(0)
-            qc.z(0).c_if(cregs[0], 0)
-            qc.z(0).c_if(cregs[1], 0)
+            with qc.if_test((cregs[0], 0)):
+                qc.z(0)
+            with qc.if_test((cregs[1], 0)):
+                qc.z(0)
             cm = CouplingMap([(0, 1), (1, 0)])
             expected = PassManager([TrivialLayout(cm)]).run(qc)
             actual = PassManager([TrivialLayout(cm), SabreSwap(cm)]).run(qc)
@@ -338,15 +341,21 @@ class TestSabreSwap(QiskitTestCase):
     def test_conditional_measurement(self):
         """Test that instructions with cargs and conditions are handled correctly."""
         qc = QuantumCircuit(3, 2)
-        qc.cx(0, 2).c_if(0, 0)
-        qc.measure(2, 0).c_if(1, 0)
-        qc.h(2).c_if(0, 0)
+        with qc.if_test((0, 0)):
+            qc.cx(0, 2)
+        with qc.if_test((1, 0)):
+            qc.measure(2, 0)
+        with qc.if_test((0, 0)):
+            qc.h(2)
         qc.measure(1, 1)
         expected = QuantumCircuit(3, 2)
         expected.swap(1, 2)
-        expected.cx(0, 1).c_if(0, 0)
-        expected.measure(1, 0).c_if(1, 0)
-        expected.h(1).c_if(0, 0)
+        with qc.if_test((0, 0)):
+            expected.cx(0, 1)
+        with qc.if_test((1, 0)):
+            expected.measure(1, 0)
+        with qc.if_test((0, 0)):
+            expected.h(1)
         expected.measure(2, 1)
         result = SabreSwap(CouplingMap.from_line(3), seed=12345)(qc)
         self.assertEqual(result, expected)

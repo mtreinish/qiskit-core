@@ -93,9 +93,6 @@ class Instruction(Operation):
             if label is not None and not isinstance(label, str):
                 raise TypeError("label expects a string or None")
             self._label = label
-        # tuple (ClassicalRegister, int), tuple (Clbit, bool) or tuple (Clbit, int)
-        # when the instruction has a conditional ("if")
-        self._condition = None
         # list of instructions (and their contexts) that this instruction is composed of
         # empty definition means opaque or fundamental instruction
         self._definition = None
@@ -154,15 +151,6 @@ class Instruction(Operation):
         will be a deepcopy of that instance.
         """
         return self.copy()
-
-    @property
-    def condition(self):
-        """The classical condition on the instruction."""
-        return self._condition
-
-    @condition.setter
-    def condition(self, condition):
-        self._condition = condition
 
     def __eq__(self, other):
         """Two instructions are the same if they have the same name,
@@ -363,11 +351,6 @@ class Instruction(Operation):
         # Add label if defined
         if self.label:
             instruction.label = self.label
-        # Add condition parameters for assembler. This is needed to convert
-        # to a qobj conditional instruction at assemble time and after
-        # conversion will be deleted by the assembler.
-        if self.condition:
-            instruction._condition = self.condition
         return instruction
 
     @property
@@ -459,26 +442,6 @@ class Instruction(Operation):
         inverse_gate.definition = inverse_definition
         return inverse_gate
 
-    def c_if(self, classical, val):
-        """Set a classical equality condition on this instruction between the register or cbit
-        ``classical`` and value ``val``.
-
-        .. note::
-
-            This is a setter method, not an additive one.  Calling this multiple times will silently
-            override any previously set condition; it does not stack.
-        """
-        if not isinstance(classical, (ClassicalRegister, Clbit)):
-            raise CircuitError("c_if must be used with a classical register or classical bit")
-        if val < 0:
-            raise CircuitError("condition value should be non-negative")
-        if isinstance(classical, Clbit):
-            # Casting the conditional value as Boolean when
-            # the classical condition is on a classical bit.
-            val = bool(val)
-        self._condition = (classical, val)
-        return self
-
     def copy(self, name=None):
         """
         Copy of the instruction.
@@ -507,13 +470,7 @@ class Instruction(Operation):
         """Print an if statement if needed."""
         from qiskit.qasm2 import QASM2ExportError  # pylint: disable=cyclic-import
 
-        if self.condition is None:
-            return string
-        if not isinstance(self.condition[0], ClassicalRegister):
-            raise QASM2ExportError(
-                "OpenQASM 2 can only condition on registers, but got '{self.condition[0]}'"
-            )
-        return "if(%s==%d) " % (self.condition[0].name, self.condition[1]) + string
+        return string
 
     def broadcast_arguments(self, qargs, cargs):
         """
@@ -593,11 +550,8 @@ class Instruction(Operation):
     @property
     def condition_bits(self) -> List[Clbit]:
         """Get Clbits in condition."""
-        from qiskit.circuit.controlflow import condition_resources  # pylint: disable=cyclic-import
 
-        if self.condition is None:
-            return []
-        return list(condition_resources(self.condition).clbits)
+        return []
 
     @property
     def name(self):
