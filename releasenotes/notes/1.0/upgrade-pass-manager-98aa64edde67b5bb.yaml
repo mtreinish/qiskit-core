@@ -41,7 +41,7 @@ upgrade:
       )
 
   - |
-    The append method of builtin flow controllers was removed. This includes
+    The append method of built-in flow controllers was removed. This includes
 
     * :meth:`.ConditionalController.append`
     * :meth:`.DoWhileController.append`
