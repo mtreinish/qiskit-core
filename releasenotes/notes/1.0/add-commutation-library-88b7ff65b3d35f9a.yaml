@@ -9,5 +9,5 @@ features:
     execution. Addresses `#8020 <https://github.com/Qiskit/qiskit-terra/issues/8020>__` and
     `#7101 <https://github.com/Qiskit/qiskit-terra/issues/7101>__`
   - |
-    Adds a `SessionCommutationChecker`, i.e. a commutation checker with commutations that are cached
+    Adds ``SessionCommutationChecker``, i.e. a commutation checker with commutations that are cached
     consistently during the runtime of a python execution.
