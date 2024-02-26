@@ -28,6 +28,7 @@ from qiskit.transpiler.passes import CheckMap
 from qiskit.transpiler.passes import BarrierBeforeFinalMeasurements
 from qiskit.transpiler.passes import OptimizeSwapBeforeMeasure
 from qiskit.transpiler.passes import RemoveDiagonalGatesBeforeMeasure
+from qiskit.transpiler.passes import StarPreRouting
 from qiskit.transpiler.preset_passmanagers import common
 from qiskit.transpiler.preset_passmanagers.plugin import (
     PassManagerStagePlugin,
@@ -133,6 +134,7 @@ class DefaultInitPassManager(PassManagerStagePlugin):
                 pass_manager_config.unitary_synthesis_plugin_config,
                 pass_manager_config.hls_config,
             )
+            init.append(StarPreRouting)
             init.append(OptimizeSwapBeforeMeasure())
             init.append(RemoveDiagonalGatesBeforeMeasure())
             init.append(
