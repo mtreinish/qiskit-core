@@ -1183,7 +1183,6 @@ class TestTwoQubitControlledUDecompose(CheckDecompositions):
         """Verify unitary for different gates in the decomposition"""
         unitary = random_unitary(4, seed=seed)
         for gate in [RXXGate, RYYGate, RZZGate, RZXGate, CPhaseGate, CRZGate]:
-            print(gate)
             decomposer = TwoQubitControlledUDecomposer(gate)
             circ = decomposer(unitary)
             self.assertEqual(Operator(unitary), Operator(circ))
