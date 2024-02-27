@@ -25,6 +25,7 @@ use pyo3::exceptions::{PyIndexError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use pyo3::Python;
+use pyo3::types::PyTuple;
 use std::f64::consts::PI;
 
 use faer::IntoFaerComplex;
@@ -38,6 +39,7 @@ use ndarray::prelude::*;
 use ndarray::Zip;
 use numpy::PyReadonlyArray2;
 use numpy::ToPyArray;
+use numpy::IntoPyArray;
 
 use crate::euler_one_qubit_decomposer::{
     angles_from_unitary, det_one_qubit, unitary_to_gate_sequence_inner, DEFAULT_ATOL,
@@ -339,6 +341,7 @@ impl TwoQubitWeylDecomposition {
     #[new]
     #[pyo3(signature=(unitary_matrix, fidelity=DEFAULT_FIDELITY, specialization=None))]
     fn new(
+        py: Python,
         unitary_matrix: PyReadonlyArray2<Complex64>,
         fidelity: Option<f64>,
         specialization: Option<Specializations>,
@@ -352,26 +355,18 @@ impl TwoQubitWeylDecomposition {
         let ipx: Array2<Complex64> = array![[Complex64::zero(), C1_IM], [C1_IM, Complex64::zero()]];
 
         let mut u = unitary_matrix.as_array().into_faer_complex().to_owned();
-        println!("INput unitary: {:?}", u);
         let unitary_matrix = unitary_matrix.as_array().to_owned();
         let det_u = u.determinant();
-        println!("detU: {:?}", det_u);
         u *= scale(det_u.powf(-0.25));
-        println!("u scaled: {:?}", u);
         let mut global_phase = det_u.arg() / 4.;
         let u_p = transform_from_magic_basis(u, true);
-        println!("u_p: {:?}", u_p);
-        let mut m2 = Mat::<c64>::zeros(4, 4);
-        mul::matmul(
-            m2.as_mut(),
-            u_p.transpose(),
-            u_p.as_ref(),
-            None,
-            c64::faer_one(),
-            Parallelism::None,
-        );
-        println!("M2: {:?}", m2);
+        // Use ndarray here because matmul precision in faer is lower, it seems
+        // to more aggressively round to zero which causes different behaviour
+        // during the eigen decomposition below.
+        let u_p_arr = u_p.as_ref().into_ndarray_complex();
+        let m2 = u_p_arr.t().dot(&u_p_arr);
         let default_euler_basis = "ZYZ";
+
         // M2 is a symmetric complex matrix. We need to decompose it as M2 = P D P^T where
         // P ∈ SO(4), D is diagonal with unit-magnitude elements.
         //
@@ -391,30 +386,39 @@ impl TwoQubitWeylDecomposition {
         for _ in 0..100 {
             let rand_a: f64 = state.sample(StandardNormal);
             let rand_b: f64 = state.sample(StandardNormal);
-            println!("rand_a: {}", rand_a);
-            println!("rand_b: {}", rand_b);
-            let m2_real = Mat::<f64>::from_fn(m2.nrows(), m2.ncols(), |i, j| {
-                let val = m2.get(i, j);
-                rand_a *val.re + rand_b * val.im
-            });
-            println!("M2real: {:?}", m2_real);
-            p = m2_real
+            let m2_real = m2.mapv(|val| rand_a * val.re + rand_b * val.im).to_owned();
+            let p_inner = m2_real
+                .view()
+                .into_faer()
                 .selfadjoint_eigendecomposition(Lower)
                 .u()
                 .into_ndarray()
                 .mapv(Complex64::from)
                 .to_owned();
-            let m2_arr: ArrayView2<Complex64> = m2.as_ref().into_ndarray_complex();
-            d = p.t().dot(&m2_arr).dot(&p).diag().to_owned();
+// Uncomment this to use numpy for eigh instead of faer (useful if needed to compare)
+
+//            let m2_real = m2.as_ref().into_ndarray().map(|val| rand_a * val.re + rand_b * val.im).to_owned();
+//            let numpy_linalg = PyModule::import(py, "numpy.linalg")?;
+//            let eigh = numpy_linalg.getattr("eigh")?;
+//            let m2_real_arr = m2_real.to_pyarray(py);
+//            let result = eigh.call1((m2_real_arr,))?.downcast::<PyTuple>()?;
+//            let p_raw = result.get_item(1)?;
+//            let p_arr = p_raw.extract::<PyReadonlyArray2<f64>>()?.as_array().to_owned();
+//            let p_inner = p_arr.mapv(Complex64::from).to_owned();
+
+//            let m2_arr: ArrayView2<Complex64> = m2.as_ref().into_ndarray_complex();
+            let d_inner = p_inner.t().dot(&m2).dot(&p_inner).diag().to_owned();
             let mut diag_d: Array2<Complex64> = Array2::zeros((4, 4));
             diag_d
                 .diag_mut()
                 .iter_mut()
                 .enumerate()
-                .for_each(|(index, x)| *x = d[index]);
-            let compare = p.dot(&diag_d).dot(&p.t()).to_owned();
-            found = abs_diff_eq!(compare.view(), m2_arr, epsilon = 1.0e-13);
+                .for_each(|(index, x)| *x = d_inner[index]);
+            let compare = p_inner.dot(&diag_d).dot(&p_inner.t()).to_owned();
+            found = abs_diff_eq!(compare.view(), m2, epsilon = 1.0e-13);
             if found {
+                p = p_inner;
+                d = d_inner;
                 break;
             }
         }
@@ -423,8 +427,6 @@ impl TwoQubitWeylDecomposition {
                 "TwoQubitWeylDecomposition: failed to diagonalize M2. Please report this at https://github.com/Qiskit/qiskit-terra/issues/4159. Input: {:?}", unitary_matrix
             )));
         }
-        println!("P: {:?}", p);
-        println!("D: {:?}", d);
         let mut d = -d.map(|x| x.arg() / 2.);
         d[3] = -d[0] - d[1] - d[2];
         let mut cs: Array1<f64> = (0..3)
@@ -545,7 +547,7 @@ impl TwoQubitWeylDecomposition {
                     Specializations::SWAPEquiv
                 } else if is_close(closest_abc, closest_abc, closest_abc) {
                     Specializations::PartialSWAPEquiv
-                } else if is_close(closest_ab_minus_c, closest_ab_minus_c, closest_ab_minus_c) {
+                } else if is_close(closest_ab_minus_c, closest_ab_minus_c, -closest_ab_minus_c) {
                     Specializations::PartialSWAPFlipEquiv
                 } else if is_close(a, 0., 0.) {
                     Specializations::ControlledEquiv
@@ -565,7 +567,6 @@ impl TwoQubitWeylDecomposition {
 
         let mut specialized: TwoQubitWeylDecomposition = match specialization {
             Specializations::IdEquiv => {
-                println!("IdEquiv");
                     TwoQubitWeylDecomposition {
                     a: 0.,
                     b: 0.,
@@ -583,9 +584,7 @@ impl TwoQubitWeylDecomposition {
                 }
             }
             Specializations::SWAPEquiv => {
-                println!("SWAPEquiv");
                 if c > 0. {
-                    println!("NOT FLIPPED");
                     TwoQubitWeylDecomposition {
                         a: PI4,
                         b: PI4,
@@ -602,7 +601,6 @@ impl TwoQubitWeylDecomposition {
                         unitary_matrix,
                     }
                 } else {
-                    println!("FLIPPED!");
                     flipped_from_original = true;
                     TwoQubitWeylDecomposition {
                         a: PI4,
@@ -622,7 +620,6 @@ impl TwoQubitWeylDecomposition {
                 }
             }
             Specializations::PartialSWAPEquiv => {
-                println!("PartialSWAPEquiv");
                 let closest = closest_partial_swap(a, b, c);
                 let mut k2r_temp = K2l.t().to_owned();
                 k2r_temp.view_mut().mapv_inplace(|x| x.conj());
@@ -643,8 +640,7 @@ impl TwoQubitWeylDecomposition {
                 }
             }
             Specializations::PartialSWAPFlipEquiv => {
-                println!("PartialSWAPFlipEquiv");
-                let closest = closest_partial_swap(a, b, c);
+                let closest = closest_partial_swap(a, b, -c);
                 let mut k2_temp = K2l.t().to_owned();
                 k2_temp.mapv_inplace(|x| x.conj());
                 TwoQubitWeylDecomposition {
@@ -664,7 +660,6 @@ impl TwoQubitWeylDecomposition {
                 }
             }
             Specializations::ControlledEquiv => {
-                println!("ControlledEquiv");
                 let default_euler_basis = "XYX";
                 let [k2ltheta, k2lphi, k2llambda, k2lphase] =
                     angles_from_unitary(K2l.view(), "XYX");
@@ -687,7 +682,6 @@ impl TwoQubitWeylDecomposition {
                 }
             }
             Specializations::MirrorControlledEquiv => {
-                println!("MirrorControlledEquiv");
                 let [k2ltheta, k2lphi, k2llambda, k2lphase] =
                     angles_from_unitary(K2l.view(), "ZYZ");
                 let [k2rtheta, k2rphi, k2rlambda, k2rphase] =
@@ -709,7 +703,6 @@ impl TwoQubitWeylDecomposition {
                 }
             }
             Specializations::SimaabEquiv => {
-                println!("SimaabEquiv");
                 let [k2ltheta, k2lphi, k2llambda, k2lphase] =
                     angles_from_unitary(K2l.view(), "ZYZ");
                 TwoQubitWeylDecomposition {
@@ -729,7 +722,6 @@ impl TwoQubitWeylDecomposition {
                 }
             }
             Specializations::SimabbEquiv => {
-                println!("SimabbEquiv");
                 let default_euler_basis = "XYX";
                 let [k2ltheta, k2lphi, k2llambda, k2lphase] =
                     angles_from_unitary(K2l.view(), "XYX");
@@ -750,7 +742,6 @@ impl TwoQubitWeylDecomposition {
                 }
             }
             Specializations::SimabmbEquiv => {
-                println!("SimabmbEquiv");
                 // TwoQubitWeylfSimabmbEquiv
                 let default_euler_basis = "XYX";
                 let [k2ltheta, k2lphi, k2llambda, k2lphase] =
@@ -772,7 +763,6 @@ impl TwoQubitWeylDecomposition {
                 }
             }
             Specializations::General => {
-                println!("General");
                 TwoQubitWeylDecomposition {
                 a,
                 b,
@@ -790,15 +780,6 @@ impl TwoQubitWeylDecomposition {
                 }
             }
         };
-        println!("K1l: {:?}", specialized.K1l);
-        println!("K1r: {:?}", specialized.K1r);
-        println!("K2l: {:?}", specialized.K2l);
-        println!("K2r: {:?}", specialized.K2r);
-        println!("a: {:?}", specialized.a);
-        println!("b: {:?}", specialized.b);
-        println!("c: {:?}", specialized.c);
-        println!("global_phase: {:?}", specialized.global_phase);
-        println!("fidelity: {:?}", specialized.requested_fidelity);
 
         let tr = if flipped_from_original {
             let [da, db, dc] = [
@@ -828,7 +809,6 @@ impl TwoQubitWeylDecomposition {
                 return Err(PyValueError::new_err("Uh oh"));
             }
         }
-        println!("calc fidelity: {:?}", specialized.calculated_fidelity);
         specialized.global_phase += tr.arg();
         Ok(specialized)
     }
