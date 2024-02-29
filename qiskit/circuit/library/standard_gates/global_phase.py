@@ -16,13 +16,13 @@ from typing import Optional
 
 import numpy
 
-from qiskit.circuit.gate import Gate
+from qiskit.circuit.singleton import SingletonGate
 from qiskit.circuit.quantumregister import QuantumRegister
 from qiskit.circuit.quantumcircuit import QuantumCircuit
 from qiskit.circuit.parameterexpression import ParameterValueType
 
 
-class GlobalPhaseGate(Gate):
+class GlobalPhaseGate(SingletonGate, create_default_singleton=False):
     r"""The global phase gate (:math:`e^{i\theta}`).
 
     Can be applied to a :class:`~qiskit.circuit.QuantumCircuit`
@@ -45,6 +45,17 @@ class GlobalPhaseGate(Gate):
             label: An optional label for the gate.
         """
         super().__init__("global_phase", 0, [phase], label=label, duration=duration, unit=unit)
+
+    @staticmethod
+    def _singleton_lookup_key(phase: ParameterValueType, label=None, *, duration=None, unit="dt"):
+        if (
+            not isinstance(phase, float)
+            or label is not None
+            or duration is not None
+            or unit != "dt"
+        ):
+            return None
+        return (phase,)
 
     def _define(self):
         q = QuantumRegister(0, "q")

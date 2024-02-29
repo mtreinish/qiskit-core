@@ -17,12 +17,12 @@ from cmath import exp
 from typing import Optional, Union
 import numpy
 from qiskit.circuit.controlledgate import ControlledGate
-from qiskit.circuit.gate import Gate
+from qiskit.circuit.singleton import SingletonGate
 from qiskit.circuit.parameterexpression import ParameterValueType
 from qiskit.circuit.quantumregister import QuantumRegister
 
 
-class UGate(Gate):
+class UGate(SingletonGate, create_default_singleton=False):
     r"""Generic single-qubit rotation gate with 3 Euler angles.
 
     Can be applied to a :class:`~qiskit.circuit.QuantumCircuit`
@@ -79,6 +79,27 @@ class UGate(Gate):
     ):
         """Create new U gate."""
         super().__init__("u", 1, [theta, phi, lam], label=label, duration=duration, unit=unit)
+
+    @staticmethod
+    def _singleton_lookup_key(
+        theta: ParameterValueType,
+        phi: ParameterValueType,
+        lam: ParameterValueType,
+        label: Optional[str] = None,
+        *,
+        duration=None,
+        unit="dt",
+    ):
+        if (
+            not isinstance(phi, float)
+            or not isinstance(theta, float)
+            or not isinstance(lam, float)
+            or label is not None
+            or duration is not None
+            or unit != "dt"
+        ):
+            return None
+        return (theta, phi, lam)
 
     def inverse(self, annotated: bool = False):
         r"""Return inverted U gate.

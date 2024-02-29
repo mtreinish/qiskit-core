@@ -54,3 +54,7 @@ features = ["ndarray"]
 [dependencies.pulp]
 version = "0.18.8"
 features = ["macro"]
+
+[dependencies.lru]
+version = "0.12.3"
+features = ["hashbrown"]

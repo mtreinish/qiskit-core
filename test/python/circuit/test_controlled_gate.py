@@ -1484,7 +1484,6 @@ class TestControlledStandardGates(QiskitTestCase):
             for i in range(numargs):
                 if gate_params[i] == "num_ctrl_qubits":
                     args[i] = 2
-
         gate = gate_class(*args)
 
         for ctrl_state in (ctrl_state_ones, ctrl_state_zeros, ctrl_state_mixed):

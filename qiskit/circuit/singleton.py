@@ -254,6 +254,7 @@ import functools
 from .instruction import Instruction
 from .gate import Gate
 from .controlledgate import ControlledGate, _ctrl_state_to_int
+from qiskit._accelerate.lru_dict import LRUDict
 
 
 def _impl_init_subclass(
@@ -265,14 +266,14 @@ def _impl_init_subclass(
         instruction_class, *, create_default_singleton=True, additional_singletons=(), **kwargs
     ):
         super(base, instruction_class).__init_subclass__(**kwargs)
+        # If we're creating singleton instances, then the _type object_ needs a lookup mapping the
+        # "keys" to the pre-created singleton instances.  It can't share this with subclasses.
+        instruction_class._singleton_static_lookup = LRUDict(1000)
         if not create_default_singleton and not additional_singletons:
             return
 
-        # If we're creating singleton instances, then the _type object_ needs a lookup mapping the
-        # "keys" to the pre-created singleton instances.  It can't share this with subclasses.
-        instruction_class._singleton_static_lookup = {}
-
         class _Singleton(overrides, instruction_class, create_default_singleton=False):
+            _create_default_singleton = create_default_singleton
             __module__ = None
             # We want this to match the slots layout (if any) of `cls` so it's safe to dynamically
             # switch the type of an instance of `cls` to this.
@@ -348,10 +349,16 @@ def _impl_init_subclass(
         # lookup that manages an LRU or similar cache should be used for singletons created on
         # demand.  This static dictionary is separate to ensure that the class-requested singletons
         # have lifetimes tied to the class object, while dynamic ones can be freed again.
+        instruction_class._create_singleton_instance = _create_singleton_instance
         if create_default_singleton:
             instruction_class._singleton_default_instance = _create_singleton_instance((), {})
-        for class_args, class_kwargs in additional_singletons:
-            _create_singleton_instance(class_args, class_kwargs)
+        # If additional_singletons is the boolean true this class dynamically allocates all
+        # of it's singleton instances and we save this for _SingletonMeta to handle
+        if additional_singletons is True:
+            pass
+        else:
+            for class_args, class_kwargs in additional_singletons:
+                instruction_class._create_singleton_instance(class_args, class_kwargs)
 
     return classmethod(__init_subclass__)
 
@@ -380,7 +387,7 @@ class _SingletonMeta(type(Instruction)):
     def __call__(cls, *args, _force_mutable=False, **kwargs):
         if _force_mutable:
             return super().__call__(*args, **kwargs)
-        if not args and not kwargs:
+        if not args and not kwargs and hasattr(cls, "_singleton_default_instance"):
             # This is a fast-path to handle constructions of the form `XGate()`, which is the
             # idiomatic way of building gates during high-performance circuit construction.  If
             # there are any arguments or kwargs, we delegate to the overridable method to
@@ -394,6 +401,10 @@ class _SingletonMeta(type(Instruction)):
                 # determine this because it's working with arbitrary user inputs.
                 singleton = None
             if singleton is not None:
+                return singleton
+            if hasattr(cls, "_create_singleton_instance"):
+                singleton = cls._create_singleton_instance(args, kwargs)
+                cls._singleton_static_lookup[key] = singleton
                 return singleton
             # The logic can be extended to have an LRU cache for key requests that are absent,
             # to allow things like parametric gates to have reusable singletons as well.

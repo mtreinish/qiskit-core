@@ -15,12 +15,12 @@ import math
 from cmath import exp
 from math import pi
 from typing import Optional
-from qiskit.circuit.gate import Gate
+from qiskit.circuit.singleton import SingletonGate
 from qiskit.circuit.quantumregister import QuantumRegister
 from qiskit.circuit.parameterexpression import ParameterValueType
 
 
-class XXPlusYYGate(Gate):
+class XXPlusYYGate(SingletonGate, create_default_singleton=False):
     r"""XX+YY interaction gate.
 
     A 2-qubit parameterized XX+YY interaction, also known as an XY gate. Its action is to induce
@@ -99,6 +99,17 @@ class XXPlusYYGate(Gate):
             label: The label of the gate.
         """
         super().__init__("xx_plus_yy", 2, [theta, beta], label=label, duration=duration, unit=unit)
+
+    @staticmethod
+    def _singleton_lookup(
+        theta: ParameterValueType,
+        beta: ParameterValueType = 0,
+        label: Optional[str] = "(XX+YY)",
+        *,
+        duration=None,
+        unit="dt",
+    ):
+        return (theta, beta)
 
     def _define(self):
         """

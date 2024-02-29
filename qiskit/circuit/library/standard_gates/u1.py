@@ -15,13 +15,13 @@ from __future__ import annotations
 from cmath import exp
 import numpy
 from qiskit.circuit.controlledgate import ControlledGate
-from qiskit.circuit.gate import Gate
+from qiskit.circuit.singleton import SingletonGate
 from qiskit.circuit.parameterexpression import ParameterValueType
 from qiskit.circuit.quantumregister import QuantumRegister
 from qiskit.circuit._utils import _ctrl_state_to_int
 
 
-class U1Gate(Gate):
+class U1Gate(SingletonGate, create_default_singleton=False):
     r"""Single-qubit rotation about the Z axis.
 
     This is a diagonal gate. It can be implemented virtually in hardware
@@ -97,6 +97,12 @@ class U1Gate(Gate):
     ):
         """Create new U1 gate."""
         super().__init__("u1", 1, [theta], label=label, duration=duration, unit=unit)
+
+    @staticmethod
+    def _singleton_lookup(
+        theta: ParameterValueType, label: str | None = None, *, duration=None, unit="dt"
+    ):
+        return (phi,)
 
     def _define(self):
         # pylint: disable=cyclic-import

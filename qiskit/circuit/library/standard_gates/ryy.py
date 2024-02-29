@@ -14,12 +14,12 @@
 import math
 from typing import Optional
 import numpy as np
-from qiskit.circuit.gate import Gate
+from qiskit.circuit.singleton import SingletonGate
 from qiskit.circuit.quantumregister import QuantumRegister
 from qiskit.circuit.parameterexpression import ParameterValueType
 
 
-class RYYGate(Gate):
+class RYYGate(SingletonGate, create_default_singleton=False):
     r"""A parametric 2-qubit :math:`Y \otimes Y` interaction (rotation about YY).
 
     This gate is symmetric, and is maximally entangling at :math:`\theta = \pi/2`.
@@ -77,6 +77,18 @@ class RYYGate(Gate):
     ):
         """Create new RYY gate."""
         super().__init__("ryy", 2, [theta], label=label, duration=duration, unit=unit)
+
+    @staticmethod
+    def _singleton_lookup_key(theta: ParameterValueType, label=None, *, duration=None, unit="dt"):
+        if (
+            not isinstance(theta, float)
+            or label is not None
+            or duration is not None
+            or unit != "dt"
+        ):
+            return None
+
+        return (theta,)
 
     def _define(self):
         """Calculate a subcircuit that implements this unitary."""

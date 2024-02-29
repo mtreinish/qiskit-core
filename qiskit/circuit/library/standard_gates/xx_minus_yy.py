@@ -18,7 +18,7 @@ from typing import Optional
 
 import numpy as np
 
-from qiskit.circuit.gate import Gate
+from qiskit.circuit.singleton import SingletonGate
 from qiskit.circuit.library.standard_gates.ry import RYGate
 from qiskit.circuit.library.standard_gates.rz import RZGate
 from qiskit.circuit.library.standard_gates.s import SdgGate, SGate
@@ -29,7 +29,7 @@ from qiskit.circuit.quantumcircuit import QuantumCircuit
 from qiskit.circuit.quantumregister import QuantumRegister
 
 
-class XXMinusYYGate(Gate):
+class XXMinusYYGate(SingletonGate, create_default_singleton=False):
     r"""XX-YY interaction gate.
 
     A 2-qubit parameterized XX-YY interaction. Its action is to induce
@@ -108,6 +108,17 @@ class XXMinusYYGate(Gate):
             label: The label of the gate.
         """
         super().__init__("xx_minus_yy", 2, [theta, beta], label=label, duration=duration, unit=unit)
+
+    @staticmethod
+    def _singleton_lookup(
+        theta: ParameterValueType,
+        beta: ParameterValueType = 0,
+        label: Optional[str] = "(XX-YY)",
+        *,
+        duration=None,
+        unit="dt",
+    ):
+        return (theta, beta)
 
     def _define(self):
         """

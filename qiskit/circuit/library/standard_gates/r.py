@@ -17,12 +17,12 @@ from cmath import exp
 from math import pi
 from typing import Optional
 import numpy
-from qiskit.circuit.gate import Gate
+from qiskit.circuit.singleton import SingletonGate
 from qiskit.circuit.quantumregister import QuantumRegister
 from qiskit.circuit.parameterexpression import ParameterValueType
 
 
-class RGate(Gate):
+class RGate(SingletonGate, create_default_singleton=False):
     r"""Rotation θ around the cos(φ)x + sin(φ)y axis.
 
     Can be applied to a :class:`~qiskit.circuit.QuantumCircuit`
@@ -60,6 +60,20 @@ class RGate(Gate):
     ):
         """Create new r single-qubit gate."""
         super().__init__("r", 1, [theta, phi], label=label, duration=duration, unit=unit)
+
+    @staticmethod
+    def _singleton_lookup_key(
+        theta: ParameterValueType, phi: ParameterValueType, label=None, duration=None, unit="dt"
+    ):
+        if (
+            not isinstance(phi, float)
+            or not isinstance(theta, float)
+            or label is not None
+            or duration is not None
+            or unit != "dt"
+        ):
+            return None
+        return (theta, phi)
 
     def _define(self):
         """

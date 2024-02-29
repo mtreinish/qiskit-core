@@ -27,7 +27,11 @@ def _get_free_params(fun, ignore=None):
     """
     ignore = ignore or ["kwargs"]
     free_params = []
-    for name, param in signature(fun).parameters.items():
+    fn_sig = signature(fun).parameters
+    if "_force_mutable" in fn_sig and getattr(fun, "_singleton_lookup", None):
+        fn_sig = signature(fun._singleton_lookup).parameters
+
+    for name, param in fn_sig.items():
         if param.default == Parameter.empty and param.kind != Parameter.VAR_POSITIONAL:
             if name not in ignore:
                 free_params.append(name)

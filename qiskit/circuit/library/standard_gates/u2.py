@@ -15,12 +15,12 @@ from math import sqrt, pi
 from cmath import exp
 from typing import Optional
 import numpy
-from qiskit.circuit.gate import Gate
+from qiskit.circuit.singleton import SingletonGate
 from qiskit.circuit.parameterexpression import ParameterValueType
 from qiskit.circuit.quantumregister import QuantumRegister
 
 
-class U2Gate(Gate):
+class U2Gate(SingletonGate, create_default_singleton=False):
     r"""Single-qubit rotation about the X+Z axis.
 
     Implemented using one X90 pulse on IBM Quantum systems:
@@ -97,6 +97,17 @@ class U2Gate(Gate):
     ):
         """Create new U2 gate."""
         super().__init__("u2", 1, [phi, lam], label=label, duration=duration, unit=unit)
+
+    @staticmethod
+    def _singleton_lookup(
+        phi: ParameterValueType,
+        lam: ParameterValueType,
+        label: Optional[str] = None,
+        *,
+        duration=None,
+        unit="dt",
+    ):
+        return (phi, lam)
 
     def _define(self):
         # pylint: disable=cyclic-import

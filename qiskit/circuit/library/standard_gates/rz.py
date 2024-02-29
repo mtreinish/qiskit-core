@@ -13,13 +13,13 @@
 """Rotation around the Z axis."""
 from cmath import exp
 from typing import Optional, Union
-from qiskit.circuit.gate import Gate
+from qiskit.circuit.singleton import SingletonGate
 from qiskit.circuit.controlledgate import ControlledGate
 from qiskit.circuit.quantumregister import QuantumRegister
 from qiskit.circuit.parameterexpression import ParameterValueType
 
 
-class RZGate(Gate):
+class RZGate(SingletonGate, create_default_singleton=False, additional_singletons=True):
     r"""Single-qubit rotation about the Z axis.
 
     This is a diagonal gate. It can be implemented virtually in hardware
@@ -65,6 +65,12 @@ class RZGate(Gate):
         """Create new RZ gate."""
         super().__init__("rz", 1, [phi], label=label, duration=duration, unit=unit)
 
+    @staticmethod
+    def _singleton_lookup_key(phi: ParameterValueType, label=None, *, duration=None, unit="dt"):
+        if not isinstance(phi, float) or label is not None or duration is not None or unit != "dt":
+            return None
+        return (phi,)
+
     def _define(self):
         """
         gate rz(phi) a { u1(phi) a; }
@@ -103,8 +109,9 @@ class RZGate(Gate):
             ControlledGate: controlled version of this gate.
         """
         if not annotated and num_ctrl_qubits == 1:
-            gate = CRZGate(self.params[0], label=label, ctrl_state=ctrl_state)
-            gate.base_gate.label = self.label
+            gate = CRZGate(
+                self.params[0], label=label, ctrl_state=ctrl_state, _base_label=self.label
+            )
         else:
             gate = super().control(
                 num_ctrl_qubits=num_ctrl_qubits,

@@ -317,6 +317,7 @@ class BasisTranslator(TransformationPass):
                         if not isinstance(param, ParameterExpression):
                             new_params.append(param)
                         else:
+
                             bind_dict = {x: parameter_map[x] for x in param.parameters}
                             if any(isinstance(x, ParameterExpression) for x in bind_dict.values()):
                                 new_value = param
