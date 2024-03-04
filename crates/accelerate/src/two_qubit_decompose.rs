@@ -80,7 +80,7 @@ fn transform_from_magic_basis(unitary: Mat<c64>, reverse: bool) -> Mat<c64> {
 // c64. So we implement them here. These things should be contribute
 // upstream.
 
-pub trait PowF {
+trait PowF {
     fn powf(self, pow: f64) -> c64;
 }
 
@@ -90,7 +90,7 @@ impl PowF for c64 {
     }
 }
 
-pub trait Arg {
+trait Arg {
     fn arg(self) -> f64;
 }
 
@@ -176,7 +176,7 @@ fn __weyl_coordinates(unitary: MatRef<c64>) -> [f64; 3] {
 
 #[pyfunction]
 #[pyo3(text_signature = "(basis_b, basis_fidelity, unitary, /")]
-pub fn _num_basis_gates(
+fn _num_basis_gates(
     basis_b: f64,
     basis_fidelity: f64,
     unitary: PyReadonlyArray2<Complex<f64>>,
@@ -282,7 +282,7 @@ enum Specializations {
 #[derive(Clone)]
 #[allow(non_snake_case)]
 #[pyclass(module = "qiskit._accelerate.two_qubit_decompose", subclass)]
-pub struct TwoQubitWeylDecomposition {
+struct TwoQubitWeylDecomposition {
     #[pyo3(get)]
     a: f64,
     #[pyo3(get)]
@@ -918,7 +918,7 @@ impl TwoQubitWeylDecomposition {
 type TwoQubitSequenceVec = Vec<(String, Vec<f64>, [u8; 2])>;
 
 #[pyclass(sequence)]
-pub struct TwoQubitGateSequence {
+struct TwoQubitGateSequence {
     gates: TwoQubitSequenceVec,
     #[pyo3(get)]
     global_phase: f64,
@@ -992,7 +992,7 @@ impl TwoQubitGateSequence {
 }
 
 #[pymodule]
-pub fn two_qubit_decompose(_py: Python, m: &PyModule) -> PyResult<()> {
+pub(super) fn two_qubit_decompose(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(_num_basis_gates))?;
     m.add_class::<TwoQubitGateSequence>()?;
     m.add_class::<TwoQubitWeylDecomposition>()?;

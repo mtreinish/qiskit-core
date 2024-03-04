@@ -33,7 +33,7 @@ pub enum SliceOrInt<'a> {
 /// Return indices that sort partially ordered data.
 /// If `data` contains two elements that are incomparable,
 /// an error will be thrown.
-pub fn arg_sort<T: PartialOrd>(data: &[T]) -> Vec<usize> {
+pub(super) fn arg_sort<T: PartialOrd>(data: &[T]) -> Vec<usize> {
     let mut indices = (0..data.len()).collect::<Vec<_>>();
     indices.sort_by(|&a, &b| data[a].partial_cmp(&data[b]).unwrap());
     indices
@@ -43,7 +43,7 @@ pub fn arg_sort<T: PartialOrd>(data: &[T]) -> Vec<usize> {
 /// with `dtype(complex128)`.
 #[pyfunction]
 #[pyo3(text_signature = "(unitary, /")]
-pub fn eigenvalues(py: Python, unitary: PyReadonlyArray2<Complex<f64>>) -> PyObject {
+pub(super) fn eigenvalues(py: Python, unitary: PyReadonlyArray2<Complex<f64>>) -> PyObject {
     unitary
         .as_array()
         .into_faer_complex()
@@ -59,7 +59,7 @@ pub fn eigenvalues(py: Python, unitary: PyReadonlyArray2<Complex<f64>>) -> PyObj
 /// with `dtype(complex128)`.
 #[pyfunction]
 #[pyo3(text_signature = "(unitary, /")]
-pub fn eigh(py: Python, unitary: PyReadonlyArray2<f64>) -> PyObject {
+pub(super) fn eigh(py: Python, unitary: PyReadonlyArray2<f64>) -> PyObject {
     unitary
         .as_array()
         .into_faer()
@@ -72,7 +72,7 @@ pub fn eigh(py: Python, unitary: PyReadonlyArray2<f64>) -> PyObject {
 }
 
 #[pymodule]
-pub fn utils(_py: Python, m: &PyModule) -> PyResult<()> {
+pub(super) fn utils(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(eigenvalues))?;
     m.add_wrapped(wrap_pyfunction!(eigh))?;
     Ok(())
