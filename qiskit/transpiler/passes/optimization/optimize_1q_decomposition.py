@@ -14,6 +14,7 @@
 
 import logging
 import math
+import numpy as np
 
 from qiskit.transpiler.basepasses import TransformationPass
 from qiskit.transpiler.passes.utils import control_flow
@@ -55,6 +56,8 @@ NAME_MAP = {
     "x": XGate,
 }
 
+PARALLEL_THRESHOLD = 100
+
 
 class Optimize1qGatesDecomposition(TransformationPass):
     """Optimize chains of single-qubit gates by combining them into a single gate.
@@ -68,7 +71,7 @@ class Optimize1qGatesDecomposition(TransformationPass):
      Error is computed as a multiplication of the errors of individual gates on that qubit.
     """
 
-    def __init__(self, basis=None, target=None):
+    def __init__(self, basis=None, target=None, parallel_threshold=PARALLEL_THRESHOLD):
         """Optimize1qGatesDecomposition initializer.
 
         Args:
@@ -84,6 +87,8 @@ class Optimize1qGatesDecomposition(TransformationPass):
         self._target = target
         self._global_decomposers = []
         self._local_decomposers_cache = {}
+        self.run_parallel = True
+        self.parallel_threshold = parallel_threshold
 
         if basis:
             self._global_decomposers = _possible_decomposers(set(basis))
@@ -109,7 +114,7 @@ class Optimize1qGatesDecomposition(TransformationPass):
         else:
             return None
 
-    def _resynthesize_run(self, matrix, qubit=None):
+    def _resynthesize_run(self, matrix, qubit=None, run_in_parallel=False):
         """
         Re-synthesizes one 2x2 `matrix`, typically extracted via `dag.collect_1q_runs`.
 
@@ -132,14 +137,16 @@ class Optimize1qGatesDecomposition(TransformationPass):
                 decomposers = _possible_decomposers(available_1q_basis)
         else:
             decomposers = self._global_decomposers
-
-        best_synth_circuit = euler_one_qubit_decomposer.unitary_to_gate_sequence(
-            matrix,
-            decomposers,
-            qubit,
-            self.error_map,
-        )
-        return best_synth_circuit
+        if run_in_parallel:
+            return (matrix, decomposers, qubit)
+        else:
+            best_synth_circuit = euler_one_qubit_decomposer.unitary_to_gate_sequence(
+                matrix,
+                decomposers,
+                qubit,
+                self.error_map,
+            )
+            return best_synth_circuit
 
     def _gate_sequence_to_dag(self, best_synth_circuit):
         qubits = (Qubit(),)
@@ -197,14 +204,8 @@ class Optimize1qGatesDecomposition(TransformationPass):
         Returns:
             DAGCircuit: the optimized DAG.
         """
-        runs = dag.collect_1q_runs()
-        for run in runs:
-            qubit = dag.find_bit(run[0].qargs[0]).index
-            operator = run[0].op.to_matrix()
-            for node in run[1:]:
-                operator = node.op.to_matrix().dot(operator)
-            best_circuit_sequence = self._resynthesize_run(operator, qubit)
 
+        def process_synth_output(run, best_circuit_sequence):
             if self._target is None:
                 basis = self._basis_gates
             else:
@@ -219,6 +220,35 @@ class Optimize1qGatesDecomposition(TransformationPass):
                 for current_node in run[1:]:
                     dag.remove_op_node(current_node)
 
+        runs = dag.collect_1q_runs()
+        synthesis_jobs = []
+        if self.run_parallel and len(runs) > self.parallel_threshold:
+            run_parallel = True
+        else:
+            run_parallel = False
+        for run in runs:
+            qubit = dag.find_bit(run[0].qargs[0]).index
+            operator = run[0].op.to_matrix()
+            for node in run[1:]:
+                operator = node.op.to_matrix().dot(operator)
+            synth_out = self._resynthesize_run(operator, qubit)
+            if run_parallel:
+                synthesis_jobs.append(self._resynthesize_run(operator, qubit, run_parallel))
+            else:
+                process_synth_output(run, synth_out)
+        if not synthesis_jobs:
+            return dag
+        super_unitary = np.dstack([x[0] for x in synthesis_jobs])
+        target_basis_lists = [x[1] for x in synthesis_jobs]
+        qubits = np.array([x[2] for x in synthesis_jobs], dtype=np.uintp)
+        results = euler_one_qubit_decomposer.multiple_unitary_to_gate_sequences(
+            super_unitary,
+            target_basis_lists,
+            qubits,
+            self.error_map,
+        )
+        for run, best_circuit_sequence in zip(runs, results):
+            process_synth_output(run, best_circuit_sequence)
         return dag
 
     def _error(self, circuit, qubit):

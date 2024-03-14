@@ -26,7 +26,8 @@ use pyo3::wrap_pyfunction;
 use pyo3::Python;
 
 use ndarray::prelude::*;
-use numpy::PyReadonlyArray2;
+use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3};
+use rayon::prelude::*;
 
 use crate::utils::SliceOrInt;
 
@@ -62,6 +63,77 @@ impl OneQubitGateErrorMap {
     }
 }
 
+#[pyclass(sequence)]
+pub struct MultipleOneQubitGateSequences {
+    pub seqs: Vec<Option<OneQubitGateSequence>>,
+    pos: usize,
+}
+
+#[pymethods]
+impl MultipleOneQubitGateSequences {
+    #[new]
+    fn new() -> Self {
+        MultipleOneQubitGateSequences {
+            seqs: Vec::new(),
+            pos: 0,
+        }
+    }
+
+    fn __getstate__(&self) -> (Vec<Option<OneQubitGateSequenceState>>, usize) {
+        (
+            self.seqs
+                .iter()
+                .map(|x| x.as_ref().map(|y| y.__getstate__()))
+                .collect(),
+            self.pos,
+        )
+    }
+
+    fn __setstate(&mut self, state: (Vec<Option<OneQubitGateSequenceState>>, usize)) {
+        self.seqs = state
+            .0
+            .into_iter()
+            .map(|x| {
+                x.map(|y| OneQubitGateSequence {
+                    gates: y.0,
+                    global_phase: y.1,
+                })
+            })
+            .collect();
+        self.pos = state.1;
+    }
+
+    fn __len__(&self) -> usize {
+        self.seqs.len()
+    }
+
+    fn __getitem__(&self, py: Python, idx: isize) -> PyResult<PyObject> {
+        let len = self.seqs.len() as isize;
+        if idx >= len || idx < -len {
+            Err(PyIndexError::new_err(format!("Invalid index, {idx}")))
+        } else if idx < 0 {
+            let len = self.seqs.len();
+            let res = &self.seqs[len - idx.unsigned_abs()];
+            match res {
+                Some(val) => {
+                    // TODO: Figure out if there is a pattern we can avoid a clone here. I don't
+                    // think there is one, but it would be good to avoid copying the sequence for
+                    // each return.
+                    Ok(val.clone().into_py(py))
+                }
+                None => Ok(py.None()),
+            }
+        } else {
+            let res = &self.seqs[idx as usize];
+            match res {
+                Some(val) => Ok(val.clone().into_py(py)),
+                None => Ok(py.None()),
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
 #[pyclass(sequence)]
 pub struct OneQubitGateSequence {
     pub gates: Vec<(String, SmallVec<[f64; 3]>)>,
@@ -744,6 +816,42 @@ pub fn unitary_to_gate_sequence_inner(
         })
 }
 
+#[pyfunction]
+#[pyo3(signature = (unitaries, target_basis_lists, qubits, error_map=None, simplify=true, atol=None))]
+pub fn multiple_unitary_to_gate_sequences(
+    unitaries: PyReadonlyArray3<Complex64>,
+    target_basis_lists: Vec<Vec<&str>>,
+    qubits: PyReadonlyArray1<usize>,
+    error_map: Option<&OneQubitGateErrorMap>,
+    simplify: bool,
+    atol: Option<f64>,
+) -> PyResult<MultipleOneQubitGateSequences> {
+    let qubits = qubits.as_slice()?;
+    let super_unitary_matrix = unitaries.as_array();
+    Ok(MultipleOneQubitGateSequences {
+        seqs: super_unitary_matrix
+            .axis_iter(ndarray::Axis(2))
+            .into_par_iter()
+            .zip(target_basis_lists)
+            .zip(qubits)
+            .map(|((unitary, target_basis_list), qubit)| {
+                unitary_to_gate_sequence_inner(
+                    unitary,
+                    &target_basis_list
+                        .iter()
+                        .map(|x| EulerBasis::from_str(x).unwrap())
+                        .collect::<Vec<EulerBasis>>(),
+                    *qubit,
+                    error_map,
+                    simplify,
+                    atol,
+                )
+            })
+            .collect(),
+        pos: 0,
+    })
+}
+
 #[inline]
 pub fn det_one_qubit(mat: ArrayView2<Complex64>) -> Complex64 {
     mat[[0, 0]] * mat[[1, 1]] - mat[[0, 1]] * mat[[1, 0]]
@@ -882,6 +990,7 @@ pub fn euler_one_qubit_decomposer(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(params_u1x))?;
     m.add_wrapped(wrap_pyfunction!(generate_circuit))?;
     m.add_wrapped(wrap_pyfunction!(unitary_to_gate_sequence))?;
+    m.add_wrapped(wrap_pyfunction!(multiple_unitary_to_gate_sequences))?;
     m.add_wrapped(wrap_pyfunction!(compute_error_one_qubit_sequence))?;
     m.add_wrapped(wrap_pyfunction!(compute_error_list))?;
     m.add_class::<OneQubitGateSequence>()?;
