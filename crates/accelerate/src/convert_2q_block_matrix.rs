@@ -44,7 +44,6 @@ pub fn blocks_to_matrix(
     };
     for (op_matrix, q_list) in op_list.into_iter().skip(1) {
         let op_matrix = op_matrix.as_array();
-
         let result = match q_list.as_slice() {
             [0] => Some(kron(&identity, &op_matrix)),
             [1] => Some(kron(&op_matrix, &identity)),
@@ -58,6 +57,35 @@ pub fn blocks_to_matrix(
         };
     }
     Ok(matrix.into_pyarray(py).to_owned())
+}
+
+pub fn blocks_to_matrix_inner(
+    op_list: Vec<(ArrayView2<Complex64>, SmallVec<[u8; 2]>)>,
+) -> Array2<Complex64> {
+    let identity = aview2(&ONE_QUBIT_IDENTITY);
+    let input_matrix = op_list[0].0;
+    let mut matrix: Array2<Complex64> = match op_list[0].1.as_slice() {
+        [0] => kron(&identity, &input_matrix),
+        [1] => kron(&input_matrix, &identity),
+        [0, 1] => input_matrix.to_owned(),
+        [1, 0] => change_basis(input_matrix),
+        [] => Array2::eye(4),
+        _ => unreachable!(),
+    };
+    for (op_matrix, q_list) in op_list.into_iter().skip(1) {
+        let result = match q_list.as_slice() {
+            [0] => Some(kron(&identity, &op_matrix)),
+            [1] => Some(kron(&op_matrix, &identity)),
+            [1, 0] => Some(change_basis(op_matrix)),
+            [] => Some(Array2::eye(4)),
+            _ => None,
+        };
+        matrix = match result {
+            Some(result) => result.dot(&matrix),
+            None => op_matrix.dot(&matrix),
+        };
+    }
+    matrix
 }
 
 /// Switches the order of qubits in a two qubit operation.
