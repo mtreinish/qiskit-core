@@ -23,6 +23,7 @@ mod error_map;
 mod euler_one_qubit_decomposer;
 mod nlayout;
 mod optimize_1q_gates;
+mod optimize_2q_blocks;
 mod pauli_exp_val;
 mod quantum_circuit;
 mod results;
@@ -71,5 +72,6 @@ fn _accelerate(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(
         convert_2q_block_matrix::convert_2q_block_matrix
     ))?;
+    m.add_wrapped(wrap_pymodule!(optimize_2q_blocks::optimize_2q_blocks))?;
     Ok(())
 }

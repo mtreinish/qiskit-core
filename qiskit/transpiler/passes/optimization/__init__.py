@@ -37,3 +37,4 @@ from .optimize_cliffords import OptimizeCliffords
 from .collect_cliffords import CollectCliffords
 from .normalize_rx_angle import NormalizeRXAngle
 from .optimize_annotated import OptimizeAnnotated
+from .optimize_2q_blocks import Optimize2qBlocks

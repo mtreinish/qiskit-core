@@ -504,6 +504,7 @@ class TwoQubitBasisDecomposer:
 
         self._inner_decomposer = two_qubit_decompose.TwoQubitBasisDecomposer(
             gate_name,
+            gate,
             Operator(gate).data,
             basis_fidelity=basis_fidelity,
             euler_basis=euler_basis,
