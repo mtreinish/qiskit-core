@@ -64,19 +64,19 @@ impl OneQubitGateErrorMap {
 
 #[pyclass(sequence)]
 pub struct OneQubitGateSequence {
-    pub gates: Vec<(String, SmallVec<[f64; 3]>)>,
+    pub gates: SmallVec<[(String, SmallVec<[f64; 3]>); 5]>,
     #[pyo3(get)]
     pub global_phase: f64,
 }
 
-type OneQubitGateSequenceState = (Vec<(String, SmallVec<[f64; 3]>)>, f64);
+type OneQubitGateSequenceState = (SmallVec<[(String, SmallVec<[f64; 3]>); 5]>, f64);
 
 #[pymethods]
 impl OneQubitGateSequence {
     #[new]
     fn new() -> Self {
         OneQubitGateSequence {
-            gates: Vec::new(),
+            gates: SmallVec::new(),
             global_phase: 0.,
         }
     }
@@ -150,7 +150,7 @@ fn circuit_kak(
     let mut lam = lam;
     let mut theta = theta;
     let mut phi = phi;
-    let mut circuit: Vec<(String, SmallVec<[f64; 3]>)> = Vec::with_capacity(3);
+    let mut circuit: SmallVec<[(String, SmallVec<[f64; 3]>); 5]> = SmallVec::with_capacity(3);
     let mut atol = match atol {
         Some(atol) => atol,
         None => ANGLE_ZERO_EPSILON,
@@ -209,7 +209,7 @@ fn circuit_u3(
     simplify: bool,
     atol: Option<f64>,
 ) -> OneQubitGateSequence {
-    let mut circuit = Vec::new();
+    let mut circuit = SmallVec::with_capacity(1);
     let atol = match atol {
         Some(atol) => atol,
         None => ANGLE_ZERO_EPSILON,
@@ -233,7 +233,7 @@ fn circuit_u321(
     simplify: bool,
     atol: Option<f64>,
 ) -> OneQubitGateSequence {
-    let mut circuit = Vec::new();
+    let mut circuit = SmallVec::with_capacity(1);
     let mut atol = match atol {
         Some(atol) => atol,
         None => ANGLE_ZERO_EPSILON,
@@ -271,7 +271,7 @@ fn circuit_u(
     simplify: bool,
     atol: Option<f64>,
 ) -> OneQubitGateSequence {
-    let mut circuit = Vec::new();
+    let mut circuit = SmallVec::with_capacity(1);
     let mut atol = match atol {
         Some(atol) => atol,
         None => ANGLE_ZERO_EPSILON,
@@ -310,7 +310,7 @@ where
     let mut lam = lam;
     let mut theta = theta;
     let mut circuit = OneQubitGateSequence {
-        gates: Vec::new(),
+        gates: SmallVec::with_capacity(5), // Worst case size is 5
         global_phase: phase,
     };
     let mut atol = match atol {
@@ -372,7 +372,7 @@ fn circuit_rr(
     simplify: bool,
     atol: Option<f64>,
 ) -> OneQubitGateSequence {
-    let mut circuit = Vec::new();
+    let mut circuit = SmallVec::with_capacity(2); // Worst case size is 2
     let mut atol = match atol {
         Some(atol) => atol,
         None => ANGLE_ZERO_EPSILON,
