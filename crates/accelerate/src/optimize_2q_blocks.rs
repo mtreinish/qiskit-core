@@ -121,7 +121,6 @@ pub fn optimize_blocks(
                 .into_par_iter()
                 .map(|(block, qubits)| {
                     let unitary = blocks_to_matrix_inner(block);
-                    println!("qubits: {:?}", qubits);
                     let reverse_qubits = [qubits[1], qubits[0]];
                     let forward_decomposer = decomposers.decomposer_map.get(&qubits);
                     let reverse_decomposers = decomposers.decomposer_map.get(&reverse_qubits);
