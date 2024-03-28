@@ -39,6 +39,7 @@ from qiskit.transpiler.passes.optimization import (
     Collect2qBlocks,
     ConsolidateBlocks,
     InverseCancellation,
+    Optimize2qBlocks,
 )
 from qiskit.transpiler.passes import Depth, Size, FixedPoint, MinimumPoint
 from qiskit.transpiler.passes.utils.gates_basis import GatesInBasis
@@ -557,20 +558,11 @@ class OptimizationPassManager(PassManagerStagePlugin):
             elif optimization_level == 3:
                 # Steps for optimization level 3
                 _opt = [
-                    Collect2qBlocks(),
-                    ConsolidateBlocks(
-                        basis_gates=pass_manager_config.basis_gates,
+                    Optimize2qBlocks(
                         target=pass_manager_config.target,
+                        unitary_synthesis_method=pass_manager_config.unitary_synthesis_method,
+                        unitary_synthesis_plugin_config=pass_manager_config.unitary_synthesis_plugin_config,
                         approximation_degree=pass_manager_config.approximation_degree,
-                    ),
-                    UnitarySynthesis(
-                        pass_manager_config.basis_gates,
-                        approximation_degree=pass_manager_config.approximation_degree,
-                        coupling_map=pass_manager_config.coupling_map,
-                        backend_props=pass_manager_config.backend_properties,
-                        method=pass_manager_config.unitary_synthesis_method,
-                        plugin_config=pass_manager_config.unitary_synthesis_plugin_config,
-                        target=pass_manager_config.target,
                     ),
                     Optimize1qGatesDecomposition(
                         basis=pass_manager_config.basis_gates, target=pass_manager_config.target

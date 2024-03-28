@@ -67,7 +67,7 @@ class Optimize2qBlocks(TransformationPass):
         self,
         target=None,
         unitary_synthesis_method=None,
-        unitary_synthesis_config=None,
+        unitary_synthesis_plugin_config=None,
         approximation_degree=None,
     ):
         """Optimize2qBlocks.
@@ -96,7 +96,7 @@ class Optimize2qBlocks(TransformationPass):
             for qubits in qubits_set:
                 self._decomposers.add_decomposer(qubits, decomposer._inner_decomposer)
         self._unitary_synthesis_method = unitary_synthesis_method
-        self._unitary_synthesis_config = unitary_synthesis_config
+        self._unitary_synthesis_config = unitary_synthesis_plugin_config
         self._approximation_degree = approximation_degree
 
     @control_flow.trivial_recurse
@@ -153,7 +153,9 @@ class Optimize2qBlocks(TransformationPass):
                 blocks_to_sub.append(block)
 
             sequences = optimize_blocks(
-                block_unitaries, self._decomposers, self._target_map,
+                block_unitaries,
+                self._decomposers,
+                self._target_map,
             )
             for block, sequence in zip(blocks_to_sub, sequences):
                 if sequence is None:
