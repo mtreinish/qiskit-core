@@ -14,12 +14,13 @@
 
 import logging
 from copy import deepcopy
+from functools import partial
 import time
 
 import rustworkx
 
-from qiskit.circuit import SwitchCaseOp, ControlFlowOp, Clbit, ClassicalRegister
-from qiskit.circuit.library.standard_gates import SwapGate
+from qiskit.circuit import SwitchCaseOp, ControlFlowOp, Clbit, ClassicalRegister, Gate
+from qiskit.circuit.library.standard_gates import SwapGate, CXGate, RZGate, SXGate, XGate
 from qiskit.circuit.controlflow import condition_resources, node_resources
 from qiskit.converters import dag_to_circuit
 from qiskit.transpiler.basepasses import TransformationPass
@@ -30,6 +31,7 @@ from qiskit.transpiler.target import Target
 from qiskit.transpiler.passes.layout import disjoint_utils
 from qiskit.dagcircuit import DAGCircuit
 from qiskit.utils.parallel import CPU_COUNT
+from qiskit.synthesis.two_qubit import TwoQubitBasisDecomposer
 
 from qiskit._accelerate.sabre_swap import (
     build_swap_map,
@@ -267,6 +269,7 @@ class SabreSwap(TransformationPass):
             initial_layout,
             dag.qubits,
             circuit_to_dag_dict,
+            self.target,
         )
 
 
@@ -322,6 +325,14 @@ def _build_sabre_dag(dag, num_physical_qubits, qubit_indices):
     return process_dag(dag, qubit_indices), circuit_to_dag_dict
 
 
+GATE_NAME_MAP = {
+    "cx": CXGate,
+    "sx": SXGate,
+    "x": XGate,
+    "rz": RZGate,
+}
+
+
 def _apply_sabre_result(
     out_dag,
     in_dag,
@@ -329,6 +340,7 @@ def _apply_sabre_result(
     initial_layout,
     physical_qubits,
     circuit_to_dag_dict,
+    target,
 ):
     """Apply the ``SabreResult`` to ``out_dag``, mutating it in place.  This function in effect
     performs the :class:`.ApplyLayout` transpiler pass with ``initial_layout`` and the Sabre routing
@@ -355,7 +367,9 @@ def _apply_sabre_result(
 
     # The swap gate is a singleton instance, so we don't need to waste time reconstructing it each
     # time we need to use it.
-    swap_singleton = SwapGate()
+    swap_matrix = SwapGate().to_matrix()
+    swap_cache = {}
+    swap_gate_cache = {}
 
     def empty_dag(block):
         empty = DAGCircuit()
@@ -368,11 +382,70 @@ def _apply_sabre_result(
         empty._global_phase = block.global_phase
         return empty
 
-    def apply_swaps(dest_dag, swaps, layout):
+    def apply_swaps(dest_dag, swaps, layout, skip_synth=False):
         for a, b in swaps:
             qubits = (physical_qubits[a], physical_qubits[b])
             layout.swap_physical(a, b)
-            dest_dag.apply_operation_back(swap_singleton, qubits, (), check=False)
+            if target is None or skip_synth:
+                dest_dag.apply_operation_back(SwapGate(), qubits, (), check=False)
+                continue
+            if qubits not in swap_cache:
+                reverse_bits = False
+                try:
+                    indices = (a, b)
+                    ops = target.operation_names_for_qargs(indices)
+                    ops = set(
+                        filter(lambda x: isinstance(target.operation_from_name(x), Gate), ops)
+                    )
+                except KeyError:
+                    reverse_bits = True
+                if reverse_bits or not ops:
+                    indices = (b, a)
+                    qubits = tuple(reversed(qubits))
+                    ops = target.operation_names_for_qargs(indices)
+                    ops = set(
+                        filter(lambda x: isinstance(target.operation_from_name(x), Gate), ops)
+                    )
+
+                if "swap" in ops:
+                    dest_dag.apply_operation_back(SwapGate(), qubits, (), check=False)
+                    continue
+
+                def get_error(gate, indices):
+                    data = target[gate].get(indices)
+                    if data is None or data.error is None:
+                        return 1.0
+                    return data.error
+
+                key_func = partial(get_error, indices=indices)
+                min_error_op = min(ops, key=key_func)
+                decomp = swap_gate_cache.get(min_error_op)
+                if decomp is None:
+                    # TODO: Use actual euler basis from 1q gates, using zsxx here for simplicity
+                    # as basis translator needs to run anyway.
+                    decomposer = TwoQubitBasisDecomposer(
+                        target.operation_from_name(min_error_op), euler_basis="ZSXX"
+                    )
+                    decomp = decomposer._inner_decomposer.__call__(swap_matrix)
+                    swap_gate_cache[min_error_op] = decomp
+                swap_cache[qubits] = (min_error_op, decomp)
+            else:
+                min_error_op, decomp = swap_cache[qubits]
+
+            user_gate = target.operation_from_name(min_error_op)
+            for name, params, qargs in decomp:
+                if name == "USER_GATE":
+                    dest_dag.apply_operation_back(
+                        user_gate, tuple(qubits[x] for x in qargs), (), check=False
+                    )
+                else:
+                    dest_dag.apply_operation_back(
+                        GATE_NAME_MAP[name](*params),
+                        tuple(qubits[x] for x in qargs),
+                        (),
+                        check=False,
+                    )
+            dest_dag.global_phase += decomp.global_phase
 
     def recurse(dest_dag, source_dag, result, root_logical_map, layout):
         """The main recursive worker.  Mutates ``dest_dag`` and ``layout`` and returns them.
@@ -415,7 +488,7 @@ def _apply_sabre_result(
                     block_root_logical_map,
                     layout.copy(),
                 )
-                apply_swaps(block_dag, block_result.swap_epilogue, block_layout)
+                apply_swaps(block_dag, block_result.swap_epilogue, block_layout, skip_synth=True)
                 mapped_block_dags.append(block_dag)
                 idle_qubits.intersection_update(block_dag.idle_wires())
 

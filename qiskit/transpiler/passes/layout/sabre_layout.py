@@ -353,6 +353,7 @@ class SabreLayout(TransformationPass):
                     for phys in range(component_size)
                 ],
                 component.circuit_to_dag_dict,
+                self.target,
             )
         disjoint_utils.combine_barriers(mapped_dag, retain_uuid=False)
         return mapped_dag
