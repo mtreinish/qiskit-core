@@ -15,6 +15,9 @@ use std::env;
 use pyo3::prelude::*;
 use pyo3::wrap_pymodule;
 
+mod gate_matrix;
+mod operations;
+
 mod convert_2q_block_matrix;
 mod dense_layout;
 mod edge_collections;
