@@ -2,16 +2,15 @@
 name: Tests
 on:
   push:
-    branches: [ main, 'stable/*' ]
+    branches: [ main, 'stable/*', 'test-macos-with-isometry-rust' ]
   pull_request:
-    branches: [ main, 'stable/*' ]
+    branches: [ main, 'stable/*', 'test-macos-with-isometry-rust' ]
 
 concurrency:
   group: ${{ github.repository }}-${{ github.ref }}-${{ github.head_ref }}
   cancel-in-progress: true
 jobs:
   tests:
-    if: github.repository_owner == 'Qiskit'
     name: macOS-arm64-tests-Python-${{ matrix.python-version }}
     runs-on: macOS-14
     strategy:

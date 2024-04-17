@@ -1,8 +1,10 @@
 ---
 name: Wheel Builds
 on:
+  push:
+    branches: [ test-macos-with-isometry-rust ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, test-macos-with-isometry-rust ]
 jobs:
   build_wheels:
     name: Build wheels
