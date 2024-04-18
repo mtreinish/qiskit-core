@@ -18,6 +18,10 @@ else
 fi
 
 arch=`uname -m`
+# Handle macOS calling the architecture arm64 and rust calling it aarch64
+if [[ $arch == "arm64" ]]; then
+    arch="aarch64"
+fi
 
 # Build with instrumentation
 pip install -U -c constraints.txt setuptools-rust wheel setuptools
