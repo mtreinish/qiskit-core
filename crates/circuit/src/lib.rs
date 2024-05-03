@@ -12,7 +12,9 @@
 
 pub mod circuit_data;
 pub mod circuit_instruction;
+pub mod gate_matrix;
 pub mod intern_context;
+pub mod operations;
 
 use pyo3::prelude::*;
 use pyo3::types::PySlice;
@@ -31,5 +33,9 @@ pub enum SliceOrInt<'a> {
 pub fn circuit(m: Bound<PyModule>) -> PyResult<()> {
     m.add_class::<circuit_data::CircuitData>()?;
     m.add_class::<circuit_instruction::CircuitInstruction>()?;
+    m.add_class::<operations::StandardGate>()?;
+    m.add_class::<operations::PyInstruction>()?;
+    m.add_class::<operations::PyGate>()?;
+    m.add_class::<operations::PyOperation>()?;
     Ok(())
 }

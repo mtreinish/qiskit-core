@@ -2668,15 +2668,15 @@ class QuantumCircuit:
             return copied
 
         cpy._data.map_ops(memo_copy)
-        cpy._parameter_table = ParameterTable(
-            {
-                param: ParameterReferences(
-                    (operation_copies[id(operation)], param_index)
-                    for operation, param_index in self._parameter_table[param]
-                )
-                for param in self._parameter_table
-            }
-        )
+        #        cpy._parameter_table = ParameterTable(
+        #            {
+        #                param: ParameterReferences(
+        #                    (operation_copies[id(operation)], param_index)
+        #                    for operation, param_index in self._parameter_table[param]
+        #                )
+        #                for param in self._parameter_table
+        #            }
+        #        )
         return cpy
 
     def copy_empty_like(
