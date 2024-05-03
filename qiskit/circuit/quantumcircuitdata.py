@@ -20,6 +20,8 @@ import qiskit._accelerate.circuit
 from .exceptions import CircuitError
 from .instruction import Instruction
 from .operation import Operation
+from .instruction import Instruction
+from .gate import Gate
 
 
 CircuitInstruction = qiskit._accelerate.circuit.CircuitInstruction
