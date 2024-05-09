@@ -21,10 +21,14 @@
 use num_complex::Complex64;
 use std::f64::consts::FRAC_1_SQRT_2;
 
-pub static ONE_QUBIT_IDENTITY: [[Complex64; 2]; 2] = [
-    [Complex64::new(1., 0.), Complex64::new(0., 0.)],
-    [Complex64::new(0., 0.), Complex64::new(1., 0.)],
-];
+// Many computations are not avaialable when these `const`s are compiled.
+const ZERO: Complex64 = Complex64::new(0., 0.);
+const ONE: Complex64 = Complex64::new(1., 0.);
+const M_ONE: Complex64 = Complex64::new(-1., 0.);
+const IM: Complex64 = Complex64::new(0., 1.);
+const M_IM: Complex64 = Complex64::new(0., -1.);
+
+pub static ONE_QUBIT_IDENTITY: [[Complex64; 2]; 2] = [[ONE, ZERO], [ZERO, ONE]];
 
 pub fn rx_gate(theta: f64) -> [[Complex64; 2]; 2] {
     let half_theta = theta / 2.;
@@ -42,10 +46,7 @@ pub fn ry_gate(theta: f64) -> [[Complex64; 2]; 2] {
 
 pub fn rz_gate(theta: f64) -> [[Complex64; 2]; 2] {
     let ilam2 = Complex64::new(0., 0.5 * theta);
-    [
-        [(-ilam2).exp(), Complex64::new(0., 0.)],
-        [Complex64::new(0., 0.), ilam2.exp()],
-    ]
+    [[(-ilam2).exp(), ZERO], [ZERO, ilam2.exp()]]
 }
 
 pub static HGATE: [[Complex64; 2]; 2] = [
@@ -60,30 +61,10 @@ pub static HGATE: [[Complex64; 2]; 2] = [
 ];
 
 pub static CXGATE: [[Complex64; 4]; 4] = [
-    [
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
+    [ONE, ZERO, ZERO, ZERO],
+    [ZERO, ZERO, ZERO, ONE],
+    [ZERO, ZERO, ONE, ZERO],
+    [ZERO, ONE, ZERO, ZERO],
 ];
 
 pub static SXGATE: [[Complex64; 2]; 2] = [
@@ -91,210 +72,69 @@ pub static SXGATE: [[Complex64; 2]; 2] = [
     [Complex64::new(0.5, -0.5), Complex64::new(0.5, 0.5)],
 ];
 
-pub static XGATE: [[Complex64; 2]; 2] = [
-    [Complex64::new(0., 0.), Complex64::new(1., 0.)],
-    [Complex64::new(1., 0.), Complex64::new(0., 0.)],
-];
+pub static XGATE: [[Complex64; 2]; 2] = [[ZERO, ONE], [ONE, ZERO]];
 
-pub static ZGATE: [[Complex64; 2]; 2] = [
-    [Complex64::new(1., 0.), Complex64::new(0., 0.)],
-    [Complex64::new(0., 0.), Complex64::new(-1., 0.)],
-];
+pub static ZGATE: [[Complex64; 2]; 2] = [[ONE, ZERO], [ZERO, M_ONE]];
 
-pub static YGATE: [[Complex64; 2]; 2] = [
-    [Complex64::new(0., -1.), Complex64::new(0., 0.)],
-    [Complex64::new(0., 1.), Complex64::new(0., 0.)],
-];
+pub static YGATE: [[Complex64; 2]; 2] = [[M_IM, ZERO], [IM, ZERO]];
 
 pub static CZGATE: [[Complex64; 4]; 4] = [
-    [
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(-1., 0.),
-    ],
+    [ONE, ZERO, ZERO, ZERO],
+    [ZERO, ONE, ZERO, ZERO],
+    [ZERO, ZERO, ONE, ZERO],
+    [ZERO, ZERO, ZERO, M_ONE],
 ];
 
 pub static CYGATE: [[Complex64; 4]; 4] = [
-    [
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., -1.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 1.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
+    [ONE, ZERO, ZERO, ZERO],
+    [ZERO, ZERO, ZERO, M_IM],
+    [ZERO, ZERO, ONE, ZERO],
+    [ZERO, IM, ZERO, ZERO],
 ];
 
 pub static CCXGATE: [[Complex64; 8]; 8] = [
-    [
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
+    [ONE, ZERO, ZERO, ZERO, ZERO, ZERO, ZERO, ZERO],
+    [ZERO, ONE, ZERO, ZERO, ZERO, ZERO, ZERO, ZERO],
+    [ZERO, ZERO, ONE, ZERO, ZERO, ZERO, ZERO, ZERO],
+    [ZERO, ZERO, ZERO, ZERO, ZERO, ZERO, ZERO, ONE],
+    [ZERO, ZERO, ZERO, ZERO, ONE, ZERO, ZERO, ZERO],
+    [ZERO, ZERO, ZERO, ZERO, ZERO, ONE, ZERO, ZERO],
+    [ZERO, ZERO, ZERO, ZERO, ZERO, ZERO, ONE, ZERO],
+    [ZERO, ZERO, ZERO, ONE, ZERO, ZERO, ZERO, ZERO],
 ];
 
 pub static ECRGATE: [[Complex64; 4]; 4] = [
     [
-        Complex64::new(0., 0.),
+        ZERO,
         Complex64::new(FRAC_1_SQRT_2, 0.),
-        Complex64::new(0., 0.),
+        ZERO,
         Complex64::new(0., FRAC_1_SQRT_2),
     ],
     [
         Complex64::new(FRAC_1_SQRT_2, 0.),
-        Complex64::new(0., 0.),
+        ZERO,
         Complex64::new(0., -FRAC_1_SQRT_2),
-        Complex64::new(0., 0.),
+        ZERO,
     ],
     [
-        Complex64::new(0., 0.),
+        ZERO,
         Complex64::new(0., FRAC_1_SQRT_2),
-        Complex64::new(0., 0.),
+        ZERO,
         Complex64::new(FRAC_1_SQRT_2, 0.),
     ],
     [
         Complex64::new(0., -FRAC_1_SQRT_2),
-        Complex64::new(0., 0.),
+        ZERO,
         Complex64::new(FRAC_1_SQRT_2, 0.),
-        Complex64::new(0., 0.),
+        ZERO,
     ],
 ];
 
 pub static SWAPGATE: [[Complex64; 4]; 4] = [
-    [
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-    ],
-    [
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(0., 0.),
-        Complex64::new(1., 0.),
-    ],
+    [ONE, ZERO, ZERO, ZERO],
+    [ZERO, ZERO, ONE, ZERO],
+    [ZERO, ONE, ZERO, ZERO],
+    [ZERO, ZERO, ZERO, ONE],
 ];
 
 pub fn global_phase_gate(theta: f64) -> [[Complex64; 1]; 1] {
@@ -302,8 +142,5 @@ pub fn global_phase_gate(theta: f64) -> [[Complex64; 1]; 1] {
 }
 
 pub fn phase_gate(lam: f64) -> [[Complex64; 2]; 2] {
-    [
-        [Complex64::new(1., 0.), Complex64::new(0., 0.)],
-        [Complex64::new(0., 0.), Complex64::new(0., lam).exp()],
-    ]
+    [[ONE, ZERO], [ZERO, Complex64::new(0., lam).exp()]]
 }
