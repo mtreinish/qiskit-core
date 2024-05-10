@@ -18,10 +18,27 @@
 // of real components and one of imaginary components.
 // In order to avoid copying we want to use `MatRef<c64>` or `MatMut<c64>`.
 
-use num_complex::Complex64;
+use num_complex::{Complex64, Complex};
 use std::f64::consts::FRAC_1_SQRT_2;
 
+// This is almost the same as the function that became available in
+// num-complex 0.4.6. The difference is that two generic parameters are
+// used here rather than one. This allows call like `c64(half_theta.cos(), 0);`
+// that mix f64 and integer arguments.
+/// Create a new [`Complex<f64>`] with arguments that can convert [`Into<f64>`].
+///
+/// ```
+/// use num_complex::{c64, Complex64};
+/// assert_eq!(c64(1, 2), Complex64::new(1.0, 2.0));
+/// ```
+#[inline]
+fn c64<T: Into<f64>, V: Into<f64>>(re: T, im: V) -> Complex64 {
+    Complex::new(re.into(), im.into())
+}
+
 // Many computations are not avaialable when these `const`s are compiled.
+
+// ZERO and ONE are defined in num_complex 0.4.6
 const ZERO: Complex64 = Complex64::new(0., 0.);
 const ONE: Complex64 = Complex64::new(1., 0.);
 const M_ONE: Complex64 = Complex64::new(-1., 0.);
@@ -32,20 +49,20 @@ pub static ONE_QUBIT_IDENTITY: [[Complex64; 2]; 2] = [[ONE, ZERO], [ZERO, ONE]];
 
 pub fn rx_gate(theta: f64) -> [[Complex64; 2]; 2] {
     let half_theta = theta / 2.;
-    let cos = Complex64::new(half_theta.cos(), 0.);
-    let isin = Complex64::new(0., -half_theta.sin());
+    let cos = c64(half_theta.cos(), 0);
+    let isin = c64(0., -half_theta.sin());
     [[cos, isin], [isin, cos]]
 }
 
 pub fn ry_gate(theta: f64) -> [[Complex64; 2]; 2] {
     let half_theta = theta / 2.;
-    let cos = Complex64::new(half_theta.cos(), 0.);
-    let sin = Complex64::new(half_theta.sin(), 0.);
+    let cos = c64(half_theta.cos(), 0);
+    let sin = c64(half_theta.sin(), 0);
     [[cos, -sin], [sin, cos]]
 }
 
 pub fn rz_gate(theta: f64) -> [[Complex64; 2]; 2] {
-    let ilam2 = Complex64::new(0., 0.5 * theta);
+    let ilam2 = c64(0, 0.5 * theta);
     [[(-ilam2).exp(), ZERO], [ZERO, ilam2.exp()]]
 }
 
@@ -138,9 +155,9 @@ pub static SWAPGATE: [[Complex64; 4]; 4] = [
 ];
 
 pub fn global_phase_gate(theta: f64) -> [[Complex64; 1]; 1] {
-    [[Complex64::new(0., theta).exp()]]
+    [[c64(0., theta).exp()]]
 }
 
 pub fn phase_gate(lam: f64) -> [[Complex64; 2]; 2] {
-    [[ONE, ZERO], [ZERO, Complex64::new(0., lam).exp()]]
+    [[ONE, ZERO], [ZERO, c64(0., lam).exp()]]
 }
