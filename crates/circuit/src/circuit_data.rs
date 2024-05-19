@@ -240,12 +240,9 @@ impl CircuitData {
         let mut new_param = false;
         let inst_params = &self.data[inst_index].params;
         if let Some(raw_params) = inst_params {
-            let param_mod = PyModule::import_bound(
-                py,
-                intern!(py, "qiskit.circuit.parameterexpression"),
-            )?;
-            let param_class =
-                param_mod.getattr(intern!(py, "ParameterExpression"))?;
+            let param_mod =
+                PyModule::import_bound(py, intern!(py, "qiskit.circuit.parameterexpression"))?;
+            let param_class = param_mod.getattr(intern!(py, "ParameterExpression"))?;
 
             let params: Vec<(usize, PyObject)> = raw_params
                 .iter()
