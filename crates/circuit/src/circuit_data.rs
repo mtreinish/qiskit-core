@@ -649,23 +649,8 @@ impl CircuitData {
     #[pyo3(signature = (func))]
     pub fn map_ops(&mut self, py: Python<'_>, func: &Bound<PyAny>) -> PyResult<()> {
         for inst in self.data.iter_mut() {
-            let new_op = match &inst.op {
-                OperationType::Standard(_op) => {
-                    let op = operation_type_and_data_to_py(
-                        py,
-                        &inst.op,
-                        &inst.params,
-                        &inst.label,
-                        &inst.duration,
-                        &inst.unit,
-                    )?;
-                    func.call1((op,))
-                }
-                OperationType::Instruction(op) => func.call1((op.instruction.clone_ref(py),)),
-                OperationType::Gate(op) => func.call1((op.gate.clone_ref(py),)),
-                OperationType::Operation(op) => func.call1((op.operation.clone_ref(py),)),
-            }?;
-
+            let old_op = operation_type_and_data_to_py(py, &inst.op, &inst.params, &inst.label, &inst.duration, &inst.unit)?;
+            let new_op = func.call1((old_op,))?;
             let new_inst_details = convert_py_to_operation_type(py, new_op.into())?;
             inst.op = new_inst_details.operation;
             inst.params = new_inst_details.params;

@@ -3609,7 +3609,7 @@ class QuantumCircuit:
         else:  # pragma: no cover
             raise ValueError(f"unknown vars_mode: '{vars_mode}'")
 
-        cpy._data = CircuitData(self._data.qubits, self._data.clbits, global_phase=self.global_phase)
+        cpy._data = CircuitData(self._data.qubits, self._data.clbits)
 
         cpy._calibrations = _copy.deepcopy(self._calibrations)
         cpy._metadata = _copy.deepcopy(self._metadata)
