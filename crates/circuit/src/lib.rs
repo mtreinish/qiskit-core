@@ -16,6 +16,7 @@ pub mod dag_node;
 pub mod gate_matrix;
 pub mod intern_context;
 pub mod operations;
+pub mod parameter_table;
 
 use pyo3::prelude::*;
 use pyo3::types::PySlice;
