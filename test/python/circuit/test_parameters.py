@@ -45,8 +45,6 @@ def raise_if_parameter_table_invalid(circuit):
        CircuitError: if QuantumCircuit and ParameterTable are inconsistent.
     """
 
-    table = circuit._parameter_table
-
     # Assert parameters present in circuit match those in table.
     circuit_parameters = {
         parameter
@@ -55,7 +53,7 @@ def raise_if_parameter_table_invalid(circuit):
         for parameter in param.parameters
         if isinstance(param, ParameterExpression)
     }
-    table_parameters = set(table._table.keys())
+    table_parameters = set(circuit._data.get_params_unsorted())
 
     if circuit_parameters != table_parameters:
         raise CircuitError(
@@ -67,8 +65,10 @@ def raise_if_parameter_table_invalid(circuit):
     # Assert parameter locations in table are present in circuit.
     circuit_instructions = [instr.operation for instr in circuit._data]
 
-    for parameter, instr_list in table.items():
-        for instr, param_index in instr_list:
+    for parameter in table_parameters:
+        instr_list = circuit._data._get_param(parameter.uuid.int)
+        for instr_index, param_index in instr_list:
+            instr = circuit.data[instr_index].operation
             if instr not in circuit_instructions:
                 raise CircuitError(f"ParameterTable instruction not present in circuit: {instr}.")
 
@@ -88,13 +88,15 @@ def raise_if_parameter_table_invalid(circuit):
                 )
 
     # Assert circuit has no other parameter locations other than those in table.
-    for instruction in circuit._data:
+    for instr_index, instruction in enumerate(circuit._data):
         for param_index, param in enumerate(instruction.operation.params):
             if isinstance(param, ParameterExpression):
                 parameters = param.parameters
 
                 for parameter in parameters:
-                    if (instruction.operation, param_index) not in table[parameter]:
+                    if (instr_index, param_index) not in circuit._data._get_param(
+                        parameter.uuid.int
+                    ):
                         raise CircuitError(
                             "Found parameterized instruction not "
                             "present in table. Instruction: {} "
@@ -553,12 +555,12 @@ class TestParameters(QiskitTestCase):
         qc.rx(theta, 0)
         qc.ry(phi, 0)
 
-        self.assertEqual(len(qc._parameter_table[theta]), 1)
-        self.assertEqual(len(qc._parameter_table[phi]), 1)
+        self.assertEqual(qc._data._get_entry_count(theta), 1)
+        self.assertEqual(qc._data._get_entry_count(phi), 1)
 
         qc.assign_parameters({theta: -phi}, inplace=True)
 
-        self.assertEqual(len(qc._parameter_table[phi]), 2)
+        self.assertEqual(qc._data._get_entry_count(phi), 2)
 
     def test_expression_partial_binding_zero(self):
         """Verify that binding remains possible even if a previous partial bind

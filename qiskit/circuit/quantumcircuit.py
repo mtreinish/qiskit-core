@@ -4208,7 +4208,6 @@ class QuantumCircuit:
             target = self.copy()
             target._increment_instances()
             target._name_update()
-        print(target)
 
         # Normalise the inputs into simple abstract interfaces, so we've dispatched the "iteration"
         # logic in one place at the start of the function.  This lets us do things like calculate
@@ -4247,13 +4246,6 @@ class QuantumCircuit:
         ]
         seen_operations = {}
         # The meat of the actual binding for regular operations.
-        print("source")
-        print(self)
-        print("target")
-        print(target)
-        print(target == self)
-        print(target is self)
-        print(all_references)
         for to_bind, bound_value, references in all_references:
             update_parameters = (
                 tuple(bound_value.parameters)
@@ -4267,14 +4259,11 @@ class QuantumCircuit:
                     assignee = target.global_phase
                     validate = _normalize_global_phase
                 else:
-                    operation = self._data[inst_index].operation
+                    operation = target._data[inst_index].operation
                     seen_operations[inst_index] = operation
                     assignee = operation.params[index]
                     validate = operation.validate_parameter
                 if isinstance(assignee, ParameterExpression):
-                    print(type(to_bind))
-                    print(to_bind)
-                    print(bound_value)
                     new_parameter = assignee.assign(to_bind, bound_value)
                     for parameter in update_parameters:
                         if not target._data.contains_param(parameter.uuid.int):
@@ -4351,8 +4340,6 @@ class QuantumCircuit:
                 for gate, calibrations in target._calibrations.items()
             ),
         )
-        print("BOUND")
-        print(target)
         target._parameters = None
         return None if inplace else target
 

@@ -649,7 +649,14 @@ impl CircuitData {
     #[pyo3(signature = (func))]
     pub fn map_ops(&mut self, py: Python<'_>, func: &Bound<PyAny>) -> PyResult<()> {
         for inst in self.data.iter_mut() {
-            let old_op = operation_type_and_data_to_py(py, &inst.op, &inst.params, &inst.label, &inst.duration, &inst.unit)?;
+            let old_op = operation_type_and_data_to_py(
+                py,
+                &inst.op,
+                &inst.params,
+                &inst.label,
+                &inst.duration,
+                &inst.unit,
+            )?;
             let new_op = func.call1((old_op,))?;
             let new_inst_details = convert_py_to_operation_type(py, new_op.into())?;
             inst.op = new_inst_details.operation;
@@ -1105,6 +1112,10 @@ impl CircuitData {
         }
     }
 
+    pub fn _get_param(&self, py: Python, uuid: u128) -> PyObject {
+        self.param_table.table[&uuid].clone().into_py(py)
+    }
+
     pub fn contains_param(&self, uuid: u128) -> bool {
         self.param_table.table.contains_key(&uuid)
     }
@@ -1141,6 +1152,14 @@ impl CircuitData {
                 uuid
             ))),
         }
+    }
+
+    pub fn _get_entry_count(&self, py: Python, param_obj: PyObject) -> PyResult<usize> {
+        let uuid: u128 = param_obj
+            .getattr(py, intern!(py, "_uuid"))?
+            .getattr(py, intern!(py, "int"))?
+            .extract(py)?;
+        Ok(self.param_table.table[&uuid].index_ids.len())
     }
 }
 
