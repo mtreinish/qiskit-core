@@ -191,11 +191,6 @@ impl CircuitInstruction {
                 let op = convert_py_to_operation_type(py, op)?;
                 match op.operation {
                     OperationType::Standard(operation) => {
-                        STANDARD_GATE_MAP
-                            .lock()
-                            .unwrap()
-                            .entry(operation)
-                            .or_insert(op.base_class.unwrap());
                         let operation = OperationType::Standard(operation);
                         Ok(CircuitInstruction {
                             operation,
@@ -533,7 +528,6 @@ pub(crate) fn operation_type_and_data_to_py(
 #[derive(Debug)]
 pub(crate) struct OperationTypeConstruct {
     pub operation: OperationType,
-    pub base_class: Option<PyObject>,
     pub params: Option<SmallVec<[Param; 3]>>,
     pub label: Option<String>,
     pub duration: Option<PyObject>,
@@ -555,9 +549,14 @@ pub(crate) fn convert_py_to_operation_type(
         None => None,
     };
     if let Some(op) = standard {
+        let base_class = op_type.to_object(py);
+        STANDARD_GATE_MAP
+            .lock()
+            .unwrap()
+            .entry(op)
+            .or_insert(base_class);
         return Ok(OperationTypeConstruct {
             operation: OperationType::Standard(op),
-            base_class: Some(op_type.to_object(py)),
             params: py_op
                 .getattr(py, intern!(py, "params"))
                 .ok()
@@ -643,7 +642,6 @@ pub(crate) fn convert_py_to_operation_type(
         };
         return Ok(OperationTypeConstruct {
             operation: OperationType::Gate(out_op),
-            base_class: None,
             params,
             label,
             duration,
@@ -709,7 +707,6 @@ pub(crate) fn convert_py_to_operation_type(
         };
         return Ok(OperationTypeConstruct {
             operation: OperationType::Instruction(out_op),
-            base_class: None,
             params,
             label,
             duration,
@@ -724,31 +721,14 @@ pub(crate) fn convert_py_to_operation_type(
         .ok()
         .unwrap();
     if op_type.is_subclass(&operation_class)? {
-        let params = py_op
-            .getattr(py, intern!(py, "params"))
-            .ok()
-            .unwrap()
-            .extract(py)?;
-        let label = py_op
-            .getattr(py, intern!(py, "label"))
-            .ok()
-            .unwrap()
-            .extract(py)?;
-        let duration = py_op
-            .getattr(py, intern!(py, "duration"))
-            .ok()
-            .unwrap()
-            .extract(py)?;
-        let unit = py_op
-            .getattr(py, intern!(py, "unit"))
-            .ok()
-            .unwrap()
-            .extract(py)?;
-        let condition = py_op
-            .getattr(py, intern!(py, "condition"))
-            .ok()
-            .unwrap()
-            .extract(py)?;
+        let params = match py_op.getattr(py, intern!(py, "params")).ok() {
+            Some(value) => value.extract(py)?,
+            None => None,
+        };
+        let label = None;
+        let duration = None;
+        let unit = None;
+        let condition = None;
         let out_op = PyOperation {
             qubits: py_op
                 .getattr(py, intern!(py, "num_qubits"))
@@ -760,12 +740,10 @@ pub(crate) fn convert_py_to_operation_type(
                 .ok()
                 .map(|x| x.extract(py).unwrap())
                 .unwrap_or(0),
-            params: py_op
-                .getattr(py, intern!(py, "params"))
-                .ok()
-                .unwrap()
-                .downcast_bound::<PyList>(py)?
-                .len() as u32,
+            params: match py_op.getattr(py, intern!(py, "params")).ok() {
+                Some(value) => value.downcast_bound::<PyList>(py)?.len() as u32,
+                None => 0,
+            },
             op_name: py_op
                 .getattr(py, intern!(py, "name"))
                 .ok()
@@ -775,7 +753,6 @@ pub(crate) fn convert_py_to_operation_type(
         };
         return Ok(OperationTypeConstruct {
             operation: OperationType::Operation(out_op),
-            base_class: None,
             params,
             label,
             duration,

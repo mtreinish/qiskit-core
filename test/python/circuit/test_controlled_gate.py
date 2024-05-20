@@ -1463,9 +1463,7 @@ class TestSingleControlledRotationGates(QiskitTestCase):
     gry = ry.RYGate(theta)
     grz = rz.RZGate(theta)
 
-    print("AAAAAAAAAA")
     ugu1 = ac._unroll_gate(gu1, ["p", "u", "cx"])
-    print("BBBBBBBBBBB")
     ugrx = ac._unroll_gate(grx, ["p", "u", "cx"])
     ugry = ac._unroll_gate(gry, ["p", "u", "cx"])
     ugrz = ac._unroll_gate(grz, ["p", "u", "cx"])

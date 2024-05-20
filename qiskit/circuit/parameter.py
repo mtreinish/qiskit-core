@@ -90,9 +90,6 @@ class Parameter(ParameterExpression):
         self._name_map = None
 
     def assign(self, parameter, value):
-        print(parameter)
-        print(value)
-        print(self)
         if parameter != self:
             # Corresponds to superclass calls to `subs` and `bind` that would implicitly set
             # `allow_unknown_parameters=False`.
