@@ -473,6 +473,8 @@ impl CircuitInstruction {
     }
 }
 
+/// Take a reference to a `CircuitInstruction` and convert the operation
+/// inside that to a python side object.
 pub(crate) fn operation_type_to_py(
     py: Python,
     circuit_inst: &CircuitInstruction,
@@ -484,9 +486,15 @@ pub(crate) fn operation_type_to_py(
         &circuit_inst.label,
         &circuit_inst.duration,
         &circuit_inst.unit,
+        &circuit_inst.condition,
     )
 }
 
+/// Take an OperationType and the other mutable state fields from a
+/// rust instruction representation and return a PyObject representing
+/// a Python side full-fat Qiskit operation as a PyObject. This is typically
+/// used by accessor functions that need to return an operation to Qiskit, such
+/// as accesing `CircuitInstruction.operation`.
 pub(crate) fn operation_type_and_data_to_py(
     py: Python,
     operation: &OperationType,
@@ -494,6 +502,7 @@ pub(crate) fn operation_type_and_data_to_py(
     label: &Option<String>,
     duration: &Option<PyObject>,
     unit: &Option<String>,
+    condition: &Option<PyObject>,
 ) -> PyResult<PyObject> {
     match &operation {
         OperationType::Standard(op) => {
@@ -512,10 +521,14 @@ pub(crate) fn operation_type_and_data_to_py(
                 ("label", label.to_object(py)),
                 ("unit", unit.to_object(py)),
                 ("duration", duration.to_object(py)),
-                //                ("condition", circuit_inst.condition.to_object(py)),
             ]
             .into_py_dict_bound(py);
-            gate_class.call_bound(py, args, Some(&kwargs))
+            let mut out = gate_class.call_bound(py, args, Some(&kwargs))?;
+            if condition.is_some() {
+                out = out.call_method0(py, "to_mutable")?;
+                out.setattr(py, "condition", condition.to_object(py))?;
+            }
+            Ok(out)
         }
         OperationType::Gate(gate) => Ok(gate.gate.clone_ref(py)),
         OperationType::Instruction(inst) => Ok(inst.instruction.clone_ref(py)),
@@ -535,19 +548,43 @@ pub(crate) struct OperationTypeConstruct {
     pub condition: Option<PyObject>,
 }
 
+/// Convert an inbound Python object for a Qiskit operation and build a rust
+/// representation of that operation. This will map it to appropriate variant
+/// of operation type based on class
 pub(crate) fn convert_py_to_operation_type(
     py: Python,
     py_op: PyObject,
 ) -> PyResult<OperationTypeConstruct> {
     let attr = intern!(py, "_standard_gate");
-    let op_type = py_op.clone_ref(py).into_bound(py).get_type();
-    let standard: Option<StandardGate> = match op_type.getattr(attr).ok() {
+    let py_op_bound = py_op.clone_ref(py).into_bound(py);
+    let op_type = py_op_bound.get_type();
+    let mut standard: Option<StandardGate> = match op_type.getattr(attr).ok() {
         Some(stdgate) => match stdgate.extract().ok() {
             Some(gate) => gate,
             None => None,
         },
         None => None,
     };
+    // If the input instruction is a standard gate and a singleton instance
+    // we should check for mutable state. A mutable instance should be treated
+    // as a custom gate not a standard gate because it has custom properties.
+    //
+    // In the futuer we can revisit this when we've dropped `duration`, `unit`,
+    // and `condition` from the api as we should own the label in the
+    // `CircuitInstruction`. The other piece here is for controlled gates there
+    // is the control state, so for `SingletonControlledGates` we'll still need
+    // this check.
+    if standard.is_some() {
+        let mutable: bool = py_op.getattr(py, intern!(py, "mutable"))?.extract(py)?;
+        if mutable {
+            let singleton_mod = py.import_bound("qiskit.circuit.singleton")?;
+            let singleton_class = singleton_mod.getattr(intern!(py, "SingletonGate"))?;
+            let singleton_control = singleton_mod.getattr(intern!(py, "SingletonControlledGate"))?;
+            if py_op_bound.is_instance(&singleton_class)? || py_op_bound.is_instance(&singleton_control)? {
+                standard = None;
+            }
+        }
+    }
     if let Some(op) = standard {
         let base_class = op_type.to_object(py);
         STANDARD_GATE_MAP

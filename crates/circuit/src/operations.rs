@@ -89,6 +89,15 @@ impl Operation for OperationType {
             Self::Operation(op) => op.definition(params),
         }
     }
+
+    fn standard_gate(&self) -> Option<StandardGate> {
+        match self {
+            Self::Standard(op) => op.standard_gate(),
+            Self::Gate(op) => op.standard_gate(),
+            Self::Instruction(op) => op.standard_gate(),
+            Self::Operation(op) => op.standard_gate(),
+        }
+    }
 }
 
 /// Trait for generic circuit operations these define the common attributes
@@ -101,7 +110,7 @@ pub trait Operation {
     fn control_flow(&self) -> bool;
     fn matrix(&self, params: Option<SmallVec<[Param; 3]>>) -> Option<Array2<Complex64>>;
     fn definition(&self, params: Option<SmallVec<[Param; 3]>>) -> Option<CircuitData>;
-    // fn control_flow_body(&self) -> Option<CircuitData>;
+    fn standard_gate(&self) -> Option<StandardGate>;
 }
 
 #[derive(FromPyObject, Clone, Debug)]
@@ -319,6 +328,10 @@ impl Operation for StandardGate {
             _ => None,
         }
     }
+
+    fn standard_gate(&self) -> Option<StandardGate> {
+        Some(*self)
+    }
 }
 
 /// This class is used to wrap a Python side Instruction that is not in the standard library
@@ -369,6 +382,10 @@ impl Operation for PyInstruction {
             }
         })
     }
+    fn standard_gate(&self) -> Option<StandardGate> {
+        None
+    }
+
 }
 
 /// This class is used to wrap a Python side Gate that is not in the standard library
@@ -447,6 +464,18 @@ impl Operation for PyGate {
             }
         })
     }
+    fn standard_gate(&self) -> Option<StandardGate> {
+        Python::with_gil(|py| -> Option<StandardGate> {
+            match self.gate.getattr(py, intern!(py, "_standard_gate")) {
+                Ok(stdgate) => match stdgate.extract(py) {
+                    Ok(out_gate) => out_gate,
+                    Err(_) => None,
+                },
+                Err(_) => None,
+            }
+        })
+    }
+
 }
 
 /// This class is used to wrap a Python side Operation that is not in the standard library
@@ -480,6 +509,9 @@ impl Operation for PyOperation {
         None
     }
     fn definition(&self, _params: Option<SmallVec<[Param; 3]>>) -> Option<CircuitData> {
+        None
+    }
+    fn standard_gate(&self) -> Option<StandardGate> {
         None
     }
 }

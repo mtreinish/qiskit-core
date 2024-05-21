@@ -650,6 +650,7 @@ impl CircuitData {
                 &inst.label,
                 &inst.duration,
                 &inst.unit,
+                &inst.condition
             )?;
             let new_op = func.call1((old_op,))?;
             let new_inst_details = convert_py_to_operation_type(py, new_op.into())?;
