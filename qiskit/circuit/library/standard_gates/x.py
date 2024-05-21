@@ -367,7 +367,7 @@ class CCXGate(SingletonControlledGate):
 
     """
 
-    _standard_gate = StandardGate.CXGate
+    _standard_gate = StandardGate.CCXGate
 
     def __init__(
         self,
