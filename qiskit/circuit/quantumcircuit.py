@@ -4270,7 +4270,9 @@ class QuantumCircuit:
                             target._data.add_new_parameter(parameter, inst_index, index)
                         else:
                             target._data.update_parameter_entry(
-                                parameter.uuid.int, inst_index, index, parameter
+                                parameter.uuid.int,
+                                inst_index,
+                                index,
                             )
                     if not new_parameter.parameters:
                         new_parameter = validate(new_parameter.numeric())

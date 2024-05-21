@@ -179,10 +179,9 @@ class TestParameters(QiskitTestCase):
         qc = QuantumCircuit(qr)
         rxg = RXGate(theta)
         qc.append(rxg, [qr[0]], [])
-        vparams = qc._parameter_table
-        self.assertEqual(len(vparams), 1)
-        self.assertIs(theta, next(iter(vparams)))
-        self.assertEqual(rxg, next(iter(vparams[theta]))[0])
+        self.assertEqual(qc._data.num_params(), 1)
+        self.assertIs(theta, next(iter(qc._data.get_params_unsorted())))
+        self.assertEqual(rxg, qc.data[next(iter(qc._data._get_param(theta.uuid.int)))[0]].operation)
 
     def test_parameters_property_by_index(self):
         """Test getting parameters by index"""

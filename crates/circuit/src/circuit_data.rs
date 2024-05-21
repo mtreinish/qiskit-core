@@ -286,16 +286,10 @@ impl CircuitData {
                         .collect();
                     for (param_uuid, param_obj) in atomic_parameters.into_iter() {
                         match self.param_table.table.get_mut(&param_uuid) {
-                            Some(entry) => {
-                                entry.add(inst_index, *param_index, param_obj.clone_ref(py))
-                            }
+                            Some(entry) => entry.add(inst_index, *param_index),
                             None => {
                                 new_param = true;
-                                let new_entry = ParamEntry::new(
-                                    inst_index,
-                                    *param_index,
-                                    param_obj.clone_ref(py),
-                                );
+                                let new_entry = ParamEntry::new(inst_index, *param_index);
                                 self.param_table.insert(py, param_obj, new_entry)?;
                             }
                         };
@@ -1055,10 +1049,9 @@ impl CircuitData {
                         .getattr(py, intern!(py, "int"))?
                         .extract(py)?;
                     match self.param_table.table.get_mut(&param_uuid) {
-                        Some(entry) => entry.add(inst_index, param_index, param_obj.clone_ref(py)),
+                        Some(entry) => entry.add(inst_index, param_index),
                         None => {
-                            let new_entry =
-                                ParamEntry::new(inst_index, param_index, param_obj.clone_ref(py));
+                            let new_entry = ParamEntry::new(inst_index, param_index);
                             self.param_table.insert(py, param_obj, new_entry)?;
                         }
                     };
@@ -1088,14 +1081,9 @@ impl CircuitData {
 
     pub fn get_params_unsorted(&self, py: Python) -> Vec<PyObject> {
         self.param_table
-            .table
+            .uuid_map
             .values()
-            .flat_map(|x| {
-                x.index_ids
-                    .values()
-                    .map(|y| y.clone_ref(py))
-                    .collect::<Vec<PyObject>>()
-            })
+            .map(|x| x.clone_ref(py))
             .collect()
     }
 
@@ -1130,7 +1118,7 @@ impl CircuitData {
         self.param_table.insert(
             py,
             param.clone_ref(py),
-            ParamEntry::new(inst_index, param_index, param),
+            ParamEntry::new(inst_index, param_index),
         )?;
         Ok(())
     }
@@ -1140,11 +1128,10 @@ impl CircuitData {
         uuid: u128,
         inst_index: usize,
         param_index: usize,
-        param: PyObject,
     ) -> PyResult<()> {
         match self.param_table.table.get_mut(&uuid) {
             Some(entry) => {
-                entry.add(inst_index, param_index, param);
+                entry.add(inst_index, param_index);
                 Ok(())
             }
             None => Err(PyIndexError::new_err(format!(

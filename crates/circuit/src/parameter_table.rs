@@ -16,7 +16,7 @@ use pyo3::{import_exception, intern, PyObject};
 
 import_exception!(qiskit.circuit.exceptions, CircuitError);
 
-use hashbrown::HashMap;
+use hashbrown::{HashMap, HashSet};
 
 #[pyclass]
 pub(crate) struct ParamEntryKeys {
@@ -42,16 +42,16 @@ impl ParamEntryKeys {
 }
 
 #[derive(Clone, Debug)]
-#[pyclass(mapping)]
+#[pyclass]
 pub(crate) struct ParamEntry {
     /// Mapping of tuple of instruction index (in CircuitData) and parameter index to the actual
     /// parameter object
-    pub index_ids: HashMap<(usize, usize), PyObject>,
+    pub index_ids: HashSet<(usize, usize)>,
 }
 
 impl ParamEntry {
-    pub fn add(&mut self, inst_index: usize, param_index: usize, param: PyObject) {
-        self.index_ids.insert((inst_index, param_index), param);
+    pub fn add(&mut self, inst_index: usize, param_index: usize) {
+        self.index_ids.insert((inst_index, param_index));
     }
 
     pub fn discard(&mut self, inst_index: usize, param_index: usize) {
@@ -62,9 +62,9 @@ impl ParamEntry {
 #[pymethods]
 impl ParamEntry {
     #[new]
-    pub fn new(inst_index: usize, param_index: usize, param_obj: PyObject) -> Self {
+    pub fn new(inst_index: usize, param_index: usize) -> Self {
         ParamEntry {
-            index_ids: HashMap::from([((inst_index, param_index), param_obj)]),
+            index_ids: HashSet::from([(inst_index, param_index)]),
         }
     }
 
@@ -72,20 +72,13 @@ impl ParamEntry {
         self.index_ids.len()
     }
 
-    pub fn __getitem__(&self, py: Python, key: (usize, usize)) -> PyResult<PyObject> {
-        match self.index_ids.get(&key) {
-            Some(res) => Ok(res.clone_ref(py)),
-            None => Err(PyIndexError::new_err(format!("No param entry {:?}", key))),
-        }
-    }
-
     pub fn __contains__(&self, key: (usize, usize)) -> bool {
-        self.index_ids.contains_key(&key)
+        self.index_ids.contains(&key)
     }
 
     pub fn __iter__(&self) -> ParamEntryKeys {
         ParamEntryKeys {
-            keys: self.index_ids.keys().copied().collect(),
+            keys: self.index_ids.iter().copied().collect(),
             iter_pos: 0,
         }
     }
@@ -98,6 +91,8 @@ pub(crate) struct ParamTable {
     pub table: HashMap<u128, ParamEntry>,
     /// Mapping of parameter name to uuid as an int
     pub names: HashMap<String, u128>,
+    /// Mapping of uuid to a parameter object
+    pub uuid_map: HashMap<u128, PyObject>,
 }
 
 impl ParamTable {
@@ -116,6 +111,7 @@ impl ParamTable {
         }
         self.table.insert(uuid, entry);
         self.names.insert(name, uuid);
+        self.uuid_map.insert(uuid, parameter);
         Ok(())
     }
 
@@ -130,6 +126,7 @@ impl ParamTable {
             if refs.__len__() == 1 {
                 self.table.remove(&uuid);
                 self.names.remove(&name);
+                self.uuid_map.remove(&uuid);
             } else {
                 refs.discard(inst_index, param_index);
             }
@@ -144,6 +141,7 @@ impl ParamTable {
         ParamTable {
             table: HashMap::new(),
             names: HashMap::new(),
+            uuid_map: HashMap::new(),
         }
     }
 
@@ -172,19 +170,19 @@ impl ParamTable {
 
     pub fn pop(&mut self, key: u128, name: String) -> Option<ParamEntry> {
         self.names.remove(&name);
+        self.uuid_map.remove(&key);
         self.table.remove(&key)
     }
 
-    fn set(&mut self, uuid: u128, name: String, refs: ParamEntry) {
+    fn set(&mut self, uuid: u128, name: String, param: PyObject, refs: ParamEntry) {
         self.names.insert(name, uuid);
         self.table.insert(uuid, refs);
+        self.uuid_map.insert(uuid, param);
     }
 
     pub fn get_param_from_name(&self, py: Python, name: String) -> Option<PyObject> {
-        self.table[&self.names[&name]]
-            .index_ids
-            .values()
-            .next()
-            .map(|x| x.clone_ref(py))
+        self.names
+            .get(&name)
+            .map(|x| self.uuid_map.get(x).map(|y| y.clone_ref(py)))?
     }
 }
