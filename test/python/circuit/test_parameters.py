@@ -616,7 +616,7 @@ class TestParameters(QiskitTestCase):
         qc.append(gate, [0], [])
         qc.append(gate, [0], [])
         qc2 = qc.assign_parameters({theta: 1.0})
-        self.assertEqual(len(qc2._parameter_table), 0)
+        self.assertEqual(qc2._data.num_params(), 0)
         for instruction in qc2.data:
             self.assertEqual(float(instruction.operation.params[0]), 1.0)
 

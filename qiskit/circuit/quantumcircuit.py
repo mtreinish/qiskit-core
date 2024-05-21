@@ -2515,7 +2515,7 @@ class QuantumCircuit:
                 A similar method, but for :class:`.expr.Var` run-time variables instead of
                 :class:`.Parameter` compile-time parameters.
         """
-        if (parameter := self.data.get_param_from_name(name)) is None:
+        if (parameter := self._data.get_param_from_name(name)) is None:
             if default is Ellipsis:
                 raise KeyError(f"no parameter named '{name}' is present")
             return default
@@ -3998,7 +3998,7 @@ class QuantumCircuit:
         """
         # If we're currently parametric, we need to throw away the references.  This setter is
         # called by some subclasses before the inner `_global_phase` is initialised.
-        if isinstance(previous := getattr(self, "_global_phase", None), ParameterExpression):
+        if isinstance(previous := getattr(self._data, "global_phase", None), ParameterExpression):
             self._parameters = None
         if isinstance(angle, ParameterExpression):
             if angle.parameters:
