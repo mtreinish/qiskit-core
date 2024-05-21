@@ -5882,10 +5882,6 @@ class QuantumCircuit:
         if not self._data:
             raise CircuitError("This circuit contains no instructions.")
         instruction = self._data.pop()
-        if isinstance(instruction.operation, Instruction) and any(
-            isinstance(x, ParameterExpression) for x in instruction.operation.params
-        ):
-            self._update_parameter_table_on_instruction_removal(instruction)
         return instruction
 
     def _update_parameter_table_on_instruction_removal(self, instruction: CircuitInstruction):

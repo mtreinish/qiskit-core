@@ -812,10 +812,14 @@ impl CircuitData {
             SliceOrInt::Int(index) => {
                 let index = self.convert_py_index(index)?;
                 if self.data.get(index).is_some() {
-                    self.data.remove(index);
                     if index == self.data.len() {
+                        // For individual removal from param table before
+                        // deletion
                         self.remove_from_parameter_table(py, index)?;
+                        self.data.remove(index);
                     } else {
+                        // For delete in the middle delete before reindexing
+                        self.data.remove(index);
                         self.reindex_parameter_table(py)?;
                     }
                     Ok(())
