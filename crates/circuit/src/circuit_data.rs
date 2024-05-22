@@ -961,6 +961,7 @@ impl CircuitData {
                 });
                 self.update_param_table(py, new_index)?;
             }
+            return Ok(());
         }
         for v in itr.iter()? {
             self.append(py, v?.extract()?)?;
