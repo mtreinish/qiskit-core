@@ -5884,32 +5884,6 @@ class QuantumCircuit:
         instruction = self._data.pop()
         return instruction
 
-    def _update_parameter_table_on_instruction_removal(self, instruction: CircuitInstruction):
-        """Update the :obj:`.ParameterTable` of this circuit given that an instance of the given
-        ``instruction`` has just been removed from the circuit.
-
-        .. note::
-
-            This does not account for the possibility for the same instruction instance being added
-            more than once to the circuit.  At the time of writing (2021-11-17, main commit 271a82f)
-            there is a defensive ``deepcopy`` of parameterised instructions inside
-            :meth:`.QuantumCircuit.append`, so this should be safe.  Trying to account for it would
-            involve adding a potentially quadratic-scaling loop to check each entry in ``data``.
-        """
-        atomic_parameters: list[tuple[Parameter, int]] = []
-        for index, parameter in enumerate(instruction.operation.params):
-            if isinstance(parameter, (ParameterExpression, QuantumCircuit)):
-                atomic_parameters.extend((p, index) for p in parameter.parameters)
-        for atomic_parameter, index in atomic_parameters:
-            new_entries = self._parameter_table[atomic_parameter].copy()
-            new_entries.discard((instruction.operation, index))
-            if not new_entries:
-                del self._parameter_table[atomic_parameter]
-                # Invalidate cache.
-                self._parameters = None
-            else:
-                self._parameter_table[atomic_parameter] = new_entries
-
     @typing.overload
     def while_loop(
         self,

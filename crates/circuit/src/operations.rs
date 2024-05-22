@@ -325,7 +325,7 @@ impl Operation for StandardGate {
                     .expect("TIS_VALID"),
                 )
             }),
-            _ => None,
+            _ => todo!("Add definitions for other gates"),
         }
     }
 
