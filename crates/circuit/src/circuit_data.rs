@@ -603,15 +603,16 @@ impl CircuitData {
     #[pyo3(signature = (func))]
     pub fn foreach_op(&self, py: Python<'_>, func: &Bound<PyAny>) -> PyResult<()> {
         for inst in self.data.iter() {
-            match &inst.op {
-                OperationType::Standard(op) => {
-                    let op = op.into_py(py);
-                    func.call1((op,))
-                }
-                OperationType::Instruction(op) => func.call1((op.instruction.clone_ref(py),)),
-                OperationType::Gate(op) => func.call1((op.gate.clone_ref(py),)),
-                OperationType::Operation(op) => func.call1((op.operation.clone_ref(py),)),
-            }?;
+            let op = operation_type_and_data_to_py(
+                py,
+                &inst.op,
+                &inst.params,
+                &inst.label,
+                &inst.duration,
+                &inst.unit,
+                &inst.condition,
+            )?;
+            func.call1((op,))?;
         }
         Ok(())
     }
@@ -625,15 +626,16 @@ impl CircuitData {
     #[pyo3(signature = (func))]
     pub fn foreach_op_indexed(&self, py: Python<'_>, func: &Bound<PyAny>) -> PyResult<()> {
         for (index, inst) in self.data.iter().enumerate() {
-            match &inst.op {
-                OperationType::Standard(op) => {
-                    let op = op.into_py(py);
-                    func.call1((index, op))
-                }
-                OperationType::Instruction(op) => func.call1((index, op.instruction.clone_ref(py))),
-                OperationType::Gate(op) => func.call1((index, op.gate.clone_ref(py))),
-                OperationType::Operation(op) => func.call1((index, op.operation.clone_ref(py))),
-            }?;
+            let op = operation_type_and_data_to_py(
+                py,
+                &inst.op,
+                &inst.params,
+                &inst.label,
+                &inst.duration,
+                &inst.unit,
+                &inst.condition,
+            )?;
+            func.call1((index, op))?;
         }
         Ok(())
     }
