@@ -192,7 +192,7 @@ impl Operation for StandardGate {
             Self::SwapGate => "swap",
             Self::SXGate => "sx",
             Self::GlobalPhaseGate => "global_phase",
-            Self::IGate => "i",
+            Self::IGate => "id",
             Self::HGate => "h",
             Self::PhaseGate => "p",
         }
