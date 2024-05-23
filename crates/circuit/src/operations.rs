@@ -10,6 +10,8 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+use std::f64::consts::PI;
+
 use crate::circuit_data::CircuitData;
 use crate::gate_matrix;
 use ndarray::{aview2, Array2};
@@ -159,6 +161,7 @@ pub enum StandardGate {
     IGate,
     HGate,
     PhaseGate,
+    UGate,
 }
 
 #[pymethods]
@@ -195,6 +198,7 @@ impl Operation for StandardGate {
             Self::IGate => "id",
             Self::HGate => "h",
             Self::PhaseGate => "p",
+            Self::UGate => "u",
         }
     }
 
@@ -217,6 +221,7 @@ impl Operation for StandardGate {
             Self::IGate => 1,
             Self::HGate => 1,
             Self::PhaseGate => 1,
+            Self::UGate => 1,
         }
     }
 
@@ -239,6 +244,7 @@ impl Operation for StandardGate {
             Self::IGate => 0,
             Self::HGate => 0,
             Self::PhaseGate => 1,
+            Self::UGate => 3,
         }
     }
 
@@ -303,10 +309,41 @@ impl Operation for StandardGate {
                     _ => None,
                 }
             }
+            Self::UGate => {
+                let params = params.unwrap();
+                let theta: Option<f64> = match params[0] {
+                    Param::Float(val) => Some(val),
+                    Param::ParameterExpression(_) => None,
+                };
+                let phi: Option<f64> = match params[1] {
+                    Param::Float(val) => Some(val),
+                    Param::ParameterExpression(_) => None,
+                };
+                let lam: Option<f64> = match params[2] {
+                    Param::Float(val) => Some(val),
+                    Param::ParameterExpression(_) => None,
+                };
+                // If let chains as needed here are unstable ignore clippy to
+                // workaround. Upstream rust tracking issue:
+                // https://github.com/rust-lang/rust/issues/53667
+                #[allow(clippy::unnecessary_unwrap)]
+                if theta.is_none() || phi.is_none() || lam.is_none() {
+                    None
+                } else {
+                    Some(
+                        aview2(&gate_matrix::u_gate(
+                            theta.unwrap(),
+                            phi.unwrap(),
+                            lam.unwrap(),
+                        ))
+                        .to_owned(),
+                    )
+                }
+            }
         }
     }
 
-    fn definition(&self, _params: Option<SmallVec<[Param; 3]>>) -> Option<CircuitData> {
+    fn definition(&self, params: Option<SmallVec<[Param; 3]>>) -> Option<CircuitData> {
         // TODO: Add definition for completeness. This shouldn't be necessary in practice
         // though because nothing will rely on this in practice.
         match self {
@@ -318,14 +355,177 @@ impl Operation for StandardGate {
                         0,
                         &[(
                             OperationType::Standard(Self::PhaseGate),
-                            &[Param::Float(std::f64::consts::PI)],
+                            Some(&[Param::Float(PI)]),
                             &[0],
                         )],
+                        FLOAT_ZERO,
                     )
-                    .expect("TIS_VALID"),
+                    .expect("Unexpected Qiskit python bug"),
                 )
             }),
-            _ => todo!("Add definitions for other gates"),
+            Self::YGate => Python::with_gil(|py| -> Option<CircuitData> {
+                Some(
+                    CircuitData::build_new_from(
+                        py,
+                        1,
+                        0,
+                        &[(
+                            OperationType::Standard(Self::UGate),
+                            Some(&[
+                                Param::Float(PI),
+                                Param::Float(PI / 2.),
+                                Param::Float(PI / 2.),
+                            ]),
+                            &[0],
+                        )],
+                        FLOAT_ZERO,
+                    )
+                    .expect("Unexpected Qiskit python bug"),
+                )
+            }),
+            Self::XGate => Python::with_gil(|py| -> Option<CircuitData> {
+                Some(
+                    CircuitData::build_new_from(
+                        py,
+                        1,
+                        0,
+                        &[(
+                            OperationType::Standard(Self::UGate),
+                            Some(&[Param::Float(PI), Param::Float(0.), Param::Float(PI)]),
+                            &[0],
+                        )],
+                        FLOAT_ZERO,
+                    )
+                    .expect("Unexpected Qiskit python bug"),
+                )
+            }),
+            Self::CZGate => Python::with_gil(|py| -> Option<CircuitData> {
+                let q1: Vec<u32> = vec![1];
+                let q0_1: Vec<u32> = vec![0, 1];
+                Some(
+                    CircuitData::build_new_from(
+                        py,
+                        2,
+                        0,
+                        &[
+                            (OperationType::Standard(Self::HGate), None, &q1),
+                            (OperationType::Standard(Self::CXGate), None, &q0_1),
+                            (OperationType::Standard(Self::HGate), None, &q1),
+                        ],
+                        FLOAT_ZERO,
+                    )
+                    .expect("Unexpected Qiskit python bug"),
+                )
+            }),
+            Self::CYGate => todo!("Add when we have S and S dagger"),
+            Self::CXGate => None,
+            Self::CCXGate => todo!("Add when we have T and TDagger"),
+            Self::RXGate => todo!("Add when we have R"),
+            Self::RYGate => todo!("Add when we have R"),
+            Self::RZGate => Python::with_gil(|py| -> Option<CircuitData> {
+                let params = params.unwrap();
+                match &params[0] {
+                    Param::Float(theta) => Some(
+                        CircuitData::build_new_from(
+                            py,
+                            1,
+                            0,
+                            &[(
+                                OperationType::Standard(Self::PhaseGate),
+                                Some(&[Param::Float(*theta)]),
+                                &[0],
+                            )],
+                            Param::Float(-0.5 * theta),
+                        )
+                        .expect("Unexpected Qiskit python bug"),
+                    ),
+                    Param::ParameterExpression(theta) => Some(
+                        CircuitData::build_new_from(
+                            py,
+                            1,
+                            0,
+                            &[(
+                                OperationType::Standard(Self::PhaseGate),
+                                Some(&[Param::ParameterExpression(theta.clone_ref(py))]),
+                                &[0],
+                            )],
+                            Param::ParameterExpression(
+                                theta
+                                    .call_method1(py, intern!(py, "__rmul__"), (-0.5,))
+                                    .expect("Parameter expression for global phase failed"),
+                            ),
+                        )
+                        .expect("Unexpected Qiskit python bug"),
+                    ),
+                }
+            }),
+            Self::ECRGate => todo!("Add when we have RZX"),
+            Self::SwapGate => Python::with_gil(|py| -> Option<CircuitData> {
+                Some(
+                    CircuitData::build_new_from(
+                        py,
+                        2,
+                        0,
+                        &[
+                            (OperationType::Standard(Self::CXGate), None, &[0, 1]),
+                            (OperationType::Standard(Self::CXGate), None, &[1, 0]),
+                            (OperationType::Standard(Self::CXGate), None, &[0, 1]),
+                        ],
+                        FLOAT_ZERO,
+                    )
+                    .expect("Unexpected Qiskit python bug"),
+                )
+            }),
+            Self::SXGate => todo!("Add when we have S dagger"),
+            Self::GlobalPhaseGate => Python::with_gil(|py| -> Option<CircuitData> {
+                Some(
+                    CircuitData::build_new_from(py, 0, 0, &[], params.unwrap()[0].clone())
+                        .expect("Unexpected Qiskit python bug"),
+                )
+            }),
+            Self::IGate => Python::with_gil(|py| -> Option<CircuitData> {
+                Some(
+                    CircuitData::build_new_from(py, 1, 0, &[], FLOAT_ZERO)
+                        .expect("Unexpected Qiskit python bug"),
+                )
+            }),
+            Self::HGate => Python::with_gil(|py| -> Option<CircuitData> {
+                Some(
+                    CircuitData::build_new_from(
+                        py,
+                        1,
+                        0,
+                        &[(
+                            OperationType::Standard(Self::UGate),
+                            Some(&[Param::Float(PI / 2.), Param::Float(0.), Param::Float(PI)]),
+                            &[0],
+                        )],
+                        FLOAT_ZERO,
+                    )
+                    .expect("Unexpected Qiskit python bug"),
+                )
+            }),
+            Self::PhaseGate => Python::with_gil(|py| -> Option<CircuitData> {
+                Some(
+                    CircuitData::build_new_from(
+                        py,
+                        1,
+                        0,
+                        &[(
+                            OperationType::Standard(Self::UGate),
+                            Some(&[
+                                Param::Float(0.),
+                                Param::Float(0.),
+                                params.unwrap()[0].clone(),
+                            ]),
+                            &[0],
+                        )],
+                        FLOAT_ZERO,
+                    )
+                    .expect("Unexpected Qiskit python bug"),
+                )
+            }),
+            Self::UGate => None,
         }
     }
 
@@ -333,6 +533,8 @@ impl Operation for StandardGate {
         Some(*self)
     }
 }
+
+const FLOAT_ZERO: Param = Param::Float(0.0);
 
 /// This class is used to wrap a Python side Instruction that is not in the standard library
 #[derive(Clone, Debug)]

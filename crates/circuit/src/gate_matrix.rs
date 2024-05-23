@@ -26,6 +26,7 @@ pub static ONE_QUBIT_IDENTITY: [[Complex64; 2]; 2] = [
     [Complex64::new(0., 0.), Complex64::new(1., 0.)],
 ];
 
+#[inline]
 pub fn rx_gate(theta: f64) -> [[Complex64; 2]; 2] {
     let half_theta = theta / 2.;
     let cos = Complex64::new(half_theta.cos(), 0.);
@@ -33,6 +34,7 @@ pub fn rx_gate(theta: f64) -> [[Complex64; 2]; 2] {
     [[cos, isin], [isin, cos]]
 }
 
+#[inline]
 pub fn ry_gate(theta: f64) -> [[Complex64; 2]; 2] {
     let half_theta = theta / 2.;
     let cos = Complex64::new(half_theta.cos(), 0.);
@@ -40,6 +42,7 @@ pub fn ry_gate(theta: f64) -> [[Complex64; 2]; 2] {
     [[cos, -sin], [sin, cos]]
 }
 
+#[inline]
 pub fn rz_gate(theta: f64) -> [[Complex64; 2]; 2] {
     let ilam2 = Complex64::new(0., 0.5 * theta);
     [
@@ -297,13 +300,31 @@ pub static SWAPGATE: [[Complex64; 4]; 4] = [
     ],
 ];
 
+#[inline]
 pub fn global_phase_gate(theta: f64) -> [[Complex64; 1]; 1] {
     [[Complex64::new(0., theta).exp()]]
 }
 
+#[inline]
 pub fn phase_gate(lam: f64) -> [[Complex64; 2]; 2] {
     [
         [Complex64::new(1., 0.), Complex64::new(0., 0.)],
         [Complex64::new(0., 0.), Complex64::new(0., lam).exp()],
+    ]
+}
+
+#[inline]
+pub fn u_gate(theta: f64, phi: f64, lam: f64) -> [[Complex64; 2]; 2] {
+    let cos = (theta / 2.).cos();
+    let sin = (theta / 2.).sin();
+    [
+        [
+            Complex64::new(cos, 0.),
+            (-Complex64::new(0., lam).exp()) * sin,
+        ],
+        [
+            Complex64::new(0., phi).exp() * sin,
+            Complex64::new(0., phi + lam).exp() * cos,
+        ],
     ]
 }

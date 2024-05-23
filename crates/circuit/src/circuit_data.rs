@@ -168,6 +168,8 @@ pub struct CircuitData {
     global_phase: Param,
 }
 
+type InstructionEntryType<'a> = (OperationType, Option<&'a [Param]>, &'a [u32]);
+
 impl CircuitData {
     /// A helper method to build a new CircuitData from an owned definition
     /// as a slice of OperationType, parameters, and qubits.
@@ -175,7 +177,8 @@ impl CircuitData {
         py: Python,
         num_qubits: usize,
         num_clbits: usize,
-        instructions: &[(OperationType, &[Param], &[u32])],
+        instructions: &[InstructionEntryType],
+        global_phase: Param,
     ) -> PyResult<Self> {
         let mut res = CircuitData {
             data: Vec::with_capacity(instructions.len()),
@@ -187,7 +190,7 @@ impl CircuitData {
             qubits: PyList::empty_bound(py).unbind(),
             clbits: PyList::empty_bound(py).unbind(),
             param_table: ParamTable::new(),
-            global_phase: Param::Float(0.),
+            global_phase,
         };
         if num_qubits > 0 {
             let qubit_mod = py.import_bound("qiskit.circuit.quantumregister")?;
@@ -216,13 +219,15 @@ impl CircuitData {
             .unbind();
             let empty: [u8; 0] = [];
             let clbits = PyTuple::new_bound(py, empty);
+            let params: Option<SmallVec<[Param; 3]>> =
+                params.as_ref().map(|p| p.iter().cloned().collect());
             let inst = res.pack_owned(
                 py,
                 &CircuitInstruction {
                     operation: operation.clone(),
                     qubits,
                     clbits: clbits.into(),
-                    params: Some(params.iter().cloned().collect()),
+                    params,
                     label: None,
                     duration: None,
                     unit: None,
