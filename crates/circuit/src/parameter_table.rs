@@ -152,6 +152,7 @@ impl ParamTable {
     pub fn clear(&mut self) {
         self.table.clear();
         self.names.clear();
+        self.uuid_map.clear();
     }
 
     fn __contains__(&self, key: u128) -> bool {

@@ -76,7 +76,7 @@ class QuantumCircuitData(MutableSequence):
         return CircuitInstruction(operation, tuple(qargs), tuple(cargs))
 
     def insert(self, index, value):
-        self._circuit._data.insert(index, CircuitInstruction(None, (), ()))
+        self._circuit._data.insert(index, value)
         try:
             self[index] = value
         except CircuitError:
