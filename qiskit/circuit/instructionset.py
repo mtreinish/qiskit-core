@@ -142,11 +142,15 @@ class InstructionSet:
             classical = self._requester(classical)
         for instruction in self._instructions:
             if isinstance(instruction, CircuitInstruction):
-                updated = instruction.operation.c_if(classical, val)
-                if updated is not instruction.operation:
-                    raise CircuitError(
-                        "SingletonGate instances can only be added to InstructionSet via _add_ref"
-                    )
+                if isinstance(instruction.operation, (SingletonGate, SingletonControlledGate)):
+                    instruction.replace(condition=(classical, val))
+                else:
+                    updated = instruction.operation.c_if(classical, val)
+                    updated.replace(condition=(classical, val))
+                    if updated is not instruction.operation:
+                        raise CircuitError(
+                            "SingletonGate instances can only be added to InstructionSet via _add_ref"
+                        )
             else:
                 data, idx = instruction
                 instruction = data[idx]
