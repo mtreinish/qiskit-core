@@ -160,15 +160,19 @@ class TestParameters(QiskitTestCase):
         self.assertIsNot(qc.data[-1].operation, gate_param)
         self.assertEqual(qc.data[-1].operation, gate_param)
 
+        # Standard gates are not stored as Python objects so a fresh object
+        # is always instantiated on accessing `CircuitInstruction.operation`
         qc.append(gate_param, [0], copy=False)
-        self.assertIs(qc.data[-1].operation, gate_param)
+        self.assertEqual(qc.data[-1].operation, gate_param)
 
         qc.append(gate_expr, [0], copy=True)
         self.assertIsNot(qc.data[-1].operation, gate_expr)
         self.assertEqual(qc.data[-1].operation, gate_expr)
 
+        # Standard gates are not stored as Python objects so a fresh object
+        # is always instantiated on accessing `CircuitInstruction.operation`
         qc.append(gate_expr, [0], copy=False)
-        self.assertIs(qc.data[-1].operation, gate_expr)
+        self.assertEqual(qc.data[-1].operation, gate_expr)
 
     def test_parameters_property(self):
         """Test instantiating gate with variable parameters"""
