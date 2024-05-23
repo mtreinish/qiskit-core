@@ -22,8 +22,7 @@ use smallvec::SmallVec;
 use std::sync::Mutex;
 
 use crate::operations::{
-    Operation, OperationType, Param, PyGate, PyInstruction, PyOperation, StandardGate,
-    STANDARD_GATE_SIZE,
+    OperationType, Param, PyGate, PyInstruction, PyOperation, StandardGate, STANDARD_GATE_SIZE,
 };
 
 // TODO Come up with a better cacheing mechanism for this
@@ -421,7 +420,44 @@ impl CircuitInstruction {
                     let op_eq = match &self_.operation {
                         OperationType::Standard(op) => {
                             if let OperationType::Standard(other) = &v.operation {
-                                op.name() == other.name()
+                                if op != other {
+                                    false
+                                } else if let Some(self_params) = &self_.params {
+                                    if v.params.is_none() {
+                                        return Ok(Some(false));
+                                    }
+                                    let other_params = v.params.as_ref().unwrap();
+                                    let mut out = true;
+                                    for (param_a, param_b) in self_params.iter().zip(other_params) {
+                                        match param_a {
+                                            Param::Float(val_a) => {
+                                                if let Param::Float(val_b) = param_b {
+                                                    if val_a != val_b {
+                                                        out = false;
+                                                        break;
+                                                    }
+                                                } else {
+                                                    out = false;
+                                                    break;
+                                                }
+                                            }
+                                            Param::ParameterExpression(val_a) => {
+                                                if let Param::ParameterExpression(val_b) = param_b {
+                                                    if !val_a.bind(py).eq(val_b.bind(py))? {
+                                                        out = false;
+                                                        break;
+                                                    }
+                                                } else {
+                                                    out = false;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    out
+                                } else {
+                                    v.params.is_none()
+                                }
                             } else {
                                 false
                             }
