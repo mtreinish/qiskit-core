@@ -385,7 +385,6 @@ impl Operation for PyInstruction {
     fn standard_gate(&self) -> Option<StandardGate> {
         None
     }
-
 }
 
 /// This class is used to wrap a Python side Gate that is not in the standard library
@@ -475,7 +474,6 @@ impl Operation for PyGate {
             }
         })
     }
-
 }
 
 /// This class is used to wrap a Python side Operation that is not in the standard library

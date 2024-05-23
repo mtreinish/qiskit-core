@@ -334,10 +334,16 @@ impl CircuitInstruction {
             .into_py(py))
     }
 
-    fn __setstate__(&mut self, _py: Python<'_>, state: &Bound<PyTuple>) -> PyResult<()> {
-        self.operation = state.get_item(0)?.extract()?;
+    fn __setstate__(&mut self, py: Python<'_>, state: &Bound<PyTuple>) -> PyResult<()> {
+        let op = convert_py_to_operation_type(py, state.get_item(0)?.into())?;
+        self.operation = op.operation;
+        self.params = op.params;
         self.qubits = state.get_item(1)?.extract()?;
         self.clbits = state.get_item(2)?.extract()?;
+        self.label = op.label;
+        self.duration = op.duration;
+        self.unit = op.unit;
+        self.condition = op.condition;
         Ok(())
     }
 
@@ -579,8 +585,11 @@ pub(crate) fn convert_py_to_operation_type(
         if mutable {
             let singleton_mod = py.import_bound("qiskit.circuit.singleton")?;
             let singleton_class = singleton_mod.getattr(intern!(py, "SingletonGate"))?;
-            let singleton_control = singleton_mod.getattr(intern!(py, "SingletonControlledGate"))?;
-            if py_op_bound.is_instance(&singleton_class)? || py_op_bound.is_instance(&singleton_control)? {
+            let singleton_control =
+                singleton_mod.getattr(intern!(py, "SingletonControlledGate"))?;
+            if py_op_bound.is_instance(&singleton_class)?
+                || py_op_bound.is_instance(&singleton_control)?
+            {
                 standard = None;
             }
         }
