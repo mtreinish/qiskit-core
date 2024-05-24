@@ -132,6 +132,29 @@ impl ParamTable {
             }
         }
     }
+
+    pub fn extend_from_other_param_table(
+        &mut self,
+        py: Python,
+        other: &ParamTable,
+        inst_index: usize,
+        param_index: usize,
+    ) -> PyResult<()> {
+        let new_param_entry = ParamEntry::new(inst_index, param_index);
+        for (other_name, uuid) in &other.names {
+            if self.names.contains_key(other_name) && !self.table.contains_key(uuid) {
+                return Err(CircuitError::new_err(format!(
+                    "Name conflict on adding parameter: {}",
+                    other_name
+                )));
+            }
+            self.table.insert(*uuid, new_param_entry.clone());
+            self.names.insert(other_name.to_string(), *uuid);
+            self.uuid_map
+                .insert(*uuid, other.uuid_map[uuid].clone_ref(py));
+        }
+        Ok(())
+    }
 }
 
 #[pymethods]

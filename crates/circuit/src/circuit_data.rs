@@ -248,8 +248,10 @@ impl CircuitData {
             let param_mod =
                 PyModule::import_bound(py, intern!(py, "qiskit.circuit.parameterexpression"))?;
             let param_class = param_mod.getattr(intern!(py, "ParameterExpression"))?;
-
-            let params: Vec<(usize, PyObject)> = raw_params
+            let circuit_mod =
+                PyModule::import_bound(py, intern!(py, "qiskit.circuit.quantumcircuit"))?;
+            let circuit_class = circuit_mod.getattr(intern!(py, "QuantumCircuit"))?;
+            let params: Vec<(usize, PyObject, bool)> = raw_params
                 .iter()
                 .enumerate()
                 .filter_map(|(idx, x)| match x {
@@ -260,7 +262,14 @@ impl CircuitData {
                             .is_instance(&param_class)
                             .unwrap()
                         {
-                            Some((idx, param_obj.clone_ref(py)))
+                            Some((idx, param_obj.clone_ref(py), false))
+                        } else if param_obj
+                            .clone_ref(py)
+                            .into_bound(py)
+                            .is_instance(&circuit_class)
+                            .unwrap()
+                        {
+                            Some((idx, param_obj.clone_ref(py), true))
                         } else {
                             None
                         }
@@ -272,7 +281,18 @@ impl CircuitData {
                 let builtins = PyModule::import_bound(py, "builtins")?;
                 let list_builtin = builtins.getattr("list")?;
 
-                for (param_index, param) in &params {
+                for (param_index, param, is_circuit) in &params {
+                    if *is_circuit {
+                        let circuit_param_data: CircuitData =
+                            param.getattr(py, intern!(py, "_data"))?.extract(py)?;
+                        self.param_table.extend_from_other_param_table(
+                            py,
+                            &circuit_param_data.param_table,
+                            inst_index,
+                            *param_index,
+                        )?;
+                        continue;
+                    }
                     let temp: PyObject = param.getattr(py, intern!(py, "parameters"))?;
                     let raw_param_objs: Vec<PyObject> = list_builtin.call1((temp,))?.extract()?;
                     let atomic_parameters: HashMap<u128, PyObject> = raw_param_objs
@@ -841,7 +861,9 @@ impl CircuitData {
         }
     }
 
-    pub fn setitem_no_param_table_update(&mut self, py: Python<'_>,
+    pub fn setitem_no_param_table_update(
+        &mut self,
+        py: Python<'_>,
         index: isize,
         value: &Bound<PyAny>,
     ) -> PyResult<()> {
