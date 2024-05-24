@@ -5894,6 +5894,7 @@ class QuantumCircuit:
         if not self._data:
             raise CircuitError("This circuit contains no instructions.")
         instruction = self._data.pop()
+        self._parameters = None
         return instruction
 
     @typing.overload
