@@ -16,6 +16,7 @@ use crate::circuit_data::CircuitData;
 use crate::gate_matrix;
 use ndarray::{aview2, Array2};
 use num_complex::Complex64;
+use numpy::IntoPyArray;
 use numpy::PyReadonlyArray2;
 use pyo3::prelude::*;
 use pyo3::{intern, IntoPy, Python};
@@ -168,6 +169,19 @@ pub enum StandardGate {
 impl StandardGate {
     pub fn copy(&self) -> Self {
         *self
+    }
+
+    // These pymethods are for testing:
+    pub fn _to_matrix(&self, py: Python, params: Option<SmallVec<[Param; 3]>>) -> Option<PyObject> {
+        self.matrix(params).map(|x| x.into_pyarray_bound(py).into())
+    }
+
+    pub fn _num_params(&self) -> u32 {
+        self.num_params()
+    }
+
+    pub fn _get_definition(&self, params: Option<SmallVec<[Param; 3]>>) -> Option<CircuitData> {
+        self.definition(params)
     }
 }
 
@@ -483,12 +497,7 @@ impl Operation for StandardGate {
                         .expect("Unexpected Qiskit python bug"),
                 )
             }),
-            Self::IGate => Python::with_gil(|py| -> Option<CircuitData> {
-                Some(
-                    CircuitData::build_new_from(py, 1, 0, &[], FLOAT_ZERO)
-                        .expect("Unexpected Qiskit python bug"),
-                )
-            }),
+            Self::IGate => None,
             Self::HGate => Python::with_gil(|py| -> Option<CircuitData> {
                 Some(
                     CircuitData::build_new_from(

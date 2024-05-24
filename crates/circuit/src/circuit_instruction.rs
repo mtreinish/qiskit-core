@@ -16,7 +16,7 @@ use hashbrown::HashMap;
 use pyo3::basic::CompareOp;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyList, PyTuple};
+use pyo3::types::{IntoPyDict, PyList, PyTuple, PyType};
 use pyo3::{intern, IntoPy, PyObject, PyResult};
 use smallvec::SmallVec;
 use std::sync::Mutex;
@@ -599,7 +599,15 @@ pub(crate) fn convert_py_to_operation_type(
 ) -> PyResult<OperationTypeConstruct> {
     let attr = intern!(py, "_standard_gate");
     let py_op_bound = py_op.clone_ref(py).into_bound(py);
-    let op_type = py_op_bound.get_type();
+    // Get PyType from either base_class if it exists, or if not use the
+    // class/type info from the pyobject
+    let binding = py_op_bound.getattr(intern!(py, "base_class")).ok();
+    let op_obj = py_op_bound.get_type();
+    let raw_op_type: Py<PyType> = match binding {
+        Some(base_class) => base_class.downcast()?.clone().unbind(),
+        None => op_obj.unbind(),
+    };
+    let op_type: Bound<PyType> = raw_op_type.into_bound(py);
     let mut standard: Option<StandardGate> = match op_type.getattr(attr).ok() {
         Some(stdgate) => match stdgate.extract().ok() {
             Some(gate) => gate,

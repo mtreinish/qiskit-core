@@ -1156,6 +1156,15 @@ class QuantumCircuit:
         Qiskit will not examine the content of this mapping, but it will pass it through the
         transpiler and reattach it to the output, so you can track your own metadata."""
 
+    @classmethod
+    def _from_circuit_data(cls, data: CircuitData) -> typing.Self:
+        """A private constructor from rust space circuit data."""
+        out = QuantumCircuit()
+        out.add_bits(data.qubits)
+        out.add_bits(data.clbits)
+        out._data = data
+        return out
+
     @staticmethod
     def from_instructions(
         instructions: Iterable[

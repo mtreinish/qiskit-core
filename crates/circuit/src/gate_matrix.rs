@@ -105,7 +105,7 @@ pub static ZGATE: [[Complex64; 2]; 2] = [
 ];
 
 pub static YGATE: [[Complex64; 2]; 2] = [
-    [Complex64::new(0., -1.), Complex64::new(0., 0.)],
+    [Complex64::new(0., 0.), Complex64::new(0., -1.)],
     [Complex64::new(0., 1.), Complex64::new(0., 0.)],
 ];
 
