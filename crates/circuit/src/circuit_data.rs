@@ -841,6 +841,17 @@ impl CircuitData {
         }
     }
 
+    pub fn setitem_no_param_table_update(&mut self, py: Python<'_>,
+        index: isize,
+        value: &Bound<PyAny>,
+    ) -> PyResult<()> {
+        let index = self.convert_py_index(index)?;
+        let value: PyRef<CircuitInstruction> = value.extract()?;
+        let mut packed = self.pack(py, value)?;
+        std::mem::swap(&mut packed, &mut self.data[index]);
+        Ok(())
+    }
+
     pub fn __setitem__(
         &mut self,
         py: Python<'_>,

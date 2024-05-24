@@ -4304,9 +4304,9 @@ class QuantumCircuit:
                     temp_params = operation.params
                     temp_params[index] = new_parameter
                     operation.params = temp_params
-                    target._data[inst_index] = target._data[inst_index].replace(
+                    target._data.setitem_no_param_table_update(inst_index, target._data[inst_index].replace(
                         operation=operation, params=temp_params
-                    )
+                    ))
 
         # After we've been through everything at the top level, make a single visit to each
         # operation we've seen, rebinding its definition if necessary.
