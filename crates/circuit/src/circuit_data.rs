@@ -240,7 +240,42 @@ impl CircuitData {
     }
 
     /// Add an instruction's entries to the parameter table
-    fn update_param_table(&mut self, py: Python, inst_index: usize) -> PyResult<bool> {
+    fn update_param_table(
+        &mut self,
+        py: Python,
+        inst_index: usize,
+        _params: Option<Vec<(usize, Vec<PyObject>)>>,
+    ) -> PyResult<bool> {
+        if let Some(params) = _params {
+            let mut new_param = false;
+            for (param_index, raw_param_objs) in &params {
+                let atomic_parameters: HashMap<u128, PyObject> = raw_param_objs
+                    .iter()
+                    .map(|x| {
+                        (
+                            x.getattr(py, intern!(py, "_uuid"))
+                                .expect("Not a parameter")
+                                .getattr(py, intern!(py, "int"))
+                                .expect("Not a uuid")
+                                .extract::<u128>(py)
+                                .unwrap(),
+                            x.clone_ref(py),
+                        )
+                    })
+                    .collect();
+                for (param_uuid, param_obj) in atomic_parameters.into_iter() {
+                    match self.param_table.table.get_mut(&param_uuid) {
+                        Some(entry) => entry.add(inst_index, *param_index),
+                        None => {
+                            new_param = true;
+                            let new_entry = ParamEntry::new(inst_index, *param_index);
+                            self.param_table.insert(py, param_obj, new_entry)?;
+                        }
+                    };
+                }
+            }
+            return Ok(new_param);
+        }
         // Update the parameter table
         let mut new_param = false;
         let inst_params = &self.data[inst_index].params;
@@ -383,7 +418,7 @@ impl CircuitData {
         self.param_table.clear();
 
         for inst_index in 0..self.data.len() {
-            self.update_param_table(py, inst_index)?;
+            self.update_param_table(py, inst_index, None)?;
         }
         // Technically we could keep the global phase entry directly if it exists, but we're
         // the incremental cost is minimal after reindexing everything.
@@ -911,7 +946,7 @@ impl CircuitData {
                 let mut packed = self.pack(py, value)?;
                 self.remove_from_parameter_table(py, index)?;
                 std::mem::swap(&mut packed, &mut self.data[index]);
-                self.update_param_table(py, index)?;
+                self.update_param_table(py, index, None)?;
                 Ok(())
             }
         }
@@ -928,7 +963,7 @@ impl CircuitData {
         let packed = self.pack(py, value)?;
         self.data.insert(index, packed);
         if index == old_len {
-            self.update_param_table(py, old_len)?;
+            self.update_param_table(py, old_len, None)?;
         } else {
             self.reindex_parameter_table(py)?;
         }
@@ -944,11 +979,16 @@ impl CircuitData {
         Ok(item)
     }
 
-    pub fn append(&mut self, py: Python<'_>, value: PyRef<CircuitInstruction>) -> PyResult<bool> {
+    pub fn append(
+        &mut self,
+        py: Python<'_>,
+        value: PyRef<CircuitInstruction>,
+        _params: Option<Vec<(usize, Vec<PyObject>)>>,
+    ) -> PyResult<bool> {
         let packed = self.pack(py, value)?;
         let new_index = self.data.len();
         self.data.push(packed);
-        self.update_param_table(py, new_index)
+        self.update_param_table(py, new_index, _params)
     }
 
     pub fn extend(&mut self, py: Python<'_>, itr: &Bound<PyAny>) -> PyResult<()> {
@@ -986,12 +1026,12 @@ impl CircuitData {
                     unit: inst.unit.clone(),
                     condition: inst.condition.clone(),
                 });
-                self.update_param_table(py, new_index)?;
+                self.update_param_table(py, new_index, None)?;
             }
             return Ok(());
         }
         for v in itr.iter()? {
-            self.append(py, v?.extract()?)?;
+            self.append(py, v?.extract()?, None)?;
         }
         Ok(())
     }
