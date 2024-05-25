@@ -1,4 +1,11 @@
 ---
+features_circuits:
+  - |
+    A native rust representation of Qiskit's standard gate library has been added. When a standard gate
+    is added to a :class:`~.QuantumCircuit` or :class:`~.DAGCircuit` it is now represented in a more
+    efficient manner directly in Rust seamlessly. Accessing that gate object from a circuit or dag will
+    return a new Python object representing the standard gate. This leads to faster and more efficient
+    transpilation and manipulation of circuits for functionality written in Rust.
 upgrade_circuits:
   - |
     The :class:`.Operation` instances of :attr:`.CircuitInstruction.operation`
