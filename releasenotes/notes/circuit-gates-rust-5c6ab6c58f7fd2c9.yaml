@@ -8,6 +8,33 @@ features_circuits:
     transpilation and manipulation of circuits for functionality written in Rust.
 upgrade_circuits:
   - |
+    The :class:`.Operation` instances of :attr:`.DAGOpNode.op`
+    being returned will not necessarily share a common reference to the
+    underlying object anymore. This was never guaranteed to be the case and
+    mutating the :attr:`~.DAGOpNode.op` directly by reference
+    was unsound and always likely to corrupt the dag's internal state tracking
+    Due to the internal refactor of the :class:`.QuantumCircuit` and
+    :class:`.DAGCircuit` to store standard gates in rust the output object from
+    :attr:`.DAGOpNode.op` will now likely be a copy instead of a shared instance. If you
+    need to mutate an element should ensure that you either do::
+
+      op = dag_node.op
+      op.params[0] = 3.14159
+      dag_node.op = op
+
+    or::
+
+      op = dag_node.op
+      op.params[0] = 3.14159
+      dag.substitute_node(dag_node, op)
+
+    instead of doing something like::
+
+      dag_node.op.params[0] = 3.14159
+
+    which will not work for any standard gates in this release. It would have
+    likely worked by chance in a previous release but was never an API guarantee.
+  - |
     The :class:`.Operation` instances of :attr:`.CircuitInstruction.operation`
     being returned will not necessarily share a common reference to the
     underlying object anymore. This was never guaranteed to be the case and
