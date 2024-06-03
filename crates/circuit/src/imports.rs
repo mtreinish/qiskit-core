@@ -87,6 +87,8 @@ static STDGATE_IMPORT_PATHS: [[&str; 2]; STANDARD_GATE_SIZE] = [
     ["qiskit.circuit.library.standard_gates.p", "PhaseGate"],
     // UGate = 17
     ["qiskit.circuit.library.standard_gates.u", "UGate"],
+    // RGate = 18
+    ["qiskit.circuit.library.standard_gates.r", "RGate"],
 ];
 
 /// A mapping from the enum variant in crate::operations::StandardGate to the python object for the
@@ -109,7 +111,7 @@ pub fn populate_std_gate_map(py: Python, rs_gate: StandardGate, py_gate: PyObjec
                 // as T isn't Copy. To avoid that we just list out None STANDARD_GATE_SIZE times
                 let array: [Option<PyObject>; STANDARD_GATE_SIZE] = [
                     None, None, None, None, None, None, None, None, None, None, None, None, None,
-                    None, None, None, None, None,
+                    None, None, None, None, None, None,
                 ];
                 STDGATE_PYTHON_GATES.set(py, array).unwrap();
                 STDGATE_PYTHON_GATES.get_mut().unwrap()
@@ -131,7 +133,7 @@ pub fn get_std_gate_class(py: Python, rs_gate: StandardGate) -> PyResult<PyObjec
             // as T isn't Copy. To avoid that we just list out None STANDARD_GATE_SIZE times
             let array: [Option<PyObject>; STANDARD_GATE_SIZE] = [
                 None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-                None, None, None, None,
+                None, None, None, None, None,
             ];
             array
         })

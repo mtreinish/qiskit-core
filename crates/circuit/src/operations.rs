@@ -207,6 +207,7 @@ pub enum StandardGate {
     HGate = 15,
     PhaseGate = 16,
     UGate = 17,
+    RGate = 18,
 }
 
 #[pymethods]
@@ -249,7 +250,7 @@ impl StandardGate {
 //
 // Remove this when std::mem::variant_count() is stabilized (see
 // https://github.com/rust-lang/rust/issues/73662 )
-pub const STANDARD_GATE_SIZE: usize = 18;
+pub const STANDARD_GATE_SIZE: usize = 19;
 
 impl Operation for StandardGate {
     fn name(&self) -> &str {
@@ -272,6 +273,7 @@ impl Operation for StandardGate {
             Self::HGate => "h",
             Self::PhaseGate => "p",
             Self::UGate => "u",
+            Self::RGate => "r",
         }
     }
 
@@ -295,6 +297,7 @@ impl Operation for StandardGate {
             Self::HGate => 1,
             Self::PhaseGate => 1,
             Self::UGate => 1,
+            Self::RGate => 1,
         }
     }
 
@@ -318,6 +321,7 @@ impl Operation for StandardGate {
             Self::HGate => 0,
             Self::PhaseGate => 1,
             Self::UGate => 3,
+            Self::RGate => 2,
         }
     }
 
@@ -417,6 +421,30 @@ impl Operation for StandardGate {
                             lam.unwrap(),
                         ))
                         .to_owned(),
+                    )
+                }
+            }
+            Self::RGate => {
+                let params = params.unwrap();
+                let theta: Option<f64> = match params[0] {
+                    Param::Float(val) => Some(val),
+                    Param::ParameterExpression(_) => None,
+                    Param::Obj(_) => None,
+                };
+                let phi: Option<f64> = match params[1] {
+                    Param::Float(val) => Some(val),
+                    Param::ParameterExpression(_) => None,
+                    Param::Obj(_) => None,
+                };
+                if theta.is_none() || phi.is_none() {
+                    None
+                } else {
+                    Some(
+                        aview2(&gate_matrix::r_gate(
+                            theta.unwrap(),
+                            phi.unwrap(),
+                        ))
+                            .to_owned(),
                     )
                 }
             }
@@ -602,6 +630,7 @@ impl Operation for StandardGate {
                 )
             }),
             Self::UGate => None,
+            Self::RGate => todo!("Add when we have U3"),
         }
     }
 

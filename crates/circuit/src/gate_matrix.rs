@@ -43,6 +43,19 @@ pub fn rz_gate(theta: f64) -> [[Complex64; 2]; 2] {
     ]
 }
 
+#[inline]
+pub fn r_gate(theta: f64, phi: f64) -> [[Complex64; 2]; 2] {
+    let half_theta = theta / 2.;
+    let cost = Complex64::new(half_theta.cos(), 0.);
+    let sint = half_theta.sin();
+    let cosphi = phi.cos();
+    let sinphi = phi.sin();
+    [
+        [cost, Complex64::new(sint * sinphi, -sint * cosphi)],
+        [Complex64::new(-sint * sinphi, -sint * cosphi), cost],
+    ]
+}
+
 pub static HGATE: [[Complex64; 2]; 2] = [
     [
         Complex64::new(FRAC_1_SQRT_2, 0.),
