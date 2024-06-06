@@ -118,8 +118,8 @@ pub fn populate_std_gate_map(py: Python, rs_gate: StandardGate, py_gate: PyObjec
 
 #[inline]
 pub fn get_std_gate_class(py: Python, rs_gate: StandardGate) -> PyResult<PyObject> {
-    let array: [Option<PyObject>; STANDARD_GATE_SIZE] = core::array::from_fn(|_| None);
-    let gate_map = unsafe { STDGATE_PYTHON_GATES.get_or_init(py, || array) };
+    let gate_map =
+        unsafe { STDGATE_PYTHON_GATES.get_or_init(py, || core::array::from_fn(|_| None)) };
     let gate = &gate_map[rs_gate as usize];
     let populate = gate.is_none();
     let out_gate = match gate {
