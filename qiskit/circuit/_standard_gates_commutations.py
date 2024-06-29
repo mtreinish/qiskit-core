@@ -14,13 +14,13 @@
 is defined by a pair of gates and, optionally, their relative placement to each other, i.e.:
 
    ┌───┐┌───┐
-q: ┤ X ├┤ Z ├    -> standard_gates_commutations["x", "z"] = False
+q: ┤ X ├┤ Z ├    -> standard_gates_commutations[StandardGate.XGate, StandardGate.ZGate] = False
    └───┘└───┘
 
 or
           ┌───┐
 q_0: ──■──┤ X ├
-     ┌─┴─┐└─┬─┘  -> standard_gates_commutations["cx", "cy"][1, 0] = False
+     ┌─┴─┐└─┬─┘  -> standard_gates_commutations[StandardGate.CXGate, StandardGate.CYGate][1, 0] = False
 q_1: ┤ Y ├──■──
      └───┘
 
@@ -33,7 +33,7 @@ q_1: ┤ X ├──■──  -> standard_gates_commutations['cx', 'cx'][None, 
 q_2: ─────┤ X ├
           └───┘
 Note that the commutation of a pair of gates is only stored in one specific order, i.e. the commutation
-of a pair of cy and cx gates is only stored in standard_gates_commutations["cx", "cy"]. The order of the
+of a pair of cy and cx gates is only stored in standard_gates_commutations[StandardGate.CXGate, StandardGate.CYGate]. The order of the
 gates is derived from the number of qubits in each gate and the value of the integer representation of
 the gate name.
 
@@ -47,112 +47,116 @@ on the zeroth qubit of the first cx but the zeroth qubit of the second gate over
 first cx.
 """
 
-standard_gates_commutations = {
-    ("id", "id"): True,
-    ("id", "sx"): True,
-    ("id", "cx"): True,
-    ("id", "c3sx"): True,
-    ("id", "ccx"): True,
-    ("id", "dcx"): True,
-    ("id", "ch"): True,
-    ("id", "cswap"): True,
-    ("id", "csx"): True,
-    ("id", "cy"): True,
-    ("id", "cz"): True,
-    ("id", "ccz"): True,
-    ("id", "rccx"): True,
-    ("id", "rcccx"): True,
-    ("id", "ecr"): True,
-    ("id", "sdg"): True,
-    ("id", "cs"): True,
-    ("id", "csdg"): True,
-    ("id", "swap"): True,
-    ("id", "iswap"): True,
-    ("id", "sxdg"): True,
-    ("id", "tdg"): True,
-    ("sx", "sx"): True,
-    ("sx", "cx"): {
+from qiskit._accelerate.circuit import StandardGate
+from qiskit._accelerate.commutation_utils import CommutationLibrary
+
+
+standard_gates_commutations_dict = {
+    (StandardGate.IGate, StandardGate.IGate): True,
+    (StandardGate.IGate, StandardGate.SXGate): True,
+    (StandardGate.IGate, StandardGate.CXGate): True,
+    (StandardGate.IGate, StandardGate.C3SXGate): True,
+    (StandardGate.IGate, StandardGate.CCXGate): True,
+    (StandardGate.IGate, StandardGate.DCXGate): True,
+    (StandardGate.IGate, StandardGate.CHGate): True,
+    (StandardGate.IGate, StandardGate.CSwapGate): True,
+    (StandardGate.IGate, StandardGate.CSXGate): True,
+    (StandardGate.IGate, StandardGate.CYGate): True,
+    (StandardGate.IGate, StandardGate.CZGate): True,
+    (StandardGate.IGate, StandardGate.CCZGate): True,
+    (StandardGate.IGate, StandardGate.RCCXGate): True,
+    (StandardGate.IGate, StandardGate.RC3XGate): True,
+    (StandardGate.IGate, StandardGate.ECRGate): True,
+    (StandardGate.IGate, StandardGate.SdgGate): True,
+    (StandardGate.IGate, StandardGate.CSGate): True,
+    (StandardGate.IGate, StandardGate.CSdgGate): True,
+    (StandardGate.IGate, StandardGate.SwapGate): True,
+    (StandardGate.IGate, StandardGate.ISwapGate): True,
+    (StandardGate.IGate, StandardGate.SXdgGate): True,
+    (StandardGate.IGate, StandardGate.TdgGate): True,
+    (StandardGate.SXGate, StandardGate.SXGate): True,
+    (StandardGate.SXGate, StandardGate.CXGate): {
         (0,): False,
         (1,): True,
     },
-    ("sx", "c3sx"): {
+    (StandardGate.SXGate, StandardGate.C3SXGate): {
         (0,): False,
         (1,): False,
         (2,): False,
         (3,): True,
     },
-    ("sx", "ccx"): {
+    (StandardGate.SXGate, StandardGate.CCXGate): {
         (0,): False,
         (1,): False,
         (2,): True,
     },
-    ("sx", "dcx"): False,
-    ("sx", "ch"): False,
-    ("sx", "cswap"): False,
-    ("sx", "csx"): {
+    (StandardGate.SXGate, StandardGate.DCXGate): False,
+    (StandardGate.SXGate, StandardGate.CHGate): False,
+    (StandardGate.SXGate, StandardGate.CSwapGate): False,
+    (StandardGate.SXGate, StandardGate.CSXGate): {
         (0,): False,
         (1,): True,
     },
-    ("sx", "cy"): False,
-    ("sx", "cz"): False,
-    ("sx", "ccz"): False,
-    ("sx", "rccx"): False,
-    ("sx", "rcccx"): False,
-    ("sx", "ecr"): {
+    (StandardGate.SXGate, StandardGate.CYGate): False,
+    (StandardGate.SXGate, StandardGate.CZGate): False,
+    (StandardGate.SXGate, StandardGate.CCZGate): False,
+    (StandardGate.SXGate, StandardGate.RCCXGate): False,
+    (StandardGate.SXGate, StandardGate.RC3XGate): False,
+    (StandardGate.SXGate, StandardGate.ECRGate): {
         (0,): False,
         (1,): True,
     },
-    ("sx", "sdg"): False,
-    ("sx", "cs"): False,
-    ("sx", "csdg"): False,
-    ("sx", "swap"): False,
-    ("sx", "iswap"): False,
-    ("sx", "sxdg"): True,
-    ("sx", "tdg"): False,
-    ("x", "id"): True,
-    ("x", "sx"): True,
-    ("x", "x"): True,
-    ("x", "cx"): {
+    (StandardGate.SXGate, StandardGate.SdgGate): False,
+    (StandardGate.SXGate, StandardGate.CSGate): False,
+    (StandardGate.SXGate, StandardGate.CSdgGate): False,
+    (StandardGate.SXGate, StandardGate.SwapGate): False,
+    (StandardGate.SXGate, StandardGate.ISwapGate): False,
+    (StandardGate.SXGate, StandardGate.SXdgGate): True,
+    (StandardGate.SXGate, StandardGate.TdgGate): False,
+    (StandardGate.XGate, StandardGate.IGate): True,
+    (StandardGate.XGate, StandardGate.SXGate): True,
+    (StandardGate.XGate, StandardGate.XGate): True,
+    (StandardGate.XGate, StandardGate.CXGate): {
         (0,): False,
         (1,): True,
     },
-    ("x", "c3sx"): {
+    (StandardGate.XGate, StandardGate.C3SXGate): {
         (0,): False,
         (1,): False,
         (2,): False,
         (3,): True,
     },
-    ("x", "ccx"): {
+    (StandardGate.XGate, StandardGate.CCXGate): {
         (0,): False,
         (1,): False,
         (2,): True,
     },
-    ("x", "dcx"): False,
-    ("x", "ch"): False,
-    ("x", "cswap"): False,
-    ("x", "csx"): {
+    (StandardGate.XGate, StandardGate.DCXGate): False,
+    (StandardGate.XGate, StandardGate.CHGate): False,
+    (StandardGate.XGate, StandardGate.CSwapGate): False,
+    (StandardGate.XGate, StandardGate.CSXGate): {
         (0,): False,
         (1,): True,
     },
-    ("x", "cy"): False,
-    ("x", "cz"): False,
-    ("x", "ccz"): False,
-    ("x", "rccx"): False,
-    ("x", "rcccx"): False,
-    ("x", "ecr"): {
+    (StandardGate.XGate, StandardGate.CYGate): False,
+    (StandardGate.XGate, StandardGate.CZGate): False,
+    (StandardGate.XGate, StandardGate.CCZGate): False,
+    (StandardGate.XGate, StandardGate.RCCXGate): False,
+    (StandardGate.XGate, StandardGate.RC3XGate): False,
+    (StandardGate.XGate, StandardGate.ECRGate): {
         (0,): False,
         (1,): True,
     },
-    ("x", "sdg"): False,
-    ("x", "cs"): False,
-    ("x", "csdg"): False,
-    ("x", "swap"): False,
-    ("x", "iswap"): False,
-    ("x", "sxdg"): True,
-    ("x", "tdg"): False,
-    ("x", "y"): False,
-    ("x", "z"): False,
-    ("cx", "cx"): {
+    (StandardGate.XGate, StandardGate.SdgGate): False,
+    (StandardGate.XGate, StandardGate.CSGate): False,
+    (StandardGate.XGate, StandardGate.CSdgGate): False,
+    (StandardGate.XGate, StandardGate.SwapGate): False,
+    (StandardGate.XGate, StandardGate.ISwapGate): False,
+    (StandardGate.XGate, StandardGate.SXdgGate): True,
+    (StandardGate.XGate, StandardGate.TdgGate): False,
+    (StandardGate.XGate, StandardGate.YGate): False,
+    (StandardGate.XGate, StandardGate.ZGate): False,
+    (StandardGate.CXGate, StandardGate.CXGate): {
         (0, 1): True,
         (0, None): True,
         (1, 0): False,
@@ -160,7 +164,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): True,
     },
-    ("cx", "c3sx"): {
+    (StandardGate.CXGate, StandardGate.C3SXGate): {
         (0, 1): False,
         (0, 2): False,
         (0, 3): True,
@@ -182,7 +186,7 @@ standard_gates_commutations = {
         (None, 2): False,
         (None, 3): True,
     },
-    ("cx", "ccx"): {
+    (StandardGate.CXGate, StandardGate.CCXGate): {
         (0, 1): False,
         (0, 2): True,
         (0, None): True,
@@ -196,8 +200,8 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): True,
     },
-    ("cx", "dcx"): False,
-    ("cx", "cswap"): {
+    (StandardGate.CXGate, StandardGate.DCXGate): False,
+    (StandardGate.CXGate, StandardGate.CSwapGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -211,7 +215,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("cx", "csx"): {
+    (StandardGate.CXGate, StandardGate.CSXGate): {
         (0, 1): True,
         (0, None): True,
         (1, 0): False,
@@ -219,7 +223,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): True,
     },
-    ("cx", "cy"): {
+    (StandardGate.CXGate, StandardGate.CYGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -227,7 +231,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("cx", "cz"): {
+    (StandardGate.CXGate, StandardGate.CZGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -235,7 +239,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("cx", "ccz"): {
+    (StandardGate.CXGate, StandardGate.CCZGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -249,7 +253,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("cx", "rccx"): {
+    (StandardGate.CXGate, StandardGate.RCCXGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -263,7 +267,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("cx", "rcccx"): {
+    (StandardGate.CXGate, StandardGate.RC3XGate): {
         (0, 1): False,
         (0, 2): False,
         (0, 3): False,
@@ -285,7 +289,7 @@ standard_gates_commutations = {
         (None, 2): False,
         (None, 3): False,
     },
-    ("cx", "ecr"): {
+    (StandardGate.CXGate, StandardGate.ECRGate): {
         (0, 1): False,
         (0, None): False,
         (1, 0): False,
@@ -293,7 +297,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): True,
     },
-    ("cx", "csdg"): {
+    (StandardGate.CXGate, StandardGate.CSdgGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -301,9 +305,9 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("cx", "swap"): False,
-    ("cx", "iswap"): False,
-    ("c3sx", "c3sx"): {
+    (StandardGate.CXGate, StandardGate.SwapGate): False,
+    (StandardGate.CXGate, StandardGate.ISwapGate): False,
+    (StandardGate.C3SXGate, StandardGate.C3SXGate): {
         (0, 1, 2, 3): True,
         (0, 1, 2, None): True,
         (0, 1, 3, 2): False,
@@ -513,7 +517,7 @@ standard_gates_commutations = {
         (None, None, None, 2): False,
         (None, None, None, 3): True,
     },
-    ("c3sx", "rcccx"): {
+    (StandardGate.C3SXGate, StandardGate.RC3XGate): {
         (0, 1, 2, 3): False,
         (0, 1, 2, None): True,
         (0, 1, 3, 2): False,
@@ -723,7 +727,7 @@ standard_gates_commutations = {
         (None, None, None, 2): False,
         (None, None, None, 3): False,
     },
-    ("ccx", "c3sx"): {
+    (StandardGate.CCXGate, StandardGate.C3SXGate): {
         (0, 1, 2): False,
         (0, 1, 3): True,
         (0, 1, None): True,
@@ -797,7 +801,7 @@ standard_gates_commutations = {
         (None, None, 2): False,
         (None, None, 3): True,
     },
-    ("ccx", "ccx"): {
+    (StandardGate.CCXGate, StandardGate.CCXGate): {
         (0, 1, 2): True,
         (0, 1, None): True,
         (0, 2, 1): False,
@@ -832,7 +836,7 @@ standard_gates_commutations = {
         (None, None, 1): False,
         (None, None, 2): True,
     },
-    ("ccx", "cswap"): {
+    (StandardGate.CCXGate, StandardGate.CSwapGate): {
         (0, 1, 2): False,
         (0, 1, None): False,
         (0, 2, 1): False,
@@ -867,7 +871,7 @@ standard_gates_commutations = {
         (None, None, 1): False,
         (None, None, 2): False,
     },
-    ("ccx", "ccz"): {
+    (StandardGate.CCXGate, StandardGate.CCZGate): {
         (0, 1, 2): False,
         (0, 1, None): True,
         (0, 2, 1): False,
@@ -902,7 +906,7 @@ standard_gates_commutations = {
         (None, None, 1): False,
         (None, None, 2): False,
     },
-    ("ccx", "rccx"): {
+    (StandardGate.CCXGate, StandardGate.RCCXGate): {
         (0, 1, 2): False,
         (0, 1, None): True,
         (0, 2, 1): False,
@@ -937,7 +941,7 @@ standard_gates_commutations = {
         (None, None, 1): False,
         (None, None, 2): False,
     },
-    ("ccx", "rcccx"): {
+    (StandardGate.CCXGate, StandardGate.RC3XGate): {
         (0, 1, 2): False,
         (0, 1, 3): False,
         (0, 1, None): True,
@@ -1011,9 +1015,9 @@ standard_gates_commutations = {
         (None, None, 2): False,
         (None, None, 3): False,
     },
-    ("dcx", "c3sx"): False,
-    ("dcx", "ccx"): False,
-    ("dcx", "dcx"): {
+    (StandardGate.DCXGate, StandardGate.C3SXGate): False,
+    (StandardGate.DCXGate, StandardGate.CCXGate): False,
+    (StandardGate.DCXGate, StandardGate.DCXGate): {
         (0, 1): True,
         (0, None): False,
         (1, 0): True,
@@ -1021,15 +1025,15 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("dcx", "cswap"): False,
-    ("dcx", "ccz"): False,
-    ("dcx", "rccx"): False,
-    ("dcx", "rcccx"): False,
-    ("dcx", "ecr"): False,
-    ("dcx", "csdg"): False,
-    ("dcx", "swap"): False,
-    ("dcx", "iswap"): False,
-    ("ch", "cx"): {
+    (StandardGate.DCXGate, StandardGate.CSwapGate): False,
+    (StandardGate.DCXGate, StandardGate.CCZGate): False,
+    (StandardGate.DCXGate, StandardGate.RCCXGate): False,
+    (StandardGate.DCXGate, StandardGate.RC3XGate): False,
+    (StandardGate.DCXGate, StandardGate.ECRGate): False,
+    (StandardGate.DCXGate, StandardGate.CSdgGate): False,
+    (StandardGate.DCXGate, StandardGate.SwapGate): False,
+    (StandardGate.DCXGate, StandardGate.ISwapGate): False,
+    (StandardGate.CHGate, StandardGate.CXGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -1037,7 +1041,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("ch", "c3sx"): {
+    (StandardGate.CHGate, StandardGate.C3SXGate): {
         (0, 1): False,
         (0, 2): False,
         (0, 3): False,
@@ -1059,7 +1063,7 @@ standard_gates_commutations = {
         (None, 2): False,
         (None, 3): False,
     },
-    ("ch", "ccx"): {
+    (StandardGate.CHGate, StandardGate.CCXGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -1073,8 +1077,8 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("ch", "dcx"): False,
-    ("ch", "ch"): {
+    (StandardGate.CHGate, StandardGate.DCXGate): False,
+    (StandardGate.CHGate, StandardGate.CHGate): {
         (0, 1): True,
         (0, None): True,
         (1, 0): False,
@@ -1082,7 +1086,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): True,
     },
-    ("ch", "cswap"): {
+    (StandardGate.CHGate, StandardGate.CSwapGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -1096,7 +1100,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("ch", "csx"): {
+    (StandardGate.CHGate, StandardGate.CSXGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -1104,7 +1108,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("ch", "cy"): {
+    (StandardGate.CHGate, StandardGate.CYGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -1112,7 +1116,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("ch", "cz"): {
+    (StandardGate.CHGate, StandardGate.CZGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -1120,7 +1124,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("ch", "ccz"): {
+    (StandardGate.CHGate, StandardGate.CCZGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -1134,7 +1138,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("ch", "rccx"): {
+    (StandardGate.CHGate, StandardGate.RCCXGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -1148,7 +1152,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("ch", "rcccx"): {
+    (StandardGate.CHGate, StandardGate.RC3XGate): {
         (0, 1): False,
         (0, 2): False,
         (0, 3): False,
@@ -1170,8 +1174,8 @@ standard_gates_commutations = {
         (None, 2): False,
         (None, 3): False,
     },
-    ("ch", "ecr"): False,
-    ("ch", "cs"): {
+    (StandardGate.CHGate, StandardGate.ECRGate): False,
+    (StandardGate.CHGate, StandardGate.CSGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -1179,7 +1183,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("ch", "csdg"): {
+    (StandardGate.CHGate, StandardGate.CSdgGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -1187,9 +1191,9 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("ch", "swap"): False,
-    ("ch", "iswap"): False,
-    ("cswap", "c3sx"): {
+    (StandardGate.CHGate, StandardGate.SwapGate): False,
+    (StandardGate.CHGate, StandardGate.ISwapGate): False,
+    (StandardGate.CSwapGate, StandardGate.C3SXGate): {
         (0, 1, 2): True,
         (0, 1, 3): False,
         (0, 1, None): False,
@@ -1263,7 +1267,7 @@ standard_gates_commutations = {
         (None, None, 2): False,
         (None, None, 3): False,
     },
-    ("cswap", "cswap"): {
+    (StandardGate.CSwapGate, StandardGate.CSwapGate): {
         (0, 1, 2): True,
         (0, 1, None): False,
         (0, 2, 1): True,
@@ -1298,7 +1302,7 @@ standard_gates_commutations = {
         (None, None, 1): False,
         (None, None, 2): False,
     },
-    ("cswap", "rcccx"): {
+    (StandardGate.CSwapGate, StandardGate.RC3XGate): {
         (0, 1, 2): False,
         (0, 1, 3): False,
         (0, 1, None): False,
@@ -1372,7 +1376,7 @@ standard_gates_commutations = {
         (None, None, 2): False,
         (None, None, 3): False,
     },
-    ("csx", "c3sx"): {
+    (StandardGate.CSXGate, StandardGate.C3SXGate): {
         (0, 1): False,
         (0, 2): False,
         (0, 3): True,
@@ -1394,7 +1398,7 @@ standard_gates_commutations = {
         (None, 2): False,
         (None, 3): True,
     },
-    ("csx", "ccx"): {
+    (StandardGate.CSXGate, StandardGate.CCXGate): {
         (0, 1): False,
         (0, 2): True,
         (0, None): True,
@@ -1408,8 +1412,8 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): True,
     },
-    ("csx", "dcx"): False,
-    ("csx", "cswap"): {
+    (StandardGate.CSXGate, StandardGate.DCXGate): False,
+    (StandardGate.CSXGate, StandardGate.CSwapGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -1423,7 +1427,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("csx", "csx"): {
+    (StandardGate.CSXGate, StandardGate.CSXGate): {
         (0, 1): True,
         (0, None): True,
         (1, 0): False,
@@ -1431,7 +1435,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): True,
     },
-    ("csx", "ccz"): {
+    (StandardGate.CSXGate, StandardGate.CCZGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -1445,7 +1449,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("csx", "rccx"): {
+    (StandardGate.CSXGate, StandardGate.RCCXGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -1459,7 +1463,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("csx", "rcccx"): {
+    (StandardGate.CSXGate, StandardGate.RC3XGate): {
         (0, 1): False,
         (0, 2): False,
         (0, 3): False,
@@ -1481,7 +1485,7 @@ standard_gates_commutations = {
         (None, 2): False,
         (None, 3): False,
     },
-    ("csx", "ecr"): {
+    (StandardGate.CSXGate, StandardGate.ECRGate): {
         (0, 1): False,
         (0, None): False,
         (1, 0): False,
@@ -1489,7 +1493,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): True,
     },
-    ("csx", "csdg"): {
+    (StandardGate.CSXGate, StandardGate.CSdgGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -1497,9 +1501,9 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("csx", "swap"): False,
-    ("csx", "iswap"): False,
-    ("cy", "c3sx"): {
+    (StandardGate.CSXGate, StandardGate.SwapGate): False,
+    (StandardGate.CSXGate, StandardGate.ISwapGate): False,
+    (StandardGate.CYGate, StandardGate.C3SXGate): {
         (0, 1): False,
         (0, 2): False,
         (0, 3): False,
@@ -1521,7 +1525,7 @@ standard_gates_commutations = {
         (None, 2): False,
         (None, 3): False,
     },
-    ("cy", "ccx"): {
+    (StandardGate.CYGate, StandardGate.CCXGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -1535,8 +1539,8 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("cy", "dcx"): False,
-    ("cy", "cswap"): {
+    (StandardGate.CYGate, StandardGate.DCXGate): False,
+    (StandardGate.CYGate, StandardGate.CSwapGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -1550,7 +1554,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("cy", "csx"): {
+    (StandardGate.CYGate, StandardGate.CSXGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -1558,7 +1562,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("cy", "cy"): {
+    (StandardGate.CYGate, StandardGate.CYGate): {
         (0, 1): True,
         (0, None): True,
         (1, 0): False,
@@ -1566,7 +1570,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): True,
     },
-    ("cy", "cz"): {
+    (StandardGate.CYGate, StandardGate.CZGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -1574,7 +1578,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("cy", "ccz"): {
+    (StandardGate.CYGate, StandardGate.CCZGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -1588,7 +1592,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("cy", "rccx"): {
+    (StandardGate.CYGate, StandardGate.RCCXGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -1602,7 +1606,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("cy", "rcccx"): {
+    (StandardGate.CYGate, StandardGate.RC3XGate): {
         (0, 1): False,
         (0, 2): False,
         (0, 3): False,
@@ -1624,8 +1628,8 @@ standard_gates_commutations = {
         (None, 2): False,
         (None, 3): False,
     },
-    ("cy", "ecr"): False,
-    ("cy", "csdg"): {
+    (StandardGate.CYGate, StandardGate.ECRGate): False,
+    (StandardGate.CYGate, StandardGate.CSdgGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -1633,9 +1637,9 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("cy", "swap"): False,
-    ("cy", "iswap"): False,
-    ("cz", "c3sx"): {
+    (StandardGate.CYGate, StandardGate.SwapGate): False,
+    (StandardGate.CYGate, StandardGate.ISwapGate): False,
+    (StandardGate.CZGate, StandardGate.C3SXGate): {
         (0, 1): True,
         (0, 2): True,
         (0, 3): False,
@@ -1657,7 +1661,7 @@ standard_gates_commutations = {
         (None, 2): True,
         (None, 3): False,
     },
-    ("cz", "ccx"): {
+    (StandardGate.CZGate, StandardGate.CCXGate): {
         (0, 1): True,
         (0, 2): False,
         (0, None): True,
@@ -1671,8 +1675,8 @@ standard_gates_commutations = {
         (None, 1): True,
         (None, 2): False,
     },
-    ("cz", "dcx"): False,
-    ("cz", "cswap"): {
+    (StandardGate.CZGate, StandardGate.DCXGate): False,
+    (StandardGate.CZGate, StandardGate.CSwapGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -1686,7 +1690,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("cz", "csx"): {
+    (StandardGate.CZGate, StandardGate.CSXGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -1694,9 +1698,9 @@ standard_gates_commutations = {
         (None, 0): True,
         (None, 1): False,
     },
-    ("cz", "cz"): True,
-    ("cz", "ccz"): True,
-    ("cz", "rccx"): {
+    (StandardGate.CZGate, StandardGate.CZGate): True,
+    (StandardGate.CZGate, StandardGate.CCZGate): True,
+    (StandardGate.CZGate, StandardGate.RCCXGate): {
         (0, 1): True,
         (0, 2): False,
         (0, None): True,
@@ -1710,7 +1714,7 @@ standard_gates_commutations = {
         (None, 1): True,
         (None, 2): False,
     },
-    ("cz", "rcccx"): {
+    (StandardGate.CZGate, StandardGate.RC3XGate): {
         (0, 1): True,
         (0, 2): True,
         (0, 3): False,
@@ -1732,9 +1736,9 @@ standard_gates_commutations = {
         (None, 2): True,
         (None, 3): False,
     },
-    ("cz", "ecr"): False,
-    ("cz", "csdg"): True,
-    ("cz", "swap"): {
+    (StandardGate.CZGate, StandardGate.ECRGate): False,
+    (StandardGate.CZGate, StandardGate.CSdgGate): True,
+    (StandardGate.CZGate, StandardGate.SwapGate): {
         (0, 1): True,
         (0, None): False,
         (1, 0): True,
@@ -1742,7 +1746,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("cz", "iswap"): {
+    (StandardGate.CZGate, StandardGate.ISwapGate): {
         (0, 1): True,
         (0, None): False,
         (1, 0): True,
@@ -1750,7 +1754,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("ccz", "c3sx"): {
+    (StandardGate.CCZGate, StandardGate.C3SXGate): {
         (0, 1, 2): True,
         (0, 1, 3): False,
         (0, 1, None): True,
@@ -1824,7 +1828,7 @@ standard_gates_commutations = {
         (None, None, 2): True,
         (None, None, 3): False,
     },
-    ("ccz", "cswap"): {
+    (StandardGate.CCZGate, StandardGate.CSwapGate): {
         (0, 1, 2): True,
         (0, 1, None): False,
         (0, 2, 1): True,
@@ -1859,8 +1863,8 @@ standard_gates_commutations = {
         (None, None, 1): False,
         (None, None, 2): False,
     },
-    ("ccz", "ccz"): True,
-    ("ccz", "rccx"): {
+    (StandardGate.CCZGate, StandardGate.CCZGate): True,
+    (StandardGate.CCZGate, StandardGate.RCCXGate): {
         (0, 1, 2): False,
         (0, 1, None): True,
         (0, 2, 1): False,
@@ -1895,7 +1899,7 @@ standard_gates_commutations = {
         (None, None, 1): True,
         (None, None, 2): False,
     },
-    ("ccz", "rcccx"): {
+    (StandardGate.CCZGate, StandardGate.RC3XGate): {
         (0, 1, 2): True,
         (0, 1, 3): False,
         (0, 1, None): True,
@@ -1969,38 +1973,38 @@ standard_gates_commutations = {
         (None, None, 2): True,
         (None, None, 3): False,
     },
-    ("h", "id"): True,
-    ("h", "sx"): False,
-    ("h", "x"): False,
-    ("h", "cx"): False,
-    ("h", "c3sx"): False,
-    ("h", "ccx"): False,
-    ("h", "dcx"): False,
-    ("h", "ch"): {
+    (StandardGate.HGate, StandardGate.IGate): True,
+    (StandardGate.HGate, StandardGate.SXGate): False,
+    (StandardGate.HGate, StandardGate.XGate): False,
+    (StandardGate.HGate, StandardGate.CXGate): False,
+    (StandardGate.HGate, StandardGate.C3SXGate): False,
+    (StandardGate.HGate, StandardGate.CCXGate): False,
+    (StandardGate.HGate, StandardGate.DCXGate): False,
+    (StandardGate.HGate, StandardGate.CHGate): {
         (0,): False,
         (1,): True,
     },
-    ("h", "cswap"): False,
-    ("h", "csx"): False,
-    ("h", "cy"): False,
-    ("h", "cz"): False,
-    ("h", "ccz"): False,
-    ("h", "h"): True,
-    ("h", "rccx"): False,
-    ("h", "rcccx"): False,
-    ("h", "ecr"): False,
-    ("h", "s"): False,
-    ("h", "sdg"): False,
-    ("h", "cs"): False,
-    ("h", "csdg"): False,
-    ("h", "swap"): False,
-    ("h", "iswap"): False,
-    ("h", "sxdg"): False,
-    ("h", "t"): False,
-    ("h", "tdg"): False,
-    ("h", "y"): False,
-    ("h", "z"): False,
-    ("rccx", "c3sx"): {
+    (StandardGate.HGate, StandardGate.CSwapGate): False,
+    (StandardGate.HGate, StandardGate.CSXGate): False,
+    (StandardGate.HGate, StandardGate.CYGate): False,
+    (StandardGate.HGate, StandardGate.CZGate): False,
+    (StandardGate.HGate, StandardGate.CCZGate): False,
+    (StandardGate.HGate, StandardGate.HGate): True,
+    (StandardGate.HGate, StandardGate.RCCXGate): False,
+    (StandardGate.HGate, StandardGate.RC3XGate): False,
+    (StandardGate.HGate, StandardGate.ECRGate): False,
+    (StandardGate.HGate, StandardGate.SGate): False,
+    (StandardGate.HGate, StandardGate.SdgGate): False,
+    (StandardGate.HGate, StandardGate.CSGate): False,
+    (StandardGate.HGate, StandardGate.CSdgGate): False,
+    (StandardGate.HGate, StandardGate.SwapGate): False,
+    (StandardGate.HGate, StandardGate.ISwapGate): False,
+    (StandardGate.HGate, StandardGate.SXdgGate): False,
+    (StandardGate.HGate, StandardGate.TGate): False,
+    (StandardGate.HGate, StandardGate.TdgGate): False,
+    (StandardGate.HGate, StandardGate.YGate): False,
+    (StandardGate.HGate, StandardGate.ZGate): False,
+    (StandardGate.RCCXGate, StandardGate.C3SXGate): {
         (0, 1, 2): False,
         (0, 1, 3): False,
         (0, 1, None): True,
@@ -2074,7 +2078,7 @@ standard_gates_commutations = {
         (None, None, 2): False,
         (None, None, 3): False,
     },
-    ("rccx", "cswap"): {
+    (StandardGate.RCCXGate, StandardGate.CSwapGate): {
         (0, 1, 2): False,
         (0, 1, None): False,
         (0, 2, 1): False,
@@ -2109,7 +2113,7 @@ standard_gates_commutations = {
         (None, None, 1): False,
         (None, None, 2): False,
     },
-    ("rccx", "rccx"): {
+    (StandardGate.RCCXGate, StandardGate.RCCXGate): {
         (0, 1, 2): True,
         (0, 1, None): True,
         (0, 2, 1): False,
@@ -2144,7 +2148,7 @@ standard_gates_commutations = {
         (None, None, 1): False,
         (None, None, 2): False,
     },
-    ("rccx", "rcccx"): {
+    (StandardGate.RCCXGate, StandardGate.RC3XGate): {
         (0, 1, 2): False,
         (0, 1, 3): False,
         (0, 1, None): True,
@@ -2218,7 +2222,7 @@ standard_gates_commutations = {
         (None, None, 2): False,
         (None, None, 3): False,
     },
-    ("rcccx", "rcccx"): {
+    (StandardGate.RC3XGate, StandardGate.RC3XGate): {
         (0, 1, 2, 3): True,
         (0, 1, 2, None): True,
         (0, 1, 3, 2): False,
@@ -2428,7 +2432,7 @@ standard_gates_commutations = {
         (None, None, None, 2): False,
         (None, None, None, 3): False,
     },
-    ("ecr", "c3sx"): {
+    (StandardGate.ECRGate, StandardGate.C3SXGate): {
         (0, 1): False,
         (0, 2): False,
         (0, 3): False,
@@ -2450,7 +2454,7 @@ standard_gates_commutations = {
         (None, 2): False,
         (None, 3): True,
     },
-    ("ecr", "ccx"): {
+    (StandardGate.ECRGate, StandardGate.CCXGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): False,
@@ -2464,11 +2468,11 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): True,
     },
-    ("ecr", "cswap"): False,
-    ("ecr", "ccz"): False,
-    ("ecr", "rccx"): False,
-    ("ecr", "rcccx"): False,
-    ("ecr", "ecr"): {
+    (StandardGate.ECRGate, StandardGate.CSwapGate): False,
+    (StandardGate.ECRGate, StandardGate.CCZGate): False,
+    (StandardGate.ECRGate, StandardGate.RCCXGate): False,
+    (StandardGate.ECRGate, StandardGate.RC3XGate): False,
+    (StandardGate.ECRGate, StandardGate.ECRGate): {
         (0, 1): True,
         (0, None): False,
         (1, 0): True,
@@ -2476,125 +2480,125 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): True,
     },
-    ("ecr", "csdg"): False,
-    ("ecr", "swap"): False,
-    ("ecr", "iswap"): False,
-    ("s", "id"): True,
-    ("s", "sx"): False,
-    ("s", "x"): False,
-    ("s", "cx"): {
+    (StandardGate.ECRGate, StandardGate.CSdgGate): False,
+    (StandardGate.ECRGate, StandardGate.SwapGate): False,
+    (StandardGate.ECRGate, StandardGate.ISwapGate): False,
+    (StandardGate.SGate, StandardGate.IGate): True,
+    (StandardGate.SGate, StandardGate.SXGate): False,
+    (StandardGate.SGate, StandardGate.XGate): False,
+    (StandardGate.SGate, StandardGate.CXGate): {
         (0,): True,
         (1,): False,
     },
-    ("s", "c3sx"): {
+    (StandardGate.SGate, StandardGate.C3SXGate): {
         (0,): True,
         (1,): True,
         (2,): True,
         (3,): False,
     },
-    ("s", "ccx"): {
+    (StandardGate.SGate, StandardGate.CCXGate): {
         (0,): True,
         (1,): True,
         (2,): False,
     },
-    ("s", "dcx"): False,
-    ("s", "ch"): {
+    (StandardGate.SGate, StandardGate.DCXGate): False,
+    (StandardGate.SGate, StandardGate.CHGate): {
         (0,): True,
         (1,): False,
     },
-    ("s", "cswap"): {
+    (StandardGate.SGate, StandardGate.CSwapGate): {
         (0,): True,
         (1,): False,
         (2,): False,
     },
-    ("s", "csx"): {
+    (StandardGate.SGate, StandardGate.CSXGate): {
         (0,): True,
         (1,): False,
     },
-    ("s", "cy"): {
+    (StandardGate.SGate, StandardGate.CYGate): {
         (0,): True,
         (1,): False,
     },
-    ("s", "cz"): True,
-    ("s", "ccz"): True,
-    ("s", "rccx"): {
+    (StandardGate.SGate, StandardGate.CZGate): True,
+    (StandardGate.SGate, StandardGate.CCZGate): True,
+    (StandardGate.SGate, StandardGate.RCCXGate): {
         (0,): True,
         (1,): True,
         (2,): False,
     },
-    ("s", "rcccx"): {
+    (StandardGate.SGate, StandardGate.RC3XGate): {
         (0,): True,
         (1,): True,
         (2,): True,
         (3,): False,
     },
-    ("s", "ecr"): False,
-    ("s", "s"): True,
-    ("s", "sdg"): True,
-    ("s", "cs"): True,
-    ("s", "csdg"): True,
-    ("s", "swap"): False,
-    ("s", "iswap"): False,
-    ("s", "sxdg"): False,
-    ("s", "t"): True,
-    ("s", "tdg"): True,
-    ("s", "y"): False,
-    ("s", "z"): True,
-    ("sdg", "cx"): {
+    (StandardGate.SGate, StandardGate.ECRGate): False,
+    (StandardGate.SGate, StandardGate.SGate): True,
+    (StandardGate.SGate, StandardGate.SdgGate): True,
+    (StandardGate.SGate, StandardGate.CSGate): True,
+    (StandardGate.SGate, StandardGate.CSdgGate): True,
+    (StandardGate.SGate, StandardGate.SwapGate): False,
+    (StandardGate.SGate, StandardGate.ISwapGate): False,
+    (StandardGate.SGate, StandardGate.SXdgGate): False,
+    (StandardGate.SGate, StandardGate.TGate): True,
+    (StandardGate.SGate, StandardGate.TdgGate): True,
+    (StandardGate.SGate, StandardGate.YGate): False,
+    (StandardGate.SGate, StandardGate.ZGate): True,
+    (StandardGate.SdgGate, StandardGate.CXGate): {
         (0,): True,
         (1,): False,
     },
-    ("sdg", "c3sx"): {
+    (StandardGate.SdgGate, StandardGate.C3SXGate): {
         (0,): True,
         (1,): True,
         (2,): True,
         (3,): False,
     },
-    ("sdg", "ccx"): {
+    (StandardGate.SdgGate, StandardGate.CCXGate): {
         (0,): True,
         (1,): True,
         (2,): False,
     },
-    ("sdg", "dcx"): False,
-    ("sdg", "ch"): {
+    (StandardGate.SdgGate, StandardGate.DCXGate): False,
+    (StandardGate.SdgGate, StandardGate.CHGate): {
         (0,): True,
         (1,): False,
     },
-    ("sdg", "cswap"): {
+    (StandardGate.SdgGate, StandardGate.CSwapGate): {
         (0,): True,
         (1,): False,
         (2,): False,
     },
-    ("sdg", "csx"): {
+    (StandardGate.SdgGate, StandardGate.CSXGate): {
         (0,): True,
         (1,): False,
     },
-    ("sdg", "cy"): {
+    (StandardGate.SdgGate, StandardGate.CYGate): {
         (0,): True,
         (1,): False,
     },
-    ("sdg", "cz"): True,
-    ("sdg", "ccz"): True,
-    ("sdg", "rccx"): {
+    (StandardGate.SdgGate, StandardGate.CZGate): True,
+    (StandardGate.SdgGate, StandardGate.CCZGate): True,
+    (StandardGate.SdgGate, StandardGate.RCCXGate): {
         (0,): True,
         (1,): True,
         (2,): False,
     },
-    ("sdg", "rcccx"): {
+    (StandardGate.SdgGate, StandardGate.RC3XGate): {
         (0,): True,
         (1,): True,
         (2,): True,
         (3,): False,
     },
-    ("sdg", "ecr"): False,
-    ("sdg", "sdg"): True,
-    ("sdg", "cs"): True,
-    ("sdg", "csdg"): True,
-    ("sdg", "swap"): False,
-    ("sdg", "iswap"): False,
-    ("sdg", "sxdg"): False,
-    ("sdg", "tdg"): True,
-    ("cs", "cx"): {
+    (StandardGate.SdgGate, StandardGate.ECRGate): False,
+    (StandardGate.SdgGate, StandardGate.SdgGate): True,
+    (StandardGate.SdgGate, StandardGate.CSGate): True,
+    (StandardGate.SdgGate, StandardGate.CSdgGate): True,
+    (StandardGate.SdgGate, StandardGate.SwapGate): False,
+    (StandardGate.SdgGate, StandardGate.ISwapGate): False,
+    (StandardGate.SdgGate, StandardGate.SXdgGate): False,
+    (StandardGate.SdgGate, StandardGate.TdgGate): True,
+    (StandardGate.CSGate, StandardGate.CXGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -2602,7 +2606,7 @@ standard_gates_commutations = {
         (None, 0): True,
         (None, 1): False,
     },
-    ("cs", "c3sx"): {
+    (StandardGate.CSGate, StandardGate.C3SXGate): {
         (0, 1): True,
         (0, 2): True,
         (0, 3): False,
@@ -2624,7 +2628,7 @@ standard_gates_commutations = {
         (None, 2): True,
         (None, 3): False,
     },
-    ("cs", "ccx"): {
+    (StandardGate.CSGate, StandardGate.CCXGate): {
         (0, 1): True,
         (0, 2): False,
         (0, None): True,
@@ -2638,8 +2642,8 @@ standard_gates_commutations = {
         (None, 1): True,
         (None, 2): False,
     },
-    ("cs", "dcx"): False,
-    ("cs", "cswap"): {
+    (StandardGate.CSGate, StandardGate.DCXGate): False,
+    (StandardGate.CSGate, StandardGate.CSwapGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -2653,7 +2657,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("cs", "csx"): {
+    (StandardGate.CSGate, StandardGate.CSXGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -2661,7 +2665,7 @@ standard_gates_commutations = {
         (None, 0): True,
         (None, 1): False,
     },
-    ("cs", "cy"): {
+    (StandardGate.CSGate, StandardGate.CYGate): {
         (0, 1): False,
         (0, None): True,
         (1, 0): False,
@@ -2669,9 +2673,9 @@ standard_gates_commutations = {
         (None, 0): True,
         (None, 1): False,
     },
-    ("cs", "cz"): True,
-    ("cs", "ccz"): True,
-    ("cs", "rccx"): {
+    (StandardGate.CSGate, StandardGate.CZGate): True,
+    (StandardGate.CSGate, StandardGate.CCZGate): True,
+    (StandardGate.CSGate, StandardGate.RCCXGate): {
         (0, 1): True,
         (0, 2): False,
         (0, None): True,
@@ -2685,7 +2689,7 @@ standard_gates_commutations = {
         (None, 1): True,
         (None, 2): False,
     },
-    ("cs", "rcccx"): {
+    (StandardGate.CSGate, StandardGate.RC3XGate): {
         (0, 1): True,
         (0, 2): True,
         (0, 3): False,
@@ -2707,10 +2711,10 @@ standard_gates_commutations = {
         (None, 2): True,
         (None, 3): False,
     },
-    ("cs", "ecr"): False,
-    ("cs", "cs"): True,
-    ("cs", "csdg"): True,
-    ("cs", "swap"): {
+    (StandardGate.CSGate, StandardGate.ECRGate): False,
+    (StandardGate.CSGate, StandardGate.CSGate): True,
+    (StandardGate.CSGate, StandardGate.CSdgGate): True,
+    (StandardGate.CSGate, StandardGate.SwapGate): {
         (0, 1): True,
         (0, None): False,
         (1, 0): True,
@@ -2718,7 +2722,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("cs", "iswap"): {
+    (StandardGate.CSGate, StandardGate.ISwapGate): {
         (0, 1): True,
         (0, None): False,
         (1, 0): True,
@@ -2726,7 +2730,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("csdg", "c3sx"): {
+    (StandardGate.CSdgGate, StandardGate.C3SXGate): {
         (0, 1): True,
         (0, 2): True,
         (0, 3): False,
@@ -2748,7 +2752,7 @@ standard_gates_commutations = {
         (None, 2): True,
         (None, 3): False,
     },
-    ("csdg", "ccx"): {
+    (StandardGate.CSdgGate, StandardGate.CCXGate): {
         (0, 1): True,
         (0, 2): False,
         (0, None): True,
@@ -2762,7 +2766,7 @@ standard_gates_commutations = {
         (None, 1): True,
         (None, 2): False,
     },
-    ("csdg", "cswap"): {
+    (StandardGate.CSdgGate, StandardGate.CSwapGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): True,
@@ -2776,8 +2780,8 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("csdg", "ccz"): True,
-    ("csdg", "rccx"): {
+    (StandardGate.CSdgGate, StandardGate.CCZGate): True,
+    (StandardGate.CSdgGate, StandardGate.RCCXGate): {
         (0, 1): True,
         (0, 2): False,
         (0, None): True,
@@ -2791,7 +2795,7 @@ standard_gates_commutations = {
         (None, 1): True,
         (None, 2): False,
     },
-    ("csdg", "rcccx"): {
+    (StandardGate.CSdgGate, StandardGate.RC3XGate): {
         (0, 1): True,
         (0, 2): True,
         (0, 3): False,
@@ -2813,8 +2817,8 @@ standard_gates_commutations = {
         (None, 2): True,
         (None, 3): False,
     },
-    ("csdg", "csdg"): True,
-    ("csdg", "swap"): {
+    (StandardGate.CSdgGate, StandardGate.CSdgGate): True,
+    (StandardGate.CSdgGate, StandardGate.SwapGate): {
         (0, 1): True,
         (0, None): False,
         (1, 0): True,
@@ -2822,7 +2826,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("csdg", "iswap"): {
+    (StandardGate.CSdgGate, StandardGate.ISwapGate): {
         (0, 1): True,
         (0, None): False,
         (1, 0): True,
@@ -2830,7 +2834,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("swap", "c3sx"): {
+    (StandardGate.SwapGate, StandardGate.C3SXGate): {
         (0, 1): True,
         (0, 2): True,
         (0, 3): False,
@@ -2852,7 +2856,7 @@ standard_gates_commutations = {
         (None, 2): False,
         (None, 3): False,
     },
-    ("swap", "ccx"): {
+    (StandardGate.SwapGate, StandardGate.CCXGate): {
         (0, 1): True,
         (0, 2): False,
         (0, None): False,
@@ -2866,7 +2870,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("swap", "cswap"): {
+    (StandardGate.SwapGate, StandardGate.CSwapGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): False,
@@ -2880,7 +2884,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("swap", "ccz"): {
+    (StandardGate.SwapGate, StandardGate.CCZGate): {
         (0, 1): True,
         (0, 2): True,
         (0, None): False,
@@ -2894,8 +2898,8 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("swap", "rccx"): False,
-    ("swap", "rcccx"): {
+    (StandardGate.SwapGate, StandardGate.RCCXGate): False,
+    (StandardGate.SwapGate, StandardGate.RC3XGate): {
         (0, 1): True,
         (0, 2): False,
         (0, 3): False,
@@ -2917,7 +2921,7 @@ standard_gates_commutations = {
         (None, 2): False,
         (None, 3): False,
     },
-    ("swap", "swap"): {
+    (StandardGate.SwapGate, StandardGate.SwapGate): {
         (0, 1): True,
         (0, None): False,
         (1, 0): True,
@@ -2925,7 +2929,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("swap", "iswap"): {
+    (StandardGate.SwapGate, StandardGate.ISwapGate): {
         (0, 1): True,
         (0, None): False,
         (1, 0): True,
@@ -2933,7 +2937,7 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("iswap", "c3sx"): {
+    (StandardGate.ISwapGate, StandardGate.C3SXGate): {
         (0, 1): True,
         (0, 2): True,
         (0, 3): False,
@@ -2955,7 +2959,7 @@ standard_gates_commutations = {
         (None, 2): False,
         (None, 3): False,
     },
-    ("iswap", "ccx"): {
+    (StandardGate.ISwapGate, StandardGate.CCXGate): {
         (0, 1): True,
         (0, 2): False,
         (0, None): False,
@@ -2969,7 +2973,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("iswap", "cswap"): {
+    (StandardGate.ISwapGate, StandardGate.CSwapGate): {
         (0, 1): False,
         (0, 2): False,
         (0, None): False,
@@ -2983,7 +2987,7 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("iswap", "ccz"): {
+    (StandardGate.ISwapGate, StandardGate.CCZGate): {
         (0, 1): True,
         (0, 2): True,
         (0, None): False,
@@ -2997,8 +3001,8 @@ standard_gates_commutations = {
         (None, 1): False,
         (None, 2): False,
     },
-    ("iswap", "rccx"): False,
-    ("iswap", "rcccx"): {
+    (StandardGate.ISwapGate, StandardGate.RCCXGate): False,
+    (StandardGate.ISwapGate, StandardGate.RC3XGate): {
         (0, 1): True,
         (0, 2): False,
         (0, 3): False,
@@ -3020,7 +3024,7 @@ standard_gates_commutations = {
         (None, 2): False,
         (None, 3): False,
     },
-    ("iswap", "iswap"): {
+    (StandardGate.ISwapGate, StandardGate.ISwapGate): {
         (0, 1): True,
         (0, None): False,
         (1, 0): True,
@@ -3028,237 +3032,239 @@ standard_gates_commutations = {
         (None, 0): False,
         (None, 1): False,
     },
-    ("sxdg", "cx"): {
+    (StandardGate.SXdgGate, StandardGate.CXGate): {
         (0,): False,
         (1,): True,
     },
-    ("sxdg", "c3sx"): {
+    (StandardGate.SXdgGate, StandardGate.C3SXGate): {
         (0,): False,
         (1,): False,
         (2,): False,
         (3,): True,
     },
-    ("sxdg", "ccx"): {
+    (StandardGate.SXdgGate, StandardGate.CCXGate): {
         (0,): False,
         (1,): False,
         (2,): True,
     },
-    ("sxdg", "dcx"): False,
-    ("sxdg", "ch"): False,
-    ("sxdg", "cswap"): False,
-    ("sxdg", "csx"): {
+    (StandardGate.SXdgGate, StandardGate.DCXGate): False,
+    (StandardGate.SXdgGate, StandardGate.CHGate): False,
+    (StandardGate.SXdgGate, StandardGate.CSwapGate): False,
+    (StandardGate.SXdgGate, StandardGate.CSXGate): {
         (0,): False,
         (1,): True,
     },
-    ("sxdg", "cy"): False,
-    ("sxdg", "cz"): False,
-    ("sxdg", "ccz"): False,
-    ("sxdg", "rccx"): False,
-    ("sxdg", "rcccx"): False,
-    ("sxdg", "ecr"): {
+    (StandardGate.SXdgGate, StandardGate.CYGate): False,
+    (StandardGate.SXdgGate, StandardGate.CZGate): False,
+    (StandardGate.SXdgGate, StandardGate.CCZGate): False,
+    (StandardGate.SXdgGate, StandardGate.RCCXGate): False,
+    (StandardGate.SXdgGate, StandardGate.RC3XGate): False,
+    (StandardGate.SXdgGate, StandardGate.ECRGate): {
         (0,): False,
         (1,): True,
     },
-    ("sxdg", "cs"): False,
-    ("sxdg", "csdg"): False,
-    ("sxdg", "swap"): False,
-    ("sxdg", "iswap"): False,
-    ("sxdg", "sxdg"): True,
-    ("t", "id"): True,
-    ("t", "sx"): False,
-    ("t", "x"): False,
-    ("t", "cx"): {
+    (StandardGate.SXdgGate, StandardGate.CSGate): False,
+    (StandardGate.SXdgGate, StandardGate.CSdgGate): False,
+    (StandardGate.SXdgGate, StandardGate.SwapGate): False,
+    (StandardGate.SXdgGate, StandardGate.ISwapGate): False,
+    (StandardGate.SXdgGate, StandardGate.SXdgGate): True,
+    (StandardGate.TGate, StandardGate.IGate): True,
+    (StandardGate.TGate, StandardGate.SXGate): False,
+    (StandardGate.TGate, StandardGate.XGate): False,
+    (StandardGate.TGate, StandardGate.CXGate): {
         (0,): True,
         (1,): False,
     },
-    ("t", "c3sx"): {
+    (StandardGate.TGate, StandardGate.C3SXGate): {
         (0,): True,
         (1,): True,
         (2,): True,
         (3,): False,
     },
-    ("t", "ccx"): {
+    (StandardGate.TGate, StandardGate.CCXGate): {
         (0,): True,
         (1,): True,
         (2,): False,
     },
-    ("t", "dcx"): False,
-    ("t", "ch"): {
+    (StandardGate.TGate, StandardGate.DCXGate): False,
+    (StandardGate.TGate, StandardGate.CHGate): {
         (0,): True,
         (1,): False,
     },
-    ("t", "cswap"): {
+    (StandardGate.TGate, StandardGate.CSwapGate): {
         (0,): True,
         (1,): False,
         (2,): False,
     },
-    ("t", "csx"): {
+    (StandardGate.TGate, StandardGate.CSXGate): {
         (0,): True,
         (1,): False,
     },
-    ("t", "cy"): {
+    (StandardGate.TGate, StandardGate.CYGate): {
         (0,): True,
         (1,): False,
     },
-    ("t", "cz"): True,
-    ("t", "ccz"): True,
-    ("t", "rccx"): {
+    (StandardGate.TGate, StandardGate.CZGate): True,
+    (StandardGate.TGate, StandardGate.CCZGate): True,
+    (StandardGate.TGate, StandardGate.RCCXGate): {
         (0,): True,
         (1,): True,
         (2,): False,
     },
-    ("t", "rcccx"): {
+    (StandardGate.TGate, StandardGate.RC3XGate): {
         (0,): True,
         (1,): True,
         (2,): True,
         (3,): False,
     },
-    ("t", "ecr"): False,
-    ("t", "sdg"): True,
-    ("t", "cs"): True,
-    ("t", "csdg"): True,
-    ("t", "swap"): False,
-    ("t", "iswap"): False,
-    ("t", "sxdg"): False,
-    ("t", "t"): True,
-    ("t", "tdg"): True,
-    ("t", "y"): False,
-    ("t", "z"): True,
-    ("tdg", "cx"): {
+    (StandardGate.TGate, StandardGate.ECRGate): False,
+    (StandardGate.TGate, StandardGate.SdgGate): True,
+    (StandardGate.TGate, StandardGate.CSGate): True,
+    (StandardGate.TGate, StandardGate.CSdgGate): True,
+    (StandardGate.TGate, StandardGate.SwapGate): False,
+    (StandardGate.TGate, StandardGate.ISwapGate): False,
+    (StandardGate.TGate, StandardGate.SXdgGate): False,
+    (StandardGate.TGate, StandardGate.TGate): True,
+    (StandardGate.TGate, StandardGate.TdgGate): True,
+    (StandardGate.TGate, StandardGate.YGate): False,
+    (StandardGate.TGate, StandardGate.ZGate): True,
+    (StandardGate.TdgGate, StandardGate.CXGate): {
         (0,): True,
         (1,): False,
     },
-    ("tdg", "c3sx"): {
+    (StandardGate.TdgGate, StandardGate.C3SXGate): {
         (0,): True,
         (1,): True,
         (2,): True,
         (3,): False,
     },
-    ("tdg", "ccx"): {
+    (StandardGate.TdgGate, StandardGate.CCXGate): {
         (0,): True,
         (1,): True,
         (2,): False,
     },
-    ("tdg", "dcx"): False,
-    ("tdg", "ch"): {
+    (StandardGate.TdgGate, StandardGate.DCXGate): False,
+    (StandardGate.TdgGate, StandardGate.CHGate): {
         (0,): True,
         (1,): False,
     },
-    ("tdg", "cswap"): {
+    (StandardGate.TdgGate, StandardGate.CSwapGate): {
         (0,): True,
         (1,): False,
         (2,): False,
     },
-    ("tdg", "csx"): {
+    (StandardGate.TdgGate, StandardGate.CSXGate): {
         (0,): True,
         (1,): False,
     },
-    ("tdg", "cy"): {
+    (StandardGate.TdgGate, StandardGate.CYGate): {
         (0,): True,
         (1,): False,
     },
-    ("tdg", "cz"): True,
-    ("tdg", "ccz"): True,
-    ("tdg", "rccx"): {
+    (StandardGate.TdgGate, StandardGate.CZGate): True,
+    (StandardGate.TdgGate, StandardGate.CCZGate): True,
+    (StandardGate.TdgGate, StandardGate.RCCXGate): {
         (0,): True,
         (1,): True,
         (2,): False,
     },
-    ("tdg", "rcccx"): {
+    (StandardGate.TdgGate, StandardGate.RC3XGate): {
         (0,): True,
         (1,): True,
         (2,): True,
         (3,): False,
     },
-    ("tdg", "ecr"): False,
-    ("tdg", "cs"): True,
-    ("tdg", "csdg"): True,
-    ("tdg", "swap"): False,
-    ("tdg", "iswap"): False,
-    ("tdg", "sxdg"): False,
-    ("tdg", "tdg"): True,
-    ("y", "id"): True,
-    ("y", "sx"): False,
-    ("y", "cx"): False,
-    ("y", "c3sx"): False,
-    ("y", "ccx"): False,
-    ("y", "dcx"): False,
-    ("y", "ch"): False,
-    ("y", "cswap"): False,
-    ("y", "csx"): False,
-    ("y", "cy"): {
+    (StandardGate.TdgGate, StandardGate.ECRGate): False,
+    (StandardGate.TdgGate, StandardGate.CSGate): True,
+    (StandardGate.TdgGate, StandardGate.CSdgGate): True,
+    (StandardGate.TdgGate, StandardGate.SwapGate): False,
+    (StandardGate.TdgGate, StandardGate.ISwapGate): False,
+    (StandardGate.TdgGate, StandardGate.SXdgGate): False,
+    (StandardGate.TdgGate, StandardGate.TdgGate): True,
+    (StandardGate.YGate, StandardGate.IGate): True,
+    (StandardGate.YGate, StandardGate.SXGate): False,
+    (StandardGate.YGate, StandardGate.CXGate): False,
+    (StandardGate.YGate, StandardGate.C3SXGate): False,
+    (StandardGate.YGate, StandardGate.CCXGate): False,
+    (StandardGate.YGate, StandardGate.DCXGate): False,
+    (StandardGate.YGate, StandardGate.CHGate): False,
+    (StandardGate.YGate, StandardGate.CSwapGate): False,
+    (StandardGate.YGate, StandardGate.CSXGate): False,
+    (StandardGate.YGate, StandardGate.CYGate): {
         (0,): False,
         (1,): True,
     },
-    ("y", "cz"): False,
-    ("y", "ccz"): False,
-    ("y", "rccx"): False,
-    ("y", "rcccx"): False,
-    ("y", "ecr"): False,
-    ("y", "sdg"): False,
-    ("y", "cs"): False,
-    ("y", "csdg"): False,
-    ("y", "swap"): False,
-    ("y", "iswap"): False,
-    ("y", "sxdg"): False,
-    ("y", "tdg"): False,
-    ("y", "y"): True,
-    ("y", "z"): False,
-    ("z", "id"): True,
-    ("z", "sx"): False,
-    ("z", "cx"): {
+    (StandardGate.YGate, StandardGate.CZGate): False,
+    (StandardGate.YGate, StandardGate.CCZGate): False,
+    (StandardGate.YGate, StandardGate.RCCXGate): False,
+    (StandardGate.YGate, StandardGate.RC3XGate): False,
+    (StandardGate.YGate, StandardGate.ECRGate): False,
+    (StandardGate.YGate, StandardGate.SdgGate): False,
+    (StandardGate.YGate, StandardGate.CSGate): False,
+    (StandardGate.YGate, StandardGate.CSdgGate): False,
+    (StandardGate.YGate, StandardGate.SwapGate): False,
+    (StandardGate.YGate, StandardGate.ISwapGate): False,
+    (StandardGate.YGate, StandardGate.SXdgGate): False,
+    (StandardGate.YGate, StandardGate.TdgGate): False,
+    (StandardGate.YGate, StandardGate.YGate): True,
+    (StandardGate.YGate, StandardGate.ZGate): False,
+    (StandardGate.ZGate, StandardGate.IGate): True,
+    (StandardGate.ZGate, StandardGate.SXGate): False,
+    (StandardGate.ZGate, StandardGate.CXGate): {
         (0,): True,
         (1,): False,
     },
-    ("z", "c3sx"): {
+    (StandardGate.ZGate, StandardGate.C3SXGate): {
         (0,): True,
         (1,): True,
         (2,): True,
         (3,): False,
     },
-    ("z", "ccx"): {
+    (StandardGate.ZGate, StandardGate.CCXGate): {
         (0,): True,
         (1,): True,
         (2,): False,
     },
-    ("z", "dcx"): False,
-    ("z", "ch"): {
+    (StandardGate.ZGate, StandardGate.DCXGate): False,
+    (StandardGate.ZGate, StandardGate.CHGate): {
         (0,): True,
         (1,): False,
     },
-    ("z", "cswap"): {
+    (StandardGate.ZGate, StandardGate.CSwapGate): {
         (0,): True,
         (1,): False,
         (2,): False,
     },
-    ("z", "csx"): {
+    (StandardGate.ZGate, StandardGate.CSXGate): {
         (0,): True,
         (1,): False,
     },
-    ("z", "cy"): {
+    (StandardGate.ZGate, StandardGate.CYGate): {
         (0,): True,
         (1,): False,
     },
-    ("z", "cz"): True,
-    ("z", "ccz"): True,
-    ("z", "rccx"): {
+    (StandardGate.ZGate, StandardGate.CZGate): True,
+    (StandardGate.ZGate, StandardGate.CCZGate): True,
+    (StandardGate.ZGate, StandardGate.RCCXGate): {
         (0,): True,
         (1,): True,
         (2,): False,
     },
-    ("z", "rcccx"): {
+    (StandardGate.ZGate, StandardGate.RC3XGate): {
         (0,): True,
         (1,): True,
         (2,): True,
         (3,): False,
     },
-    ("z", "ecr"): False,
-    ("z", "sdg"): True,
-    ("z", "cs"): True,
-    ("z", "csdg"): True,
-    ("z", "swap"): False,
-    ("z", "iswap"): False,
-    ("z", "sxdg"): False,
-    ("z", "tdg"): True,
-    ("z", "z"): True,
+    (StandardGate.ZGate, StandardGate.ECRGate): False,
+    (StandardGate.ZGate, StandardGate.SdgGate): True,
+    (StandardGate.ZGate, StandardGate.CSGate): True,
+    (StandardGate.ZGate, StandardGate.CSdgGate): True,
+    (StandardGate.ZGate, StandardGate.SwapGate): False,
+    (StandardGate.ZGate, StandardGate.ISwapGate): False,
+    (StandardGate.ZGate, StandardGate.SXdgGate): False,
+    (StandardGate.ZGate, StandardGate.TdgGate): True,
+    (StandardGate.ZGate, StandardGate.ZGate): True,
 }
+
+standard_gates_commutations = CommutationLibrary(standard_gates_commutations_dict)
