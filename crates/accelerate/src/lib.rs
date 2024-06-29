@@ -38,6 +38,7 @@ pub mod vf2_layout;
 mod rayon_ext;
 #[cfg(test)]
 mod test;
+mod unitary_compose;
 
 #[inline]
 pub fn getenv_use_multiple_threads() -> bool {

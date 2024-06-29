@@ -463,8 +463,7 @@ impl CircuitInstruction {
     pub fn is_parameterized(&self) -> bool {
         self.params
             .iter()
-            .find(|x| matches!(x, Param::ParameterExpression(_)))
-            .is_some()
+            .any(|x| matches!(x, Param::ParameterExpression(_)))
     }
 
     /// Creates a shallow copy with the given fields replaced.
