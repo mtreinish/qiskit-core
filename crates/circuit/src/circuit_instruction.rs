@@ -471,7 +471,7 @@ impl CircuitInstruction {
 /// though you can also accept `ob: OperationFromPython` directly, if you don't also need a handle
 /// to the Python object that it came from.  The handle is useful for the Python-operation caching.
 #[derive(Debug)]
-pub(crate) struct OperationFromPython {
+pub struct OperationFromPython {
     pub operation: PackedOperation,
     pub params: SmallVec<[Param; 3]>,
     pub extra_attrs: Option<Box<ExtraInstructionAttributes>>,
