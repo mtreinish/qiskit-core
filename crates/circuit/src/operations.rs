@@ -274,10 +274,10 @@ static STANDARD_GATE_NUM_PARAMS: [u32; STANDARD_GATE_SIZE] = [
 static STANDARD_GATE_NUM_CTRL_QUBITS: [u32; STANDARD_GATE_SIZE] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0-9
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 10-19
-    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 20-29
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 30-39
-    1, 1, 1, 1, 1, 2, 2, 2, 2, 3, // 40-49
-    3, 3, // 50-51
+    0, 1, 1, 1, 1, 0, 0, 0, 0, 1, // 20-29
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 0, // 30-39
+    0, 0, 0, 0, 0, 2, 2, 2, 0, 3, // 40-49
+    3, 0, // 50-51
 ];
 
 static STANDARD_GATE_NAME: [&str; STANDARD_GATE_SIZE] = [
