@@ -90,6 +90,7 @@ sys.modules["qiskit._accelerate.commutation_checker"] = _accelerate.commutation_
 sys.modules["qiskit._accelerate.commutation_analysis"] = _accelerate.commutation_analysis
 sys.modules["qiskit._accelerate.synthesis.linear_phase"] = _accelerate.synthesis.linear_phase
 sys.modules["qiskit._accelerate.check_map"] = _accelerate.check_map
+sys.modules["qiskit._accelerate.split_2q_unitaries"] = _accelerate.split_2q_unitaries
 
 from qiskit.exceptions import QiskitError, MissingOptionalLibraryError
 
