@@ -5086,7 +5086,7 @@ impl DAGCircuit {
         }
     }
 
-    fn quantum_predecessors(&self, node: NodeIndex) -> impl Iterator<Item = NodeIndex> + '_ {
+    pub fn quantum_predecessors(&self, node: NodeIndex) -> impl Iterator<Item = NodeIndex> + '_ {
         self.dag
             .edges_directed(node, Incoming)
             .filter_map(|e| match e.weight() {
@@ -5096,7 +5096,7 @@ impl DAGCircuit {
             .unique()
     }
 
-    fn quantum_successors(&self, node: NodeIndex) -> impl Iterator<Item = NodeIndex> + '_ {
+    pub fn quantum_successors(&self, node: NodeIndex) -> impl Iterator<Item = NodeIndex> + '_ {
         self.dag
             .edges_directed(node, Outgoing)
             .filter_map(|e| match e.weight() {
