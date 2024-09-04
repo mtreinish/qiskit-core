@@ -92,6 +92,7 @@ sys.modules["qiskit._accelerate.synthesis.linear_phase"] = _accelerate.synthesis
 sys.modules["qiskit._accelerate.check_map"] = _accelerate.check_map
 sys.modules["qiskit._accelerate.split_2q_unitaries"] = _accelerate.split_2q_unitaries
 sys.modules["qiskit._accelerate.filter_op_nodes"] = _accelerate.filter_op_nodes
+sys.modules["qiskit._accelerate.inverse_cancellation"] = _accelerate.inverse_cancellation
 
 from qiskit.exceptions import QiskitError, MissingOptionalLibraryError
 
