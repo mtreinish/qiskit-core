@@ -266,3 +266,23 @@ class TestSplit2QUnitaries(QiskitTestCase):
         no_split = Split2QUnitaries()(qc)
 
         self.assertDictEqual({"mygate": 1}, no_split.count_ops())
+
+    def test_split_swap_equiv(self):
+        pm = PassManager()
+        pm.append(Collect2qBlocks())
+        # Force conslidate to collect in 1 block
+        pm.append(ConsolidateBlocks(force_consolidate=True))
+        pm.append(Split2QUnitaries(permute_swaps=True))
+        input_circuit = QuantumCircuit(2)
+        input_circuit.x(0)
+        input_circuit.y(1)
+        input_circuit.swap(0, 1)
+        input_circuit.t(0)
+        input_circuit.sdg(1)
+        res = pm.run(input_circuit)
+        print(res.layout)
+        print(res)
+        print(Operator.from_circuit(res))
+        print(Operator.from_circuit(input_circuit))
+        self.assertEqual(Operator.from_circuit(res), Operator(input_circuit))
+

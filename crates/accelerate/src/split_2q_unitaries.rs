@@ -25,7 +25,9 @@ pub fn split_2q_unitaries(
     py: Python,
     dag: &mut DAGCircuit,
     requested_fidelity: f64,
-) -> PyResult<()> {
+    permute_swaps: bool,
+) -> PyResult<Option<Vec<usize>>> {
+    let mut permutation: Option<Vec<usize>> = None;
     let nodes: Vec<NodeIndex> = dag.op_nodes(false).collect();
     for node in nodes {
         if let NodeType::Operation(inst) = &dag.dag()[node] {
@@ -34,7 +36,7 @@ pub fn split_2q_unitaries(
             // We only attempt to split UnitaryGate objects, but this could be extended in future
             // -- however we need to ensure that we can compile the resulting single-qubit unitaries
             // to the supported basis gate set.
-            if qubits.len() != 2 || inst.op.name() != "unitary" {
+            if qubits.len() != 2 || inst.op.name() != "unitary" || inst.condition().is_some() {
                 continue;
             }
             let decomp = TwoQubitWeylDecomposition::new_inner(
@@ -60,13 +62,30 @@ pub fn split_2q_unitaries(
                 };
                 dag.replace_node_with_1q_ops(py, node, insert_fn)?;
                 dag.add_global_phase(py, &Param::Float(decomp.global_phase))?;
+            } else if permute_swaps && matches!(decomp.specialization, Specialization::SWAPEquiv) {
+                let perm = permutation.get_or_insert((0..dag.num_qubits()).collect());
+                let k1r_arr = decomp.K1r(py);
+                let k1l_arr = decomp.K1l(py);
+                let k1r_gate = UNITARY_GATE.get_bound(py).call1((k1r_arr,))?;
+                let k1l_gate = UNITARY_GATE.get_bound(py).call1((k1l_arr,))?;
+                let insert_fn = |edge: &Wire| -> PyResult<OperationFromPython> {
+                    if let Wire::Qubit(qubit) = edge {
+                        if *qubit == qubits[1] {
+                            k1r_gate.extract()
+                        } else {
+                            k1l_gate.extract()
+                        }
+                    } else {
+                        unreachable!("This will only be called on ops with no classical wires.");
+                    }
+                };
+                dag.replace_node_with_1q_ops(py, node, insert_fn)?;
+                dag.add_global_phase(py, &Param::Float(decomp.global_phase))?;
+                perm.swap(qubits[0].0 as usize, qubits[1].0 as usize);
             }
-            // TODO: also look into splitting on Specialization::Swap and just
-            // swap the virtual qubits. Doing this we will need to update the
-            // permutation like in ElidePermutations
         }
     }
-    Ok(())
+    Ok(permutation)
 }
 
 pub fn split_2q_unitaries_mod(m: &Bound<PyModule>) -> PyResult<()> {

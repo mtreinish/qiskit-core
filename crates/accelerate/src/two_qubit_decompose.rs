@@ -1021,6 +1021,10 @@ impl TwoQubitWeylDecomposition {
         specialized.global_phase += tr.arg();
         Ok(specialized)
     }
+
+    pub fn c(&self) -> f64 {
+        self.c
+    }
 }
 
 static IPZ: GateArray1Q = [[IM, C_ZERO], [C_ZERO, M_IM]];
