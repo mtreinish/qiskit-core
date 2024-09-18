@@ -80,5 +80,10 @@ fn _accelerate(m: &Bound<PyModule>) -> PyResult<()> {
     add_submodule(m, commutation_checker, "commutation_checker")?;
     add_submodule(m, commutation_analysis, "commutation_analysis")?;
     add_submodule(m, commutation_cancellation, "commutation_cancellation")?;
+    add_submodule(
+        m,
+        qiskit_accelerate::two_qubit_peephole::two_qubit_peephole_mod,
+        "two_qubit_peephole",
+    )?;
     Ok(())
 }

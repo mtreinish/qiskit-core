@@ -1216,9 +1216,9 @@ type TwoQubitSequenceVec = Vec<(Option<StandardGate>, SmallVec<[f64; 3]>, SmallV
 
 #[pyclass(sequence)]
 pub struct TwoQubitGateSequence {
-    gates: TwoQubitSequenceVec,
+    pub gates: TwoQubitSequenceVec,
     #[pyo3(get)]
-    global_phase: f64,
+    pub global_phase: f64,
 }
 
 #[pymethods]
@@ -1287,6 +1287,10 @@ pub struct TwoQubitBasisDecomposer {
     q2r: Array2<Complex64>,
 }
 impl TwoQubitBasisDecomposer {
+    pub fn gate_name(&self) -> &str {
+        self.gate.as_str()
+    }
+
     fn decomp1_inner(
         &self,
         target: &TwoQubitWeylDecomposition,
@@ -1643,11 +1647,11 @@ impl TwoQubitBasisDecomposer {
         Ok(res)
     }
 
-    fn new_inner(
+    pub fn new_inner(
         gate: String,
         gate_matrix: ArrayView2<Complex64>,
         basis_fidelity: f64,
-        euler_basis: &str,
+        euler_basis: EulerBasis,
         pulse_optimize: Option<bool>,
     ) -> PyResult<Self> {
         let ipz: ArrayView2<Complex64> = aview2(&IPZ);
@@ -1755,7 +1759,7 @@ impl TwoQubitBasisDecomposer {
         Ok(TwoQubitBasisDecomposer {
             gate,
             basis_fidelity,
-            euler_basis: EulerBasis::__new__(euler_basis)?,
+            euler_basis,
             pulse_optimize,
             basis_decomposer,
             super_controlled,
@@ -1781,7 +1785,7 @@ impl TwoQubitBasisDecomposer {
         })
     }
 
-    fn call_inner(
+    pub fn call_inner(
         &self,
         unitary: ArrayView2<Complex64>,
         basis_fidelity: Option<f64>,
@@ -1924,7 +1928,7 @@ impl TwoQubitBasisDecomposer {
             gate,
             gate_matrix.as_array(),
             basis_fidelity,
-            euler_basis,
+            EulerBasis::__new__(euler_basis)?,
             pulse_optimize,
         )
     }
@@ -2222,8 +2226,13 @@ fn two_qubit_decompose_up_to_diagonal(
     let (su4, phase) = u4_to_su4(mat_arr);
     let mut real_map = real_trace_transform(su4.view());
     let mapped_su4 = real_map.dot(&su4.view());
-    let decomp =
-        TwoQubitBasisDecomposer::new_inner("cx".to_string(), aview2(&CX_GATE), 1.0, "U", None)?;
+    let decomp = TwoQubitBasisDecomposer::new_inner(
+        "cx".to_string(),
+        aview2(&CX_GATE),
+        1.0,
+        EulerBasis::__new__("U")?,
+        None,
+    )?;
 
     let circ_seq = decomp.call_inner(mapped_su4.view(), None, true, None)?;
     let circ = CircuitData::from_standard_gates(

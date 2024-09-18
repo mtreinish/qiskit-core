@@ -73,14 +73,24 @@ pub fn blocks_to_matrix(
     for bit in index_map {
         bit_map.add(py, bit.bind(py), true)?;
     }
+    let matrix = compose_2q_matrix(op_list.iter().map(|node| {
+        let matrix = get_matrix_from_inst(py, &node.instruction)?;
+        let bit_indices = bit_map
+            .map_bits(node.instruction.qubits.bind(py).iter())?
+            .map(|x| x as u8)
+            .collect::<SmallVec<_>>();
+        Ok((matrix, bit_indices))
+    }))?;
+    Ok(matrix.into_pyarray_bound(py).unbind())
+}
+
+pub fn compose_2q_matrix<'a>(
+    mut matrices: impl Iterator<Item = PyResult<(Array2<Complex64>, SmallVec<[u8; 2]>)>> + 'a,
+) -> PyResult<Array2<Complex64>> {
     let identity = aview2(&ONE_QUBIT_IDENTITY);
-    let first_node = &op_list[0];
-    let input_matrix = get_matrix_from_inst(py, &first_node.instruction)?;
-    let mut matrix: Array2<Complex64> = match bit_map
-        .map_bits(first_node.instruction.qubits.bind(py).iter())?
-        .collect::<Vec<_>>()
-        .as_slice()
-    {
+    let (input_matrix, bit_map) = matrices.next().unwrap()?;
+
+    let mut matrix: Array2<Complex64> = match bit_map.as_slice() {
         [0] => kron(&identity, &input_matrix),
         [1] => kron(&input_matrix, &identity),
         [0, 1] => input_matrix,
@@ -88,13 +98,8 @@ pub fn blocks_to_matrix(
         [] => Array2::eye(4),
         _ => unreachable!(),
     };
-    for node in op_list.into_iter().skip(1) {
-        let op_matrix = get_matrix_from_inst(py, &node.instruction)?;
-        let q_list = bit_map
-            .map_bits(node.instruction.qubits.bind(py).iter())?
-            .map(|x| x as u8)
-            .collect::<SmallVec<[u8; 2]>>();
-
+    for raw_data in matrices {
+        let (op_matrix, q_list) = raw_data?;
         let result = match q_list.as_slice() {
             [0] => Some(kron(&identity, &op_matrix)),
             [1] => Some(kron(&op_matrix, &identity)),
@@ -107,7 +112,7 @@ pub fn blocks_to_matrix(
             None => op_matrix.dot(&matrix),
         };
     }
-    Ok(matrix.into_pyarray_bound(py).unbind())
+    Ok(matrix)
 }
 
 /// Switches the order of qubits in a two qubit operation.

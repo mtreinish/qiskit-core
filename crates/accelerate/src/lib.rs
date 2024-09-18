@@ -42,6 +42,7 @@ pub mod stochastic_swap;
 pub mod synthesis;
 pub mod target_transpiler;
 pub mod two_qubit_decompose;
+pub mod two_qubit_peephole;
 pub mod uc_gate;
 pub mod utils;
 pub mod vf2_layout;

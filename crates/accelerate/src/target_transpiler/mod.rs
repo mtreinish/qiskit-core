@@ -31,6 +31,8 @@ use pyo3::{
     types::{PyDict, PyList, PySet, PyTuple},
 };
 
+use ndarray::Array2;
+use num_complex::Complex64;
 use qiskit_circuit::circuit_instruction::OperationFromPython;
 use qiskit_circuit::operations::{Operation, Param};
 use qiskit_circuit::packed_instruction::PackedOperation;
@@ -106,6 +108,12 @@ pub(crate) struct NormalOperation {
     pub operation: PackedOperation,
     pub params: SmallVec<[Param; 3]>,
     op_object: PyObject,
+}
+
+impl NormalOperation {
+    pub fn matrix(&self) -> Option<Array2<Complex64>> {
+        self.operation.view().matrix(&self.params)
+    }
 }
 
 impl<'py> FromPyObject<'py> for NormalOperation {
