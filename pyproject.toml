@@ -147,7 +147,7 @@ manylinux-i686-image = "manylinux2014"
 skip = "pp* cp36-* cp37-* cp38-* *musllinux* *win32 *i686 cp38-macosx_arm64"
 test-skip = "*win32 *linux_i686"
 test-command = "QISKIT_PARALLEL=FALSE stestr --top-dir /tmp/test_qiskit --test-path /tmp/test_qiskit/test/python run --abbreviate"
-before-all = "mkdir /tmp/test_qiskit/test cp -r {project}/test/python /tmp/test_qiskit/test/."
+before-all = "mkdir -p /tmp/test_qiskit/test && cp -r {project}/test/python /tmp/test_qiskit/test/."
 # We need to use pre-built versions of Numpy and Scipy in the tests; they have a
 # tendency to crash if they're installed from source by `pip install`, and since
 # Numpy 1.22 there are no i686 wheels, so we force pip to use older ones without
@@ -160,7 +160,7 @@ before-test = "pip install --prefer-binary --only-binary=numpy,scipy numpy scipy
 environment = 'RUSTUP_TOOLCHAIN="stable"'
 
 [tool.cibuildwheel.linux]
-before-all = "yum install -y wget && {package}/tools/install_rust.sh && cp -r {project}/test/python /tmp/test_qiskit"
+before-all = "yum install -y wget && {package}/tools/install_rust.sh && mkdir -p /tmp/test_qiskit/test && cp -r {project}/test/python /tmp/test_qiskit"
 environment = 'PATH="$PATH:$HOME/.cargo/bin" CARGO_NET_GIT_FETCH_WITH_CLI="true" RUSTUP_TOOLCHAIN="stable"'
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel} && pipx run abi3audit --strict --report {wheel}"
 
