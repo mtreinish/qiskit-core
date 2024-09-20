@@ -146,7 +146,7 @@ manylinux-x86_64-image = "manylinux2014"
 manylinux-i686-image = "manylinux2014"
 skip = "pp* cp36-* cp37-* cp38-* *musllinux* *win32 *i686 cp38-macosx_arm64"
 test-skip = "*win32 *linux_i686"
-test-command = "QISKIT_PARALLEL=FALSE stestr --test-path {project}/test/python run --abbreviate"
+test-command = "QISKIT_PARALLEL=FALSE stestr --top-dir {project}/test --test-path {project}/test/python run --abbreviate"
 # We need to use pre-built versions of Numpy and Scipy in the tests; they have a
 # tendency to crash if they're installed from source by `pip install`, and since
 # Numpy 1.22 there are no i686 wheels, so we force pip to use older ones without
