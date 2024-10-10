@@ -2599,9 +2599,13 @@ class TestPostTranspileIntegration(QiskitTestCase):
 
             pos_to_virt = {v: k for k, v in layout.input_qubit_mapping.items()}
             qubit_indices = []
+            print(layout.initial_layout)
+            print(pos_to_virt)
+            print(layout.final_layout)
             for index in range(num_source_qubits):
                 qubit_idx = layout.initial_layout[pos_to_virt[index]]
                 if layout.final_layout is not None:
+                    print("BLUE")
                     qubit_idx = layout.final_layout[transpiled_circuit.qubits[qubit_idx]]
                 qubit_indices.append(qubit_idx)
             return qubit_indices
