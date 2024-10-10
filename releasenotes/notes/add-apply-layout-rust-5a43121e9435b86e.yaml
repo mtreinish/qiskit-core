@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    Fixed an issue in the :class:`.ApplyLayout` transpiler pass that was
+    incorrectly applying a layout if the circuit was not the width of
+    the target backend which was a requirement of the pass to function
+    correctly. In these circumstances the pass will now correctly raise a
+    :class:`.TranspilerError`.

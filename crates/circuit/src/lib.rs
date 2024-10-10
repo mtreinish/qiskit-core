@@ -36,6 +36,12 @@ pub type BitType = u32;
 #[derive(Copy, Clone, Debug, Hash, Ord, PartialOrd, Eq, PartialEq, FromPyObject)]
 pub struct Qubit(pub BitType);
 
+impl IntoPy<PyObject> for Qubit {
+    fn into_py(self, py: Python) -> PyObject {
+        self.0.into_py(py)
+    }
+}
+
 impl Qubit {
     /// Construct a new Qubit object from a usize, if you have a u32 you can
     /// create a `Qubit` object directly with `Qubit(0u32)`. This will panic
@@ -58,6 +64,12 @@ impl Qubit {
 
 #[derive(Copy, Clone, Debug, Hash, Ord, PartialOrd, Eq, PartialEq)]
 pub struct Clbit(pub BitType);
+
+impl IntoPy<PyObject> for Clbit {
+    fn into_py(self, py: Python) -> PyObject {
+        self.0.into_py(py)
+    }
+}
 
 impl Clbit {
     /// Construct a new Clbit object from a usize. if you have a u32 you can

@@ -847,7 +847,7 @@ impl DAGCircuit {
     /// Args:
     ///     angle (float, :class:`.ParameterExpression`): The phase angle.
     #[setter]
-    fn set_global_phase(&mut self, angle: Param) -> PyResult<()> {
+    pub fn set_global_phase(&mut self, angle: Param) -> PyResult<()> {
         match angle {
             Param::Float(angle) => {
                 self.global_phase = Param::Float(angle.rem_euclid(2. * PI));
@@ -875,7 +875,7 @@ impl DAGCircuit {
     ///      calibrations (dict): A dictionary of input in the format
     ///          {'gate_name': {(qubits, gate_params): schedule}}
     #[setter]
-    fn set_calibrations(&mut self, calibrations: HashMap<String, Py<PyDict>>) {
+    pub fn set_calibrations(&mut self, calibrations: HashMap<String, Py<PyDict>>) {
         self.calibrations = calibrations;
     }
 
@@ -1644,24 +1644,7 @@ def _format(operand):
             target_dag.add_creg(py, &reg)?;
         }
         if vars_mode == "alike" {
-            for var in self.vars_by_type[DAGVarType::Input as usize]
-                .bind(py)
-                .iter()
-            {
-                target_dag.add_var(py, &var, DAGVarType::Input)?;
-            }
-            for var in self.vars_by_type[DAGVarType::Capture as usize]
-                .bind(py)
-                .iter()
-            {
-                target_dag.add_var(py, &var, DAGVarType::Capture)?;
-            }
-            for var in self.vars_by_type[DAGVarType::Declare as usize]
-                .bind(py)
-                .iter()
-            {
-                target_dag.add_var(py, &var, DAGVarType::Declare)?;
-            }
+            target_dag.copy_vars_from(py, self)?;
         } else if vars_mode == "captures" {
             for var in self.vars_by_type[DAGVarType::Input as usize]
                 .bind(py)
@@ -4775,7 +4758,7 @@ def _format(operand):
 
     /// Total number of classical variables tracked by the circuit.
     #[getter]
-    fn num_vars(&self) -> usize {
+    pub fn num_vars(&self) -> usize {
         self.vars_info.len()
     }
 
@@ -4968,9 +4951,94 @@ def _format(operand):
 
 impl DAGCircuit {
     /// Returns an immutable view of the inner StableGraph managed by the circuit.
+    pub fn name(&self) -> Option<&PyObject> {
+        self.name.as_ref()
+    }
+
+    pub fn set_name(&mut self, val: Option<PyObject>) {
+        self.name = val;
+    }
+
+    pub fn metadata(&self) -> Option<&PyObject> {
+        self.metadata.as_ref()
+    }
+
+    pub fn set_metadata(&mut self, val: Option<PyObject>) {
+        self.metadata = val;
+    }
+
+    pub fn calibrations(&self) -> &HashMap<String, Py<PyDict>> {
+        &self.calibrations
+    }
+
     #[inline(always)]
     pub fn dag(&self) -> &StableDiGraph<NodeType, Wire> {
         &self.dag
+    }
+
+    pub fn qregs(&self) -> &Py<PyDict> {
+        &self.qregs
+    }
+
+    pub fn cregs(&self) -> &Py<PyDict> {
+        &self.cregs
+    }
+
+    pub fn duration(&self) -> Option<&PyObject> {
+        self.duration.as_ref()
+    }
+
+    pub fn unit(&self) -> &str {
+        self.unit.as_str()
+    }
+
+    /// Copy the qubits and qargs from another dag into this dag
+    pub fn copy_qubit_from(&mut self, py: Python, other: &Self) -> PyResult<()> {
+        for bit in other.qubits.bits() {
+            self.add_qubit_unchecked(py, bit.bind(py))?;
+        }
+
+        for reg in other.qregs.bind(py).values() {
+            self.add_qreg(py, &reg)?;
+        }
+        self.qargs_interner = other.qargs_interner.clone();
+        Ok(())
+    }
+
+    /// Copy the clbits and cargs from another dag into this dag
+    pub fn copy_clbits_from(&mut self, py: Python, other: &Self) -> PyResult<()> {
+        for bit in other.clbits.bits() {
+            self.add_clbit_unchecked(py, bit.bind(py))?;
+        }
+
+        for reg in other.cregs.bind(py).values() {
+            self.add_creg(py, &reg)?;
+        }
+        self.cargs_interner = other.cargs_interner.clone();
+        Ok(())
+    }
+
+    /// Copy the vars from another dag into this dag
+    pub fn copy_vars_from(&mut self, py: Python, other: &Self) -> PyResult<()> {
+        for var in other.vars_by_type[DAGVarType::Input as usize]
+            .bind(py)
+            .iter()
+        {
+            self.add_var(py, &var, DAGVarType::Input)?;
+        }
+        for var in other.vars_by_type[DAGVarType::Capture as usize]
+            .bind(py)
+            .iter()
+        {
+            self.add_var(py, &var, DAGVarType::Capture)?;
+        }
+        for var in other.vars_by_type[DAGVarType::Declare as usize]
+            .bind(py)
+            .iter()
+        {
+            self.add_var(py, &var, DAGVarType::Declare)?;
+        }
+        Ok(())
     }
 
     /// Returns an immutable view of the Interner used for Qargs

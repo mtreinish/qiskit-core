@@ -106,7 +106,7 @@ pub struct NLayout {
 #[pymethods]
 impl NLayout {
     #[new]
-    fn new(
+    pub fn new(
         qubit_indices: HashMap<VirtualQubit, PhysicalQubit>,
         virtual_qubits: usize,
         physical_qubits: usize,
@@ -218,6 +218,14 @@ impl NLayout {
             .iter()
             .enumerate()
             .map(|(p, v)| (PhysicalQubit::new(p as u32), *v))
+    }
+
+    pub fn num_physical(&self) -> usize {
+        self.phys_to_virt.len()
+    }
+
+    pub fn num_virtual(&self) -> usize {
+        self.virt_to_phys.len()
     }
 }
 
