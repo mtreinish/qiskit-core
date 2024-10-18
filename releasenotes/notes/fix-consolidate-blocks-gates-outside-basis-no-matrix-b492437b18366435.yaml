@@ -1,0 +1,11 @@
+---
+fixes:
+  - |
+    Fixed an issue in the :class:`.ConsolidateBlocks` transpiler pass that
+    would cause it to error if it encountered a gate outside the specified
+    ``target`` or ``basis_gates`` that didn't have a matrix defined in a
+    standalone 2q block. In these cases previously the pass would attempt to
+    consolidate the gate into a :class:`.UnitaryGate` and error because it
+    needed the gates matrix. This has been fixed so that those custom gates
+    are ignored for the purposes of the pass because it is unable to process
+    a gate numerically if it's matrix isn't defined.

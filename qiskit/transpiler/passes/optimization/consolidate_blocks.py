@@ -98,8 +98,12 @@ class ConsolidateBlocks(TransformationPass):
         all_block_gates = set()
         for block in blocks:
             if len(block) == 1 and self._check_not_in_basis(dag, block[0].name, block[0].qargs):
+                try:
+                    matrix = block[0].op.to_matrix()
+                except QiskitError:
+                    continue
                 all_block_gates.add(block[0])
-                dag.substitute_node(block[0], UnitaryGate(block[0].op.to_matrix()))
+                dag.substitute_node(block[0], UnitaryGate(matrix))
             else:
                 basis_count = 0
                 outside_basis = False
@@ -158,10 +162,17 @@ class ConsolidateBlocks(TransformationPass):
             if any(gate in all_block_gates for gate in run):
                 continue
             if len(run) == 1 and not self._check_not_in_basis(dag, run[0].name, run[0].qargs):
-                dag.substitute_node(run[0], UnitaryGate(run[0].op.to_matrix(), check_input=False))
+                try:
+                    matrix = run[0].op.to_matrix()
+                except QiskitError:
+                    continue
+                dag.substitute_node(run[0], UnitaryGate(matrix, check_input=False))
             else:
                 qubit = run[0].qargs[0]
-                operator = run[0].op.to_matrix()
+                try:
+                    operator = run[0].op.to_matrix()
+                except QiskitError:
+                    continue
                 already_in_block = False
                 for gate in run[1:]:
                     if gate in all_block_gates:

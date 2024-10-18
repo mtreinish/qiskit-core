@@ -176,7 +176,13 @@ class DefaultInitPassManager(PassManagerStagePlugin):
             )
             init.append(CommutativeCancellation())
             init.append(Collect2qBlocks())
-            init.append(ConsolidateBlocks())
+            init.append(
+                ConsolidateBlocks(
+                    approximation_degree=pass_manager_config.approximation_degree,
+                    target=pass_manager_config.target,
+                    basis_gates=pass_manager_config.basis_gates,
+                )
+            )
             # If approximation degree is None that indicates a request to approximate up to the
             # error rates in the target. However, in the init stage we don't yet know the target
             # qubits being used to figure out the fidelity so just use the default fidelity parameter
