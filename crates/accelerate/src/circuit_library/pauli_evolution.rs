@@ -255,12 +255,7 @@ pub fn py_pauli_evolution(
         |(((i, pauli), qubits), time)| {
             let as_packed = pauli_evolution(pauli, qubits, time, false, do_fountain).map(
                 |(gate, params, qubits)| -> PyResult<Instruction> {
-                    Ok((
-                        gate.into(),
-                        params,
-                        Vec::from_iter(qubits.into_iter()),
-                        Vec::new(),
-                    ))
+                    Ok((gate.into(), params, Vec::from_iter(qubits), Vec::new()))
                 },
             );
             as_packed.chain(utils::maybe_barrier(
