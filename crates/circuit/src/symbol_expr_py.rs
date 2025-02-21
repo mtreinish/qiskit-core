@@ -21,13 +21,12 @@ use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 
 use pyo3::prelude::*;
-use pyo3::exceptions::PyRuntimeError;
 
 // Python interface to SymbolExpr
 #[pyclass(sequence, module = "qiskit._accelerate.circuit")]
 #[derive(Clone, Debug)]
 pub struct PySymbolExpr {
-    expr: SymbolExpr,
+    pub expr: SymbolExpr,
 }
 
 // enum for argument for operators
@@ -169,7 +168,7 @@ impl PySymbolExpr {
             Some(v) => match v {
                 Value::Real(r) => Ok(r),
                 Value::Int(r) => Ok(r as f64),
-                Value::Complex(c) => Err(pyo3::exceptions::PyTypeError::new_err("complex can not be converted to float")),
+                Value::Complex(_) => Err(pyo3::exceptions::PyTypeError::new_err("complex can not be converted to float")),
             },
             None=> Err(pyo3::exceptions::PyRuntimeError::new_err("Expression has some undefined symbols.")),
         }
@@ -179,7 +178,7 @@ impl PySymbolExpr {
             Some(v) => match v {
                 Value::Real(r) => Ok(r as i64),
                 Value::Int(r) => Ok(r),
-                Value::Complex(c) => Err(pyo3::exceptions::PyTypeError::new_err("complex can not be converted to int")),
+                Value::Complex(_) => Err(pyo3::exceptions::PyTypeError::new_err("complex can not be converted to int")),
             },
             None=> Err(pyo3::exceptions::PyRuntimeError::new_err("Expression has some undefined symbols.")),
         }
@@ -195,7 +194,7 @@ impl PySymbolExpr {
             expr: self.expr.conjugate(),
         }
     }
-    pub fn derivative(&self, param: Self) -> Self {
+    pub fn derivative(&self, param: &Self) -> Self {
         Self {
             expr: self.expr.derivative(&param.expr),
         }
