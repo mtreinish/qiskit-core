@@ -67,6 +67,7 @@ impl PySymbolExpr {
         }
     }
 
+    #[allow(non_snake_case)]
     #[staticmethod]
     pub fn Symbol(name: String) -> Self {
         PySymbolExpr {
@@ -74,17 +75,18 @@ impl PySymbolExpr {
         }
     }
 
+    #[allow(non_snake_case)]
     #[staticmethod]
     pub fn Value(value: ParameterValue) -> Self {
         match value {
             ParameterValue::Real(r) => PySymbolExpr {
-                expr: SymbolExpr::Value(Value::from(r.clone())),
+                expr: SymbolExpr::Value(Value::from(r)),
             },
             ParameterValue::Complex(c) => PySymbolExpr {
-                expr: SymbolExpr::Value(Value::from(c.clone())),
+                expr: SymbolExpr::Value(Value::from(c)),
             },
             ParameterValue::Int(r) => PySymbolExpr {
-                expr: SymbolExpr::Value(Value::from(r.clone())),
+                expr: SymbolExpr::Value(Value::from(r)),
             },
             ParameterValue::Str(s) => PySymbolExpr {
                 expr: parse_expression(&s),
@@ -94,6 +96,7 @@ impl PySymbolExpr {
     }
 
     // this is called for np.complex128 because np.complex is recognized as Real in Value function
+    #[allow(non_snake_case)]
     #[staticmethod]
     pub fn Complex(value: Complex64) -> Self {
         PySymbolExpr {
@@ -101,6 +104,7 @@ impl PySymbolExpr {
         }
     }
 
+    #[allow(non_snake_case)]
     #[staticmethod]
     pub fn Expression(name: String) -> Self {
         PySymbolExpr {
@@ -251,9 +255,9 @@ impl PySymbolExpr {
                 (
                     key.clone(),
                     match val {
-                        BindValue::Complex(c) => Value::from(c.clone()),
-                        BindValue::Real(r) => Value::from(r.clone()),
-                        BindValue::Int(r) => Value::from(r.clone()),
+                        BindValue::Complex(c) => Value::from(*c),
+                        BindValue::Real(r) => Value::from(*r),
+                        BindValue::Int(r) => Value::from(*r),
                     },
                 )
             })
@@ -270,7 +274,7 @@ impl PySymbolExpr {
                         Ok(Self { expr: bound })
                     }
                 }
-                Value::Int(r) => Ok(Self { expr: bound }),
+                Value::Int(_) => Ok(Self { expr: bound }),
                 Value::Complex(c) => {
                     if c.re == f64::INFINITY || c.im == f64::INFINITY {
                         Err(pyo3::exceptions::PyZeroDivisionError::new_err(
@@ -292,7 +296,7 @@ impl PySymbolExpr {
     pub fn bind_complex(&self, in_maps: HashMap<String, Complex64>) -> PyResult<Self> {
         let maps: HashMap<String, Value> = in_maps
             .iter()
-            .map(|(key, val)| (key.clone(), Value::from(val.clone())))
+            .map(|(key, val)| (key.clone(), Value::from(*val)))
             .collect();
         let bound = self.expr.bind(&maps);
         match bound {
@@ -306,7 +310,7 @@ impl PySymbolExpr {
                         Ok(Self { expr: bound })
                     }
                 }
-                Value::Int(r) => Ok(Self { expr: bound }),
+                Value::Int(_) => Ok(Self { expr: bound }),
                 Value::Complex(c) => {
                     if c.re == f64::INFINITY || c.im == f64::INFINITY {
                         Err(pyo3::exceptions::PyZeroDivisionError::new_err(
@@ -340,18 +344,18 @@ impl PySymbolExpr {
     // ====================================
     pub fn __eq__(&self, rhs: ParameterValue) -> bool {
         match rhs {
-            ParameterValue::Real(r) => self.expr == SymbolExpr::Value(Value::from(r.clone())),
-            ParameterValue::Complex(c) => self.expr == SymbolExpr::Value(Value::from(c.clone())),
-            ParameterValue::Int(r) => self.expr == SymbolExpr::Value(Value::from(r.clone())),
+            ParameterValue::Real(r) => self.expr == SymbolExpr::Value(Value::from(r)),
+            ParameterValue::Complex(c) => self.expr == SymbolExpr::Value(Value::from(c)),
+            ParameterValue::Int(r) => self.expr == SymbolExpr::Value(Value::from(r)),
             ParameterValue::Str(s) => self.expr == parse_expression(&s),
             ParameterValue::Expr(e) => self.expr == e.expr,
         }
     }
     pub fn __ne__(&self, rhs: ParameterValue) -> bool {
         match rhs {
-            ParameterValue::Real(r) => self.expr != SymbolExpr::Value(Value::from(r.clone())),
-            ParameterValue::Complex(c) => self.expr != SymbolExpr::Value(Value::from(c.clone())),
-            ParameterValue::Int(r) => self.expr != SymbolExpr::Value(Value::from(r.clone())),
+            ParameterValue::Real(r) => self.expr != SymbolExpr::Value(Value::from(r)),
+            ParameterValue::Complex(c) => self.expr != SymbolExpr::Value(Value::from(c)),
+            ParameterValue::Int(r) => self.expr != SymbolExpr::Value(Value::from(r)),
             ParameterValue::Str(s) => self.expr != parse_expression(&s),
             ParameterValue::Expr(e) => self.expr != e.expr,
         }
@@ -362,13 +366,13 @@ impl PySymbolExpr {
     pub fn __add__(&self, rhs: ParameterValue) -> Self {
         match rhs {
             ParameterValue::Real(r) => Self {
-                expr: &self.expr + &SymbolExpr::Value(Value::from(r.clone())),
+                expr: &self.expr + &SymbolExpr::Value(Value::from(r)),
             },
             ParameterValue::Complex(c) => Self {
-                expr: &self.expr + &SymbolExpr::Value(Value::from(c.clone())),
+                expr: &self.expr + &SymbolExpr::Value(Value::from(c)),
             },
             ParameterValue::Int(r) => Self {
-                expr: &self.expr + &SymbolExpr::Value(Value::from(r.clone())),
+                expr: &self.expr + &SymbolExpr::Value(Value::from(r)),
             },
             ParameterValue::Str(s) => Self {
                 expr: &self.expr + &parse_expression(&s),
@@ -381,13 +385,13 @@ impl PySymbolExpr {
     pub fn __radd__(&self, rhs: ParameterValue) -> Self {
         match rhs {
             ParameterValue::Real(r) => Self {
-                expr: &SymbolExpr::Value(Value::from(r.clone())) + &self.expr,
+                expr: &SymbolExpr::Value(Value::from(r)) + &self.expr,
             },
             ParameterValue::Complex(c) => Self {
-                expr: &SymbolExpr::Value(Value::from(c.clone())) + &self.expr,
+                expr: &SymbolExpr::Value(Value::from(c)) + &self.expr,
             },
             ParameterValue::Int(r) => Self {
-                expr: &SymbolExpr::Value(Value::from(r.clone())) + &self.expr,
+                expr: &SymbolExpr::Value(Value::from(r)) + &self.expr,
             },
             ParameterValue::Str(s) => Self {
                 expr: &parse_expression(&s) + &self.expr,
@@ -400,13 +404,13 @@ impl PySymbolExpr {
     pub fn __sub__(&self, rhs: ParameterValue) -> Self {
         match rhs {
             ParameterValue::Real(r) => Self {
-                expr: &self.expr - &SymbolExpr::Value(Value::from(r.clone())),
+                expr: &self.expr - &SymbolExpr::Value(Value::from(r)),
             },
             ParameterValue::Complex(c) => Self {
-                expr: &self.expr - &SymbolExpr::Value(Value::from(c.clone())),
+                expr: &self.expr - &SymbolExpr::Value(Value::from(c)),
             },
             ParameterValue::Int(r) => Self {
-                expr: &self.expr - &SymbolExpr::Value(Value::from(r.clone())),
+                expr: &self.expr - &SymbolExpr::Value(Value::from(r)),
             },
             ParameterValue::Str(s) => Self {
                 expr: &self.expr - &parse_expression(&s),
@@ -419,13 +423,13 @@ impl PySymbolExpr {
     pub fn __rsub__(&self, rhs: ParameterValue) -> Self {
         match rhs {
             ParameterValue::Real(r) => Self {
-                expr: &SymbolExpr::Value(Value::from(r.clone())) - &self.expr,
+                expr: &SymbolExpr::Value(Value::from(r)) - &self.expr,
             },
             ParameterValue::Complex(c) => Self {
-                expr: &SymbolExpr::Value(Value::from(c.clone())) - &self.expr,
+                expr: &SymbolExpr::Value(Value::from(c)) - &self.expr,
             },
             ParameterValue::Int(r) => Self {
-                expr: &SymbolExpr::Value(Value::from(r.clone())) - &self.expr,
+                expr: &SymbolExpr::Value(Value::from(r)) - &self.expr,
             },
             ParameterValue::Str(s) => Self {
                 expr: &parse_expression(&s) - &self.expr,
@@ -438,13 +442,13 @@ impl PySymbolExpr {
     pub fn __mul__(&self, rhs: ParameterValue) -> Self {
         match rhs {
             ParameterValue::Real(r) => Self {
-                expr: &self.expr * &SymbolExpr::Value(Value::from(r.clone())),
+                expr: &self.expr * &SymbolExpr::Value(Value::from(r)),
             },
             ParameterValue::Complex(c) => Self {
-                expr: &self.expr * &SymbolExpr::Value(Value::from(c.clone())),
+                expr: &self.expr * &SymbolExpr::Value(Value::from(c)),
             },
             ParameterValue::Int(r) => Self {
-                expr: &self.expr * &SymbolExpr::Value(Value::from(r.clone())),
+                expr: &self.expr * &SymbolExpr::Value(Value::from(r)),
             },
             ParameterValue::Str(s) => Self {
                 expr: &self.expr * &parse_expression(&s),
@@ -457,13 +461,13 @@ impl PySymbolExpr {
     pub fn __rmul__(&self, rhs: ParameterValue) -> Self {
         match rhs {
             ParameterValue::Real(r) => Self {
-                expr: &SymbolExpr::Value(Value::from(r.clone())) * &self.expr,
+                expr: &SymbolExpr::Value(Value::from(r)) * &self.expr,
             },
             ParameterValue::Complex(c) => Self {
-                expr: &SymbolExpr::Value(Value::from(c.clone())) * &self.expr,
+                expr: &SymbolExpr::Value(Value::from(c)) * &self.expr,
             },
             ParameterValue::Int(r) => Self {
-                expr: &SymbolExpr::Value(Value::from(r.clone())) * &self.expr,
+                expr: &SymbolExpr::Value(Value::from(r)) * &self.expr,
             },
             ParameterValue::Str(s) => Self {
                 expr: &parse_expression(&s) * &self.expr,
@@ -482,7 +486,7 @@ impl PySymbolExpr {
                     ))
                 } else {
                     Ok(Self {
-                        expr: &self.expr / &SymbolExpr::Value(Value::from(r.clone())),
+                        expr: &self.expr / &SymbolExpr::Value(Value::from(r)),
                     })
                 }
             }
@@ -494,7 +498,7 @@ impl PySymbolExpr {
                     ))
                 } else {
                     Ok(Self {
-                        expr: &self.expr / &SymbolExpr::Value(Value::from(c.clone())),
+                        expr: &self.expr / &SymbolExpr::Value(Value::from(c)),
                     })
                 }
             }
@@ -505,7 +509,7 @@ impl PySymbolExpr {
                     ))
                 } else {
                     Ok(Self {
-                        expr: &self.expr / &SymbolExpr::Value(Value::from(r.clone())),
+                        expr: &self.expr / &SymbolExpr::Value(Value::from(r)),
                     })
                 }
             }
@@ -542,13 +546,13 @@ impl PySymbolExpr {
         }
         match rhs {
             ParameterValue::Real(r) => Ok(Self {
-                expr: &SymbolExpr::Value(Value::from(r.clone())) / &self.expr,
+                expr: &SymbolExpr::Value(Value::from(r)) / &self.expr,
             }),
             ParameterValue::Complex(c) => Ok(Self {
-                expr: &SymbolExpr::Value(Value::from(c.clone())) / &self.expr,
+                expr: &SymbolExpr::Value(Value::from(c)) / &self.expr,
             }),
             ParameterValue::Int(r) => Ok(Self {
-                expr: &SymbolExpr::Value(Value::from(r.clone())) / &self.expr,
+                expr: &SymbolExpr::Value(Value::from(r)) / &self.expr,
             }),
             ParameterValue::Str(s) => Ok(Self {
                 expr: &parse_expression(&s) / &self.expr,
@@ -561,13 +565,13 @@ impl PySymbolExpr {
     pub fn __pow__(&self, rhs: ParameterValue, _modulo: Option<i32>) -> Self {
         match rhs {
             ParameterValue::Real(r) => Self {
-                expr: self.expr.pow(&SymbolExpr::Value(Value::from(r.clone()))),
+                expr: self.expr.pow(&SymbolExpr::Value(Value::from(r))),
             },
             ParameterValue::Complex(c) => Self {
-                expr: self.expr.pow(&SymbolExpr::Value(Value::from(c.clone()))),
+                expr: self.expr.pow(&SymbolExpr::Value(Value::from(c))),
             },
             ParameterValue::Int(r) => Self {
-                expr: self.expr.pow(&SymbolExpr::Value(Value::from(r.clone()))),
+                expr: self.expr.pow(&SymbolExpr::Value(Value::from(r))),
             },
             ParameterValue::Str(s) => Self {
                 expr: self.expr.pow(&parse_expression(&s)),
@@ -580,13 +584,13 @@ impl PySymbolExpr {
     pub fn __rpow__(&self, rhs: ParameterValue, _modulo: Option<i32>) -> Self {
         match rhs {
             ParameterValue::Real(r) => Self {
-                expr: SymbolExpr::Value(Value::from(r.clone())).pow(&self.expr),
+                expr: SymbolExpr::Value(Value::from(r)).pow(&self.expr),
             },
             ParameterValue::Complex(c) => Self {
-                expr: SymbolExpr::Value(Value::from(c.clone())).pow(&self.expr),
+                expr: SymbolExpr::Value(Value::from(c)).pow(&self.expr),
             },
             ParameterValue::Int(r) => Self {
-                expr: SymbolExpr::Value(Value::from(r.clone())).pow(&self.expr),
+                expr: SymbolExpr::Value(Value::from(r)).pow(&self.expr),
             },
             ParameterValue::Str(s) => Self {
                 expr: parse_expression(&s).pow(&self.expr),

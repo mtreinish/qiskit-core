@@ -114,10 +114,10 @@ fn parse_symbol(s: &str) -> IResult<&str, BinaryOpContainer> {
                     // if array indexing is required in the future
                     // add indexing in Symbol struct
                     let s = format!("{}[{}]", v, i);
-                    return Ok(BinaryOpContainer {
+                    Ok(BinaryOpContainer {
                         op: BinaryOps::Add,
                         expr: SymbolExpr::Symbol(Symbol::new(&s)),
-                    });
+                    })
                 }
                 None => Ok(BinaryOpContainer {
                     op: BinaryOps::Add,

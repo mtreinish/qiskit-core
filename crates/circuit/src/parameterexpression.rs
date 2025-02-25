@@ -10,7 +10,7 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
-// ParameterExpressionExpression class using symengine C wrapper interface
+use std::fmt;
 
 use hashbrown::HashMap;
 use std::convert::From;
@@ -27,23 +27,27 @@ pub struct ParameterExpression {
     expr_: SymbolExpr,
 }
 
-impl ParameterExpression {
+impl Default for ParameterExpression {
     /// default constructor returns zero
-    pub fn default() -> Self {
+    fn default() -> Self {
         Self {
             expr_: SymbolExpr::Value(Value::Real(0.0)),
         }
     }
+}
 
+impl fmt::Display for ParameterExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.expr_)
+    }
+}
+
+impl ParameterExpression {
     /// create new ParameterExpression from string expression
     pub fn new(expr: &str) -> Self {
         Self {
             expr_: parse_expression(expr),
         }
-    }
-
-    pub fn to_string(&self) -> String {
-        self.expr_.to_string()
     }
 
     pub fn num_symbols(&self) -> usize {
@@ -75,7 +79,7 @@ impl ParameterExpression {
                         Ok(Self { expr_: bound })
                     }
                 }
-                Value::Int(r) => Ok(Self { expr_: bound }),
+                Value::Int(_) => Ok(Self { expr_: bound }),
                 Value::Complex(c) => {
                     if c.re == f64::INFINITY || c.im == f64::INFINITY {
                         Err("zero division occurs while binding parameter")
