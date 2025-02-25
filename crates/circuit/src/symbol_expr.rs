@@ -15,6 +15,7 @@ use hashbrown::{HashMap, HashSet};
 use std::cmp::Ordering;
 use std::cmp::PartialOrd;
 use std::convert::From;
+use std::fmt;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 use std::sync::Arc;
 
@@ -867,14 +868,6 @@ impl SymbolExpr {
                 _ => None,
             },
             _ => None,
-        }
-    }
-
-    pub fn print_tree(&self) {
-        match self {
-            SymbolExpr::Unary(e) => e.print_tree(),
-            SymbolExpr::Binary(e) => e.print_tree(),
-            _ => return,
         }
     }
 }
@@ -2449,11 +2442,6 @@ impl Unary {
             _ => None,
         }
     }
-
-    pub fn print_tree(&self) {
-        println!("Unary Node : {}", self.to_string());
-        self.expr.print_tree();
-    }
 }
 
 impl PartialEq for Unary {
@@ -3203,13 +3191,6 @@ impl Binary {
             }
             _ => None,
         }
-    }
-
-    pub fn print_tree(&self) {
-        println!("Binary Node : {}", self.to_string());
-        println!("  ({}), ({})", self.lhs.to_string(), self.rhs.to_string());
-        self.lhs.print_tree();
-        self.rhs.print_tree();
     }
 }
 

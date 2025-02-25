@@ -623,10 +623,6 @@ impl PySymbolExpr {
     fn __setstate__(&mut self, state: String) {
         self.expr = parse_expression(&state);
     }
-
-    pub fn print_tree(&self) {
-        self.expr.print_tree();
-    }
 }
 
 #[pyfunction]
