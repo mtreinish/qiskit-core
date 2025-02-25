@@ -166,7 +166,7 @@ def _write_parameter_expression(file_obj, obj, use_symengine, *, version):
         if use_symengine:
             expr_bytes = symengine.sympify(obj.sympify()).__reduce__()[1][0]
         else:
-            from sympy import srepr, sympify
+            from sympy import srepr
 
             expr_bytes = srepr(obj.sympify()).encode(common.ENCODE)
     else:

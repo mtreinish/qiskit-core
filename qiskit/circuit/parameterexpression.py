@@ -18,16 +18,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import IntEnum
 from typing import Callable, Union
-
 import numbers
 import operator
 
 import numpy
+
+from qiskit.circuit.exceptions import CircuitError
 import qiskit._accelerate.circuit
 
 SymbolExpr = qiskit._accelerate.circuit.PySymbolExpr
 
-from qiskit.circuit.exceptions import CircuitError
 
 # This type is redefined at the bottom to insert the full reference to "ParameterExpression", so it
 # can safely be used by runtime type-checkers like Sphinx.  Mypy does not need this because it

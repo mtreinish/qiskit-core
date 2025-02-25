@@ -19,13 +19,11 @@ from uuid import uuid4, UUID
 import numpy
 
 import qiskit._accelerate.circuit
-
-SymbolExpr = qiskit._accelerate.circuit.PySymbolExpr
-
-
 from qiskit.circuit.exceptions import CircuitError
 
 from .parameterexpression import ParameterExpression
+
+SymbolExpr = qiskit._accelerate.circuit.PySymbolExpr
 
 
 class Parameter(ParameterExpression):
