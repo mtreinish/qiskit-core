@@ -23,12 +23,12 @@ pub mod imports;
 pub mod interner;
 pub mod operations;
 pub mod packed_instruction;
-pub mod parameterexpression;
-pub mod symbol_expr;
-pub mod symbol_parser;
-pub mod symbol_expr_py;
 pub mod parameter_table;
+pub mod parameterexpression;
 pub mod slice;
+pub mod symbol_expr;
+pub mod symbol_expr_py;
+pub mod symbol_parser;
 pub mod util;
 
 mod rustworkx_core_vnext;
