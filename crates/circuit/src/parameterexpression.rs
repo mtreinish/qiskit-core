@@ -10,42 +10,44 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
-// ParameterExpressionExpression class using symengine C wrapper interface
+use std::fmt;
 
-use std::convert::From;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign, Neg};
 use hashbrown::{HashMap, HashSet};
+use std::convert::From;
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use crate::symbol_expr::{SymbolExpr, Value};
 use crate::symbol_parser::parse_expression;
 
 use num_complex::Complex64;
 
-/// Parameter Expression 
+/// Parameter Expression
 #[derive(Debug)]
 pub struct ParameterExpression {
     expr_: SymbolExpr,
 }
 
-
-impl ParameterExpression {
+impl Default for ParameterExpression {
     /// default constructor returns zero
-    pub fn default() -> Self {
+    fn default() -> Self {
         Self {
-            expr_: SymbolExpr::Value( Value::Real(0.0)),
+            expr_: SymbolExpr::Value(Value::Real(0.0)),
         }
     }
+}
 
+impl fmt::Display for ParameterExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.expr_)
+    }
+}
+
+impl ParameterExpression {
     /// create new ParameterExpression from string expression
     pub fn new(expr: &str) -> Self {
         Self {
             expr_: parse_expression(expr),
         }
-    }
-
-    /// convert expression to string
-    pub fn to_string(&self) -> String {
-        self.expr_.to_string()
     }
 
     /// return number of symbols in this expression
@@ -68,29 +70,39 @@ impl ParameterExpression {
         let bound = self.expr_.bind(&maps);
         match bound {
             SymbolExpr::Value(ref v) => match v {
-                Value::Real(r) => if *r == f64::INFINITY {
-                    Err("zero division occurs while binding parameter")
-                } else {
-                    Ok(Self {expr_: bound})
-                },
-                Value::Int(_) => Ok(Self {expr_: bound}),
-                Value::Complex(c) => if c.re == f64::INFINITY || c.im == f64::INFINITY {
-                    Err("zero division occurs while binding parameter")
-                } else if c.im < f64::EPSILON && c.im > -f64::EPSILON {
-                    Ok(Self {expr_: SymbolExpr::Value(Value::Real(c.re))})
-                } else {
-                    Ok(Self {expr_: bound})
-                },
+                Value::Real(r) => {
+                    if *r == f64::INFINITY {
+                        Err("zero division occurs while binding parameter")
+                    } else {
+                        Ok(Self { expr_: bound })
+                    }
+                }
+                Value::Int(_) => Ok(Self { expr_: bound }),
+                Value::Complex(c) => {
+                    if c.re == f64::INFINITY || c.im == f64::INFINITY {
+                        Err("zero division occurs while binding parameter")
+                    } else if c.im < f64::EPSILON && c.im > -f64::EPSILON {
+                        Ok(Self {
+                            expr_: SymbolExpr::Value(Value::Real(c.re)),
+                        })
+                    } else {
+                        Ok(Self { expr_: bound })
+                    }
+                }
             },
-            _ => Ok(Self {expr_: bound}),
+            _ => Ok(Self { expr_: bound }),
         }
     }
 
     /// substitute symbols to expressions (or values) given by hash map
     pub fn subs(&self, map: &HashMap<String, Self>) -> Self {
-        let subs_map : HashMap::<String, SymbolExpr> = 
-        map.iter().map(|(key, val)| (key.clone(), val.expr_.clone())).collect();
-        ParameterExpression{expr_: self.expr_.subs(&subs_map)}
+        let subs_map: HashMap<String, SymbolExpr> = map
+            .iter()
+            .map(|(key, val)| (key.clone(), val.expr_.clone()))
+            .collect();
+        ParameterExpression {
+            expr_: self.expr_.subs(&subs_map),
+        }
     }
 
     /// return floating point value if expression does not include symbols
@@ -101,7 +113,7 @@ impl ParameterExpression {
                 Value::Int(r) => Some(r as f64),
                 Value::Complex(_) => None,
             },
-            None=> None,
+            None => None,
         }
     }
 
@@ -113,7 +125,7 @@ impl ParameterExpression {
                 Value::Int(r) => Some(r),
                 Value::Complex(_) => None,
             },
-            None=> None,
+            None => None,
         }
     }
 
@@ -125,7 +137,7 @@ impl ParameterExpression {
                 Value::Int(r) => Some(Complex64::from(r as f64)),
                 Value::Complex(c) => Some(c),
             },
-            None=> None,
+            None => None,
         }
     }
 
@@ -135,7 +147,6 @@ impl ParameterExpression {
             expr_: self.expr_.conjugate(),
         }
     }
-
     /// return expression of derivative for param
     pub fn derivative(&self, param: &Self) -> Self {
         Self {
@@ -199,14 +210,14 @@ impl ParameterExpression {
         self.expr_ = &self.expr_ * &rhs.expr_;
     }
 
-    /// divide 2 expressions
+    /// divide expression
     fn div_expr(&self, rhs: &Self) -> Self {
         Self {
             expr_: &self.expr_ / &rhs.expr_,
         }
     }
 
-    /// divide other expression
+    /// divide by other expression
     fn div_assign_expr(&mut self, rhs: &Self) {
         self.expr_ = &self.expr_ / &rhs.expr_;
     }
@@ -276,15 +287,17 @@ impl ParameterExpression {
 
     /// pow of expression
     pub fn pow<T: Into<Self>>(&self, prm: T) -> Self {
-        let t : ParameterExpression = prm.into();
-        Self {expr_: self.expr_.pow(&t.expr_),}
+        let t: ParameterExpression = prm.into();
+        Self {
+            expr_: self.expr_.pow(&t.expr_),
+        }
     }
 }
 
 impl Clone for ParameterExpression {
     fn clone(&self) -> Self {
         Self {
-            expr_: self.expr_.clone()
+            expr_: self.expr_.clone(),
         }
     }
 }
@@ -295,7 +308,6 @@ impl PartialEq for ParameterExpression {
     }
 }
 
-
 // =============================
 // Make from Rust native types
 // =============================
@@ -303,14 +315,14 @@ impl PartialEq for ParameterExpression {
 impl From<i32> for ParameterExpression {
     fn from(v: i32) -> Self {
         Self {
-            expr_: SymbolExpr::Value( Value::Real(v as f64)),
+            expr_: SymbolExpr::Value(Value::Real(v as f64)),
         }
     }
 }
 impl From<i64> for ParameterExpression {
     fn from(v: i64) -> Self {
         Self {
-            expr_: SymbolExpr::Value( Value::Real(v as f64)),
+            expr_: SymbolExpr::Value(Value::Real(v as f64)),
         }
     }
 }
@@ -318,7 +330,7 @@ impl From<i64> for ParameterExpression {
 impl From<u32> for ParameterExpression {
     fn from(v: u32) -> Self {
         Self {
-            expr_: SymbolExpr::Value( Value::Real(v as f64)),
+            expr_: SymbolExpr::Value(Value::Real(v as f64)),
         }
     }
 }
@@ -326,7 +338,7 @@ impl From<u32> for ParameterExpression {
 impl From<f64> for ParameterExpression {
     fn from(v: f64) -> Self {
         Self {
-            expr_: SymbolExpr::Value( Value::Real(v)),
+            expr_: SymbolExpr::Value(Value::Real(v)),
         }
     }
 }
@@ -334,7 +346,7 @@ impl From<f64> for ParameterExpression {
 impl From<Complex64> for ParameterExpression {
     fn from(v: Complex64) -> Self {
         Self {
-            expr_: SymbolExpr::Value( Value::Complex(v)),
+            expr_: SymbolExpr::Value(Value::Complex(v)),
         }
     }
 }
@@ -352,7 +364,6 @@ impl From<&SymbolExpr> for ParameterExpression {
         }
     }
 }
-
 
 // =============================
 // Unary operations

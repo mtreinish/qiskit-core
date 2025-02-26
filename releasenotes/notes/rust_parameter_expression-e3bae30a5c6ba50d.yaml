@@ -1,0 +1,13 @@
+---
+features_circuits:
+  - |
+    Adding parameter expression using qiskit own symbolic expression module in Rust.
+    `crates/circuit/parameterexpression.rs` implements ParameterExpression class
+    without dependencies to external libraries such as symengine.
+    `crates/circuit/symbol_expr.rs` is a new symbolic expression library that stores
+    symbolic equations using AST structure consists of symbols, values and nodes of
+    operations. By using `crates/circuit/symbol_parser.rs` we can make expression
+    from an equation written in a string.
+    `crates/circuit/symbol_expr_py.rs` is an interface to Python used in
+    `qiskit/circuit/parameterexpression.py`. This PR replaces symengine from
+    ParameterExpression in Python.
