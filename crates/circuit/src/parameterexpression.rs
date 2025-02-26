@@ -226,63 +226,63 @@ impl ParameterExpression {
     pub fn sin(&self) -> Self {
         Self {
             expr_: self.expr_.sin(),
-        } 
+        }
     }
 
     /// cos of expression
     pub fn cos(&self) -> Self {
         Self {
             expr_: self.expr_.cos(),
-        } 
+        }
     }
 
     /// tan of expression
     pub fn tan(&self) -> Self {
         Self {
             expr_: self.expr_.tan(),
-        } 
+        }
     }
 
     /// arcsin of expression
     pub fn arcsin(&self) -> Self {
         Self {
             expr_: self.expr_.asin(),
-        } 
+        }
     }
 
     /// arccos of expression
     pub fn arccos(&self) -> Self {
         Self {
             expr_: self.expr_.acos(),
-        } 
+        }
     }
 
     /// arctan of expression
     pub fn arctan(&self) -> Self {
         Self {
             expr_: self.expr_.atan(),
-        } 
+        }
     }
 
     /// exp of expression
     pub fn exp(&self) -> Self {
         Self {
             expr_: self.expr_.exp(),
-        } 
+        }
     }
 
     /// log of expression
     pub fn log(&self) -> Self {
         Self {
             expr_: self.expr_.log(),
-        } 
+        }
     }
 
     /// abs of expression
     pub fn abs(&self) -> Self {
         Self {
             expr_: self.expr_.abs(),
-        } 
+        }
     }
 
     /// pow of expression

@@ -12,7 +12,6 @@
 
 /// symbol_parser.rs
 /// parsing equation to generate symbolic expression
-
 extern crate nom;
 extern crate nom_unicode;
 use nom::branch::{alt, permutation};
@@ -274,4 +273,3 @@ pub fn parse_expression(s: &str) -> SymbolExpr {
     let mut parser = all_consuming(parse_addsub);
     parser(s).unwrap().1.expr
 }
-

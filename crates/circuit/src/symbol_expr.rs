@@ -12,7 +12,6 @@
 
 /// symbol_expr.rs
 /// symbolic expression engine for parameter expression
-
 use core::f64;
 use hashbrown::{HashMap, HashSet};
 use std::cmp::Ordering;
@@ -62,7 +61,6 @@ pub struct Binary {
     rhs: SymbolExpr,
 }
 
-
 /// definition of unary operations
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOps {
@@ -88,7 +86,6 @@ pub enum BinaryOps {
     Div,
     Pow,
 }
-
 
 // functions to make new expr for add
 #[inline(always)]

@@ -12,8 +12,6 @@
 
 /// symbol_expr_py.rs
 /// Python interface of symbolic expression
-
-
 use crate::symbol_expr::{Symbol, SymbolExpr, Value};
 use crate::symbol_parser::parse_expression;
 
