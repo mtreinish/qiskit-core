@@ -14,7 +14,7 @@
 
 use std::convert::From;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign, Neg};
-use hashbrown::HashMap;
+use hashbrown::{HashMap, HashSet};
 
 use crate::symbol_expr::{SymbolExpr, Value};
 use crate::symbol_parser::parse_expression;
@@ -43,27 +43,27 @@ impl ParameterExpression {
         }
     }
 
+    /// convert expression to string
     pub fn to_string(&self) -> String {
         self.expr_.to_string()
     }
 
+    /// return number of symbols in this expression
     pub fn num_symbols(&self) -> usize {
         self.expr_.symbols().len()
     }
 
-    pub fn symbols(&self) -> Vec<String> {
-        let mut symbols: Vec<String> = self
-            .expr_.symbols()
-            .iter()
-            .map(|key| key.to_string())
-            .collect();
-        symbols.sort();
-        symbols
+    /// get hashset of all the symbols used in this expression
+    pub fn symbols(&self) -> HashSet<String> {
+        self.expr_.symbols()
     }
+
+    /// check if the symbol is used in this expression
     pub fn has_symbol(&self, symbol: String) -> bool {
         self.expr_.symbols().contains(&symbol)
     }
 
+    /// bind values to symbols given by input hashmap
     pub fn bind(&self, maps: HashMap<String, Value>) -> Result<Self, &str> {
         let bound = self.expr_.bind(&maps);
         match bound {
@@ -73,7 +73,7 @@ impl ParameterExpression {
                 } else {
                     Ok(Self {expr_: bound})
                 },
-                Value::Int(r) => Ok(Self {expr_: bound}),
+                Value::Int(_) => Ok(Self {expr_: bound}),
                 Value::Complex(c) => if c.re == f64::INFINITY || c.im == f64::INFINITY {
                     Err("zero division occurs while binding parameter")
                 } else if c.im < f64::EPSILON && c.im > -f64::EPSILON {
@@ -86,12 +86,14 @@ impl ParameterExpression {
         }
     }
 
+    /// substitute symbols to expressions (or values) given by hash map
     pub fn subs(&self, map: &HashMap<String, Self>) -> Self {
         let subs_map : HashMap::<String, SymbolExpr> = 
         map.iter().map(|(key, val)| (key.clone(), val.expr_.clone())).collect();
         ParameterExpression{expr_: self.expr_.subs(&subs_map)}
     }
 
+    /// return floating point value if expression does not include symbols
     pub fn float(&self) -> Option<f64> {
         match self.expr_.eval(true) {
             Some(v) => match v {
@@ -103,6 +105,7 @@ impl ParameterExpression {
         }
     }
 
+    /// return integer value if expression does not include symbols
     pub fn int(&self) -> Option<i64> {
         match self.expr_.eval(true) {
             Some(v) => match v {
@@ -114,6 +117,7 @@ impl ParameterExpression {
         }
     }
 
+    /// return complex value if expression does not include symbols
     pub fn complex(&self) -> Option<Complex64> {
         match self.expr_.eval(true) {
             Some(v) => match v {
@@ -125,128 +129,152 @@ impl ParameterExpression {
         }
     }
 
+    /// return conjugate of value
     pub fn conjugate(&self) -> Self {
         Self {
             expr_: self.expr_.conjugate(),
         }
     }
+
+    /// return expression of derivative for param
     pub fn derivative(&self, param: &Self) -> Self {
         Self {
             expr_: self.expr_.derivative(&param.expr_),
         }
     }
 
+    /// expand espression
     pub fn expand(&self) -> Self {
         Self {
             expr_: self.expr_.expand(),
         }
     }
 
-
+    /// check if complex or not
     pub fn is_complex(&self) -> Option<bool> {
         self.expr_.is_complex()
     }
+    /// check if floating point or not
     pub fn is_real(&self) -> Option<bool> {
         self.expr_.is_real()
     }
+    /// check if integer or not
     pub fn is_int(&self) -> Option<bool> {
         self.expr_.is_int()
     }
 
+    /// add 2 expressions
     fn add_expr(&self, rhs: &Self) -> Self {
         Self {
             expr_: &self.expr_ + &rhs.expr_,
         }
     }
 
+    /// add other expression
     fn add_assign_expr(&mut self, rhs: &Self) {
         self.expr_ = &self.expr_ + &rhs.expr_;
     }
 
+    /// subtract 2 expressions
     fn sub_expr(&self, rhs: &Self) -> Self {
         Self {
             expr_: &self.expr_ - &rhs.expr_,
         }
     }
 
+    /// subtract other expression
     fn sub_assign_expr(&mut self, rhs: &Self) {
         self.expr_ = &self.expr_ - &rhs.expr_;
     }
 
+    /// multiply 2 expressions
     fn mul_expr(&self, rhs: &Self) -> Self {
         Self {
             expr_: &self.expr_ * &rhs.expr_,
         }
     }
 
+    /// multiply other expression
     fn mul_assign_expr(&mut self, rhs: &Self) {
         self.expr_ = &self.expr_ * &rhs.expr_;
     }
 
+    /// divide 2 expressions
     fn div_expr(&self, rhs: &Self) -> Self {
         Self {
             expr_: &self.expr_ / &rhs.expr_,
         }
     }
 
+    /// divide other expression
     fn div_assign_expr(&mut self, rhs: &Self) {
         self.expr_ = &self.expr_ / &rhs.expr_;
     }
 
+    /// sin of expression
     pub fn sin(&self) -> Self {
         Self {
             expr_: self.expr_.sin(),
         } 
     }
 
+    /// cos of expression
     pub fn cos(&self) -> Self {
         Self {
             expr_: self.expr_.cos(),
         } 
     }
 
+    /// tan of expression
     pub fn tan(&self) -> Self {
         Self {
             expr_: self.expr_.tan(),
         } 
     }
 
+    /// arcsin of expression
     pub fn arcsin(&self) -> Self {
         Self {
             expr_: self.expr_.asin(),
         } 
     }
 
+    /// arccos of expression
     pub fn arccos(&self) -> Self {
         Self {
             expr_: self.expr_.acos(),
         } 
     }
 
+    /// arctan of expression
     pub fn arctan(&self) -> Self {
         Self {
             expr_: self.expr_.atan(),
         } 
     }
 
+    /// exp of expression
     pub fn exp(&self) -> Self {
         Self {
             expr_: self.expr_.exp(),
         } 
     }
 
+    /// log of expression
     pub fn log(&self) -> Self {
         Self {
             expr_: self.expr_.log(),
         } 
     }
 
+    /// abs of expression
     pub fn abs(&self) -> Self {
         Self {
             expr_: self.expr_.abs(),
         } 
     }
 
+    /// pow of expression
     pub fn pow<T: Into<Self>>(&self, prm: T) -> Self {
         let t : ParameterExpression = prm.into();
         Self {expr_: self.expr_.pow(&t.expr_),}

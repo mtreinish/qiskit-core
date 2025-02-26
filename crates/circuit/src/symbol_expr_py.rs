@@ -10,6 +10,9 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+/// symbol_expr_py.rs
+/// Python interface of symbolic expression
+
 
 use crate::symbol_expr::{SymbolExpr, Value, Symbol};
 use crate::symbol_parser::parse_expression;
@@ -22,14 +25,14 @@ use std::collections::hash_map::DefaultHasher;
 
 use pyo3::prelude::*;
 
-// Python interface to SymbolExpr
+/// Python interface to SymbolExpr
 #[pyclass(sequence, module = "qiskit._accelerate.circuit")]
 #[derive(Clone, Debug)]
 pub struct PySymbolExpr {
     pub expr: SymbolExpr,
 }
 
-// enum for argument for operators
+/// enum for parameter value types, used to accept multiple types from Python
 #[derive(FromPyObject, Clone, Debug)]
 pub enum ParameterValue {
     #[pyo3(transparent, annotation = "int")]
@@ -43,6 +46,7 @@ pub enum ParameterValue {
     Expr(PySymbolExpr),
 }
 
+/// enum for bind value types, used to accept multiple types from Python
 #[derive(FromPyObject, Clone, Debug)]
 pub enum BindValue {
     #[pyo3(transparent, annotation = "int")]
@@ -54,9 +58,9 @@ pub enum BindValue {
 }
 
 
-
 #[pymethods]
 impl PySymbolExpr {
+    /// parse expression from string
     #[new]
     #[pyo3(signature = (in_expr=None))]
     pub fn new(
@@ -72,6 +76,7 @@ impl PySymbolExpr {
         }
     }
 
+    /// create new expression as a symbol
     #[staticmethod]
     pub fn Symbol(name: String) -> Self {
         PySymbolExpr {
@@ -79,6 +84,7 @@ impl PySymbolExpr {
         }
     }
 
+    /// create new expression as a value
     #[staticmethod]
     pub fn Value(value: ParameterValue) -> Self {
         match value {
@@ -90,12 +96,13 @@ impl PySymbolExpr {
         }
     }
 
-    // this is called for np.complex128 because np.complex is recognized as Real in Value function
+    /// this is called for np.complex128 because np.complex is recognized as Real in Value function
     #[staticmethod]
     pub fn Complex(value: Complex64) -> Self {
         PySymbolExpr { expr: SymbolExpr::Value( Value::from(value))}
     }
 
+    /// create new expression from string
     #[staticmethod]
     pub fn Expression(name: String) -> Self {
         PySymbolExpr {
@@ -103,6 +110,7 @@ impl PySymbolExpr {
         }
     }
 
+    /// unary functions
     pub fn sin(&self) -> Self {
         Self {
             expr: self.expr.sin(),
@@ -153,6 +161,9 @@ impl PySymbolExpr {
             expr: self.expr.sign(),
         }
     }
+
+
+    /// return complex number if expression does not have symbols
     pub fn complex(&self) -> PyResult<Complex64> {
         match self.expr.eval(true) {
             Some(v) => match v {
@@ -163,6 +174,7 @@ impl PySymbolExpr {
             None=> Err(pyo3::exceptions::PyRuntimeError::new_err("Expression has some undefined symbols.")),
         }
     }
+    /// return real number if expression does not have symbols
     pub fn float(&self) -> PyResult<f64> {
         match self.expr.eval(true) {
             Some(v) => match v {
@@ -173,6 +185,7 @@ impl PySymbolExpr {
             None=> Err(pyo3::exceptions::PyRuntimeError::new_err("Expression has some undefined symbols.")),
         }
     }
+    /// return integer number if expression does not have symbols
     pub fn int(&self) -> PyResult<i64> {
         match self.expr.eval(true) {
             Some(v) => match v {
@@ -184,51 +197,62 @@ impl PySymbolExpr {
         }
     }
 
+    /// clone expression
     pub fn copy(&self) -> Self {
         Self {
             expr: self.expr.clone(),
         }
     }
+    /// return conjugate of expression
     pub fn conjugate(&self) -> Self {
         Self {
             expr: self.expr.conjugate(),
         }
     }
+
+    /// return derivative of this expression for param
     pub fn derivative(&self, param: &Self) -> Self {
         Self {
             expr: self.expr.derivative(&param.expr),
         }
     }
 
+    /// expand expression
     pub fn expand(&self) -> Self {
         Self {
             expr: self.expr.expand(),
         }
     }
 
+    /// check if this expression is real number of not
     #[getter]
     pub fn is_real(&self) -> Option<bool> {
         self.expr.is_real()
     }
+    /// check if this expression is complex number of not
     #[getter]
     pub fn is_complex(&self) -> Option<bool> {
         self.expr.is_complex()
     }
+    /// check if this expression is integer of not
     #[getter]
     pub fn is_int(&self) -> Option<bool> {
         self.expr.is_int()
     }
 
+    /// get hashset of all the symbols used in this expression
     #[getter]
     pub fn symbols(&self) -> HashSet<String> {
         self.expr.symbols()
     }
 
+    /// return expression as a string
     #[getter]
     pub fn name(&self) -> String {
         self.expr.to_string()
     }
 
+    /// bind values to symbols given by input hashmap
     pub fn bind(&self, in_maps: HashMap<String, BindValue>) -> PyResult<Self> {
         let maps : HashMap::<String, Value> = 
             in_maps
@@ -249,7 +273,7 @@ impl PySymbolExpr {
                 } else {
                     Ok(Self {expr: bound})
                 },
-                Value::Int(r) => Ok(Self {expr: bound}),
+                Value::Int(_) => Ok(Self {expr: bound}),
                 Value::Complex(c) => if c.re == f64::INFINITY || c.im == f64::INFINITY {
                     Err(pyo3::exceptions::PyZeroDivisionError::new_err("zero division occurs while binding parameter"))
                 } else if c.im < f64::EPSILON && c.im > -f64::EPSILON {
@@ -278,7 +302,7 @@ impl PySymbolExpr {
                 } else {
                     Ok(Self {expr: bound})
                 },
-                Value::Int(r) => Ok(Self {expr: bound}),
+                Value::Int(_) => Ok(Self {expr: bound}),
                 Value::Complex(c) => if c.re == f64::INFINITY || c.im == f64::INFINITY {
                     Err(pyo3::exceptions::PyZeroDivisionError::new_err("zero division occurs while binding parameter"))
                 } else if c.im < f64::EPSILON && c.im > -f64::EPSILON {
@@ -291,6 +315,7 @@ impl PySymbolExpr {
         }
     }
 
+    /// substitute symbols to expressions (or values) given by hash map
     pub fn subs(&self, in_maps: HashMap<String, Self>) -> Self {
         let maps : HashMap::<String, SymbolExpr> = 
             in_maps.iter().map(|(key, val)| (key.clone(), val.expr.clone())).collect();
@@ -300,7 +325,7 @@ impl PySymbolExpr {
     }
 
     // ====================================
-    // operator overrides
+    // operator overrides for Python
     // ====================================
     pub fn __eq__(&self, rhs: ParameterValue) -> bool {
         match rhs {

@@ -10,6 +10,10 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+/// symbol_expr.rs
+/// symbolic expression engine for parameter expression
+
+
 use core::f64;
 use std::sync::Arc;
 use std::ops::{Add, Div, Mul, Sub, Neg};
@@ -20,6 +24,7 @@ use hashbrown::{HashMap, HashSet};
 
 use num_complex::Complex64;
 
+/// node types of expression tree
 #[derive(Debug, Clone)]
 pub enum SymbolExpr {
     Symbol(Symbol),
@@ -28,15 +33,13 @@ pub enum SymbolExpr {
     Binary(Arc<Binary>),
 }
 
+/// symbol with its name
 #[derive(Debug, Clone)]
 pub struct Symbol {
     name : String,
 }
 
-// ================================
-// real number and complex number
-// (separate for performance)
-// ================================
+/// Value type, can be integer, real or complex number
 #[derive(Debug, Clone)]
 pub enum Value {
     Real(f64),
@@ -44,9 +47,22 @@ pub enum Value {
     Complex(Complex64),
 }
 
-// ================================
-// Operators
-// ================================
+/// unary operation node has 1 branch node
+#[derive(Debug, Clone)]
+pub struct Unary {
+    op : UnaryOps,
+    expr : SymbolExpr,
+}
+
+/// binary operation node has 2 branch nodes
+#[derive(Debug, Clone)]
+pub struct Binary {
+    op : BinaryOps,
+    lhs : SymbolExpr,
+    rhs : SymbolExpr,
+}
+
+/// definition of unary operations
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOps {
     Abs,
@@ -62,6 +78,7 @@ pub enum UnaryOps {
     Sign,
 }
 
+/// definition of binary operations
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOps {
     Add,
@@ -71,20 +88,7 @@ pub enum BinaryOps {
     Pow,
 }
 
-#[derive(Debug, Clone)]
-pub struct Unary {
-    op : UnaryOps,
-    expr : SymbolExpr,
-}
-
-#[derive(Debug, Clone)]
-pub struct Binary {
-    op : BinaryOps,
-    lhs : SymbolExpr,
-    rhs : SymbolExpr,
-}
-
-// functions to make new expr 
+// functions to make new expr for add
 #[inline(always)]
 fn _add(lhs: SymbolExpr, rhs: SymbolExpr) ->  SymbolExpr {
     if rhs.is_negative() {
@@ -97,6 +101,7 @@ fn _add(lhs: SymbolExpr, rhs: SymbolExpr) ->  SymbolExpr {
     }
 }
 
+// functions to make new expr for sub
 #[inline(always)]
 fn _sub(lhs: SymbolExpr, rhs: SymbolExpr) ->  SymbolExpr {
     if rhs.is_negative() {
@@ -109,28 +114,36 @@ fn _sub(lhs: SymbolExpr, rhs: SymbolExpr) ->  SymbolExpr {
     }
 }
 
+// functions to make new expr for mul
 #[inline(always)]
 fn _mul(lhs: SymbolExpr, rhs: SymbolExpr) ->  SymbolExpr {
     SymbolExpr::Binary( Arc::new(Binary{ op: BinaryOps::Mul, lhs: lhs, rhs: rhs} ))
 }
+
+// functions to make new expr for div
 #[inline(always)]
 fn _div(lhs: SymbolExpr, rhs: SymbolExpr) ->  SymbolExpr {
     SymbolExpr::Binary( Arc::new(Binary{ op: BinaryOps::Div, lhs: lhs, rhs: rhs} ))
 }
+
+// functions to make new expr for pow
 #[inline(always)]
 fn _pow(lhs: SymbolExpr, rhs: SymbolExpr) ->  SymbolExpr {
     SymbolExpr::Binary( Arc::new(Binary{ op: BinaryOps::Pow, lhs: lhs, rhs: rhs} ))
 }
+
+// functions to make new expr for neg
 #[inline(always)]
 fn _neg(expr: SymbolExpr) ->  SymbolExpr {
     SymbolExpr::Unary( Arc::new(Unary{ op: UnaryOps::Neg, expr: expr} ))
 }
 
 
-// ==================================
-// SymbolExpr implementation
-// ==================================
+/// ==================================
+/// SymbolExpr implementation
+/// ==================================
 impl SymbolExpr {
+    /// print node as string
     pub fn to_string(&self) -> String {
         match self {
             SymbolExpr::Symbol(e) => e.to_string(),
@@ -140,6 +153,7 @@ impl SymbolExpr {
         }
     }
 
+    /// bind value to symbol node
     pub fn bind(&self, maps: &HashMap<String, Value>) -> SymbolExpr {
         match self {
             SymbolExpr::Symbol(e) => e.bind(maps),
@@ -149,6 +163,7 @@ impl SymbolExpr {
         }
     }
 
+    /// substitute symbol node to other expression
     pub fn subs(&self, maps: &HashMap<String, SymbolExpr>) -> SymbolExpr {
         match self {
             SymbolExpr::Symbol(e) => e.subs(maps),
@@ -158,6 +173,8 @@ impl SymbolExpr {
         }
     }
 
+    /// evaluate the equation
+    /// if recursive is false, only this node will be evaluated
     pub fn eval(&self, recurse: bool) -> Option<Value> {
         match self {
             SymbolExpr::Symbol(_) => None,
@@ -167,6 +184,7 @@ impl SymbolExpr {
         }
     }
 
+    /// calculate derivative of the equantion for a symbol passed by param
     pub fn derivative(&self, param: &SymbolExpr) -> SymbolExpr {
         if self == param {
             SymbolExpr::Value( Value::Real(1.0))
@@ -179,6 +197,7 @@ impl SymbolExpr {
         }
     }
 
+    /// expand the equation
     pub fn expand(&self) -> SymbolExpr {
         match self {
             SymbolExpr::Symbol(_) => self.clone(),
@@ -188,10 +207,12 @@ impl SymbolExpr {
         }
     }
 
+    /// sign operator
     pub fn sign(&self) -> SymbolExpr {
         SymbolExpr::Unary( Arc::new( Unary{ op: UnaryOps::Sign, expr: self.clone()}) )
     }
 
+    /// return real number if equation can be evaluated
     pub fn real(&self) -> Option<f64> {
         match self.eval(true) {
             Some(v) => match v {
@@ -202,6 +223,7 @@ impl SymbolExpr {
             None => None,
         }
     }
+    /// return imaginary part of the value if equation can be evaluated as complex number
     pub fn imag(&self) -> Option<f64> {
         match self.eval(true) {
             Some(v) => match v {
@@ -212,6 +234,7 @@ impl SymbolExpr {
             None => None,
         }
     }
+    /// return complex number if equation can be evaluated as complex
     pub fn complex(&self) -> Option<Complex64> {
         match self.eval(true) {
             Some(v) => match v {
@@ -223,6 +246,7 @@ impl SymbolExpr {
         }
     }
 
+    /// return hashset of all symbols this equation contains
     pub fn symbols(&self) -> HashSet<String> {
         match self {
             SymbolExpr::Symbol(e) => HashSet::<String>::from([e.name.clone()]),
@@ -232,7 +256,8 @@ impl SymbolExpr {
         }
     }
 
-    pub fn get_symbols_string(&self) -> String {
+    /// concatenate all symbols under this node (internal use for sorting nodes)
+    fn get_symbols_string(&self) -> String {
         match self {
             SymbolExpr::Symbol(e) => e.name.clone(),
             SymbolExpr::Value(_) => String::new(),
@@ -241,6 +266,7 @@ impl SymbolExpr {
         }
     }
 
+    /// check if the symbol is in this equation
     pub fn has_symbol(&self, param: &String) -> bool {
         match self {
             SymbolExpr::Symbol(e) => e.name == *param,
@@ -250,6 +276,7 @@ impl SymbolExpr {
         }
     }
 
+    /// return reciprocal of the equation
     pub fn rcp(self) -> SymbolExpr {
         match self {
             SymbolExpr::Symbol(e) => _div(SymbolExpr::Value(Value::Real(1.0)), SymbolExpr::Symbol(e)),
@@ -262,6 +289,7 @@ impl SymbolExpr {
         }
     }
 
+    /// return conjugate of the equation
     pub fn conjugate(&self) -> SymbolExpr {
         match self {
             SymbolExpr::Symbol(e) => SymbolExpr::Symbol(e.clone()),
@@ -274,6 +302,7 @@ impl SymbolExpr {
         }
     }
 
+    /// check if complex number or not
     pub fn is_complex(&self) -> Option<bool> {
         match self.eval(true) {
             Some(v) => match v {
@@ -284,6 +313,7 @@ impl SymbolExpr {
         }
     }
 
+    /// check if real number or not
     pub fn is_real(&self) -> Option<bool> {
         match self.eval(true) {
             Some(v) => match v {
@@ -295,6 +325,7 @@ impl SymbolExpr {
         }
     }
 
+    /// check if integer or not
     pub fn is_int(&self) -> Option<bool> {
         match self.eval(true) {
             Some(v) => match v {
@@ -305,6 +336,7 @@ impl SymbolExpr {
         }
     }
 
+    /// check if evaluated result is 0
     pub fn is_zero(&self) -> bool {
         match self.eval(true) {
             Some(v) => v.is_zero(),
@@ -312,6 +344,7 @@ impl SymbolExpr {
         }
     }
 
+    /// check if evaluated result is 1
     pub fn is_one(&self) -> bool {
         match self.eval(true) {
             Some(v) => v.is_one(),
@@ -319,6 +352,7 @@ impl SymbolExpr {
         }
     }
 
+    /// check if evaluated result is -1
     pub fn is_minus_one(&self) -> bool {
         match self.eval(true) {
             Some(v) => v.is_minus_one(),
@@ -326,6 +360,7 @@ impl SymbolExpr {
         }
     }
 
+    /// check if evaluated result is negative
     fn is_negative(&self) -> bool {
         match self {
             SymbolExpr::Value(v) => v.is_negative(),
@@ -343,6 +378,7 @@ impl SymbolExpr {
         }
     }
 
+    /// unary operations
     pub fn abs(&self) -> SymbolExpr {
         match self {
             SymbolExpr::Value(l) => SymbolExpr::Value( l.abs()),
@@ -411,13 +447,14 @@ impl SymbolExpr {
         }
     }
 
-    // Add with heuristic optimization
+    /// Add with heuristic optimization
     fn add_opt(&self, rhs: &SymbolExpr) -> Option<SymbolExpr> {
         if self.is_zero() {
             Some(rhs.clone())
         } else if rhs.is_zero() {
             Some(self.clone())
         } else {
+            // if neg operation, call sub_opt
             if let SymbolExpr::Unary(r) = rhs {
                 if let UnaryOps::Neg = r.op {
                     return self.sub_opt(&r.expr);
@@ -476,7 +513,7 @@ impl SymbolExpr {
         }
     }
 
-    // Sub with heuristic optimization
+    /// Sub with heuristic optimization
     fn sub_opt(&self, rhs: &SymbolExpr) -> Option<SymbolExpr> {
         if self.is_zero() {
             match rhs.neg_opt() {
@@ -486,6 +523,7 @@ impl SymbolExpr {
         } else if rhs.is_zero() {
             Some(self.clone())
         } else {
+            // if neg, call add_opt
             if let SymbolExpr::Unary(r) = rhs {
                 if let UnaryOps::Neg = r.op {
                     return self.add_opt(&r.expr);
@@ -556,7 +594,7 @@ impl SymbolExpr {
         }
     }
 
-    // Mul with heuristic optimization
+    /// Mul with heuristic optimization
     fn mul_opt(&self, rhs: &SymbolExpr) -> Option<SymbolExpr> {
         if self.is_zero() {
             Some(self.clone())
@@ -594,6 +632,8 @@ impl SymbolExpr {
             }
         }
     }
+
+    /// expand with optimization for mul operation
     fn mul_expand(&self, rhs: &SymbolExpr) -> Option<SymbolExpr> {
         if let SymbolExpr::Binary(r) = rhs {
             if let BinaryOps::Add | BinaryOps::Sub = &r.op {
@@ -672,7 +712,7 @@ impl SymbolExpr {
         }
     }
 
-    // Div with heuristic optimization
+    /// Div with heuristic optimization
     fn div_opt(&self, rhs: &SymbolExpr) -> Option<SymbolExpr> {
         if self.is_zero() {
             Some(self.clone())
@@ -710,6 +750,7 @@ impl SymbolExpr {
         }
     }
 
+    /// expand with optimization for div operation
     fn div_expand(&self, rhs: &SymbolExpr) -> Option<SymbolExpr> {
         match self {
             SymbolExpr::Unary(l) => l.div_expand(rhs),
@@ -814,13 +855,6 @@ impl Mul for SymbolExpr {
 impl Mul for &SymbolExpr {
     type Output = SymbolExpr;
     fn mul(self, rhs: Self) -> SymbolExpr {
-        /*
-        if let SymbolExpr::Unary(r) = &rhs {
-            if let UnaryOps::Neg = r.op {
-                return -(self * &r.expr);
-            }
-        }
-        */
         match self.mul_opt(rhs) {
             Some(e) => e,
             None => _mul(self.clone(), rhs.clone()),
@@ -838,13 +872,6 @@ impl Div for SymbolExpr {
 impl Div for &SymbolExpr {
     type Output = SymbolExpr;
     fn div(self, rhs: Self) -> SymbolExpr {
-        /*
-        if let SymbolExpr::Unary(r) = &rhs {
-            if let UnaryOps::Neg = r.op {
-                return -(self / &r.expr);
-            }
-        }
-        */
         match self.div_opt(rhs) {
             Some(e) => e,
             None => _div(self.clone(), rhs.clone()),
@@ -1007,7 +1034,7 @@ impl Symbol {
             } else {
                 None
             },
-            SymbolExpr::Unary(r) => None,
+            SymbolExpr::Unary(_) => None,
             SymbolExpr::Binary(r) => match &r.op {
                 BinaryOps::Add => match self.add_opt(&r.lhs) {
                     // self + r.lhs + r.rhs
@@ -1052,7 +1079,7 @@ impl Symbol {
             } else {
                 None
             },
-            SymbolExpr::Unary(r) => None,
+            SymbolExpr::Unary(_) => None,
             SymbolExpr::Binary(r) => match &r.op {
                 BinaryOps::Add => match self.sub_opt(&r.lhs) {
                     // self - r.lhs - r.rhs
@@ -1421,7 +1448,7 @@ impl Value {
     fn add_opt(&self, rhs : &SymbolExpr) -> Option<SymbolExpr> {
         match rhs {
             SymbolExpr::Value(r) => Some(SymbolExpr::Value(self + r)),
-            SymbolExpr::Unary(r) => None,
+            SymbolExpr::Unary(_) => None,
             SymbolExpr::Binary(r) => match &r.op {
                 BinaryOps::Add => match self.add_opt(&r.lhs) {
                     // self + r.lhs + r.rhs
@@ -1460,7 +1487,7 @@ impl Value {
     fn sub_opt(&self, rhs : &SymbolExpr) -> Option<SymbolExpr> {
         match rhs {
             SymbolExpr::Value(r) => Some(SymbolExpr::Value(self - r)),
-            SymbolExpr::Unary(r) => None,
+            SymbolExpr::Unary(_) => None,
             SymbolExpr::Binary(r) => match &r.op {
                 BinaryOps::Add => match self.sub_opt(&r.lhs) {
                     // self - r.lhs - r.rhs

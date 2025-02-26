@@ -10,6 +10,10 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+/// symbol_parser.rs
+/// parsing equation to generate symbolic expression
+
+
 extern crate nom;
 extern crate nom_unicode;
 use nom::IResult;
@@ -27,6 +31,7 @@ use num_complex::c64;
 use std::sync::Arc;
 use crate::symbol_expr::{SymbolExpr, BinaryOps, Symbol, Value, Unary, UnaryOps};
 
+// struct to contain parsed binary operation
 #[derive(Clone)]
 struct BinaryOpContainer {
     op: BinaryOps,
@@ -45,6 +50,7 @@ impl BinaryOpContainer {
     }
 }
 
+// parsing value as real
 fn parse_value(s: &str) -> IResult<&str, BinaryOpContainer> {
     map_res(
         double,
@@ -54,6 +60,7 @@ fn parse_value(s: &str) -> IResult<&str, BinaryOpContainer> {
     )(s)
 }
 
+// parsing imaginary part of complex number as real
 fn parse_imaginary_value(s: &str) -> IResult<&str, BinaryOpContainer> {
     map_res(
         tuple((
@@ -93,6 +100,8 @@ fn parse_special_char(s: &str) -> IResult<&str, &str> {
     ).parse(s)
 }
 
+// parse string as symbol
+// symbol starting with alphabet and can contain numbers and '_', '[', ']'
 fn parse_symbol(s: &str) -> IResult<&str, BinaryOpContainer> {
     map_res(
         tuple((
@@ -123,6 +132,7 @@ fn parse_symbol(s: &str) -> IResult<&str, BinaryOpContainer> {
     )(s)
 }
 
+// parse unary operations
 fn parse_unary(s: &str) -> IResult<&str, BinaryOpContainer> {
     map_res(
         tuple((
@@ -151,6 +161,7 @@ fn parse_unary(s: &str) -> IResult<&str, BinaryOpContainer> {
     )(s)
 }
 
+// neg operation is separetely parsed in this function
 fn parse_neg(s: &str) -> IResult<&str, BinaryOpContainer> {
     map_res(
         tuple((
@@ -173,6 +184,7 @@ fn parse_neg(s: &str) -> IResult<&str, BinaryOpContainer> {
     )(s)
 }
 
+// parse expression 
 fn parse_expr(s: &str) -> IResult<&str, BinaryOpContainer> {
     alt((
         parse_imaginary_value,
