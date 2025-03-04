@@ -89,9 +89,6 @@ const RZ_PI2_00: Complex64 = c64(FRAC_1_SQRT_2, FRAC_1_SQRT_2);
 /// v,u,r = outcome of the decomposition given in the reference mentioned above
 ///
 /// (see there for the details).
-///
-///
-
 fn demultiplex_single_uc(
     a: &Matrix2<Complex64>,
     b: &Matrix2<Complex64>,
