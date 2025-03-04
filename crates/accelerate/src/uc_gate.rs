@@ -16,7 +16,7 @@ use pyo3::wrap_pyfunction;
 use pyo3::Python;
 use std::f64::consts::{FRAC_1_SQRT_2, PI};
 
-use nalgebra::{Matrix2, MatrixView2, Vector2};
+use nalgebra::{Matrix2, Vector2};
 use numpy::{IntoPyArray, PyReadonlyArray2, ToPyArray};
 
 use qiskit_circuit::util::{c64, C_ZERO, IM};
@@ -36,10 +36,23 @@ fn compute_2x2_eig(mat: Matrix2<Complex64>) -> ([Complex64; 2], Matrix2<Complex6
     let b = mat[(0, 1)];
     let c = mat[(1, 0)];
     let d = mat[(1, 1)];
+
+    if c.abs() <= 1e-8 && b.abs() <= 1e-8 {
+        let eigvals: [Complex64; 2] = [a, d];
+        let eigenvectors = [
+            [Complex64::ONE, Complex64::ZERO],
+            [Complex64::ZERO, Complex64::ONE],
+        ]
+        .into();
+        return (eigvals, eigenvectors);
+    }
+
     let trace = a + d;
     let det = (a * d) - (b * c);
-    let l1 = (0.5 * trace) + (0.25 * trace.powi(2) - det).sqrt();
-    let l2 = (0.5 * trace) - (0.25 * trace.powi(2) - det).sqrt();
+    let disc_sqrt = (0.25 * trace.powi(2) - det).sqrt();
+    let half_trace = 0.5 * trace;
+    let l1 = half_trace + disc_sqrt;
+    let l2 = half_trace - disc_sqrt;
     let eigvals: [Complex64; 2] = [l1, l2];
     let eigenvectors: Matrix2<Complex64> = if c.abs() >= 1e-8 {
         let mut v_1: Vector2<Complex64> = [l1 - d, c].into();
@@ -49,7 +62,8 @@ fn compute_2x2_eig(mat: Matrix2<Complex64>) -> ([Complex64; 2], Matrix2<Complex6
         let v_2_norm = v_2.norm();
         v_2.iter_mut().for_each(|x| *x /= v_2_norm);
         Matrix2::from_columns(&[v_1, v_2])
-    } else if b.abs() >= 1e-8 {
+    } else {
+        // we know b is not close to 0 due to previous check {
         let mut v_1: Vector2<Complex64> = [b, l1 - a].into();
         let v_1_norm = v_1.norm();
         v_1.iter_mut().for_each(|x| *x /= v_1_norm);
@@ -57,12 +71,6 @@ fn compute_2x2_eig(mat: Matrix2<Complex64>) -> ([Complex64; 2], Matrix2<Complex6
         let v_2_norm = v_2.norm();
         v_2.iter_mut().for_each(|x| *x /= v_2_norm);
         Matrix2::from_columns(&[v_1, v_2])
-    } else {
-        [
-            [Complex64::ONE, Complex64::ZERO],
-            [Complex64::ZERO, Complex64::ONE],
-        ]
-        .into()
     };
     (eigvals, eigenvectors)
 }
@@ -81,6 +89,9 @@ const RZ_PI2_00: Complex64 = c64(FRAC_1_SQRT_2, FRAC_1_SQRT_2);
 /// v,u,r = outcome of the decomposition given in the reference mentioned above
 ///
 /// (see there for the details).
+///
+///
+
 fn demultiplex_single_uc(
     a: &Matrix2<Complex64>,
     b: &Matrix2<Complex64>,
@@ -93,19 +104,17 @@ fn demultiplex_single_uc(
     let r1 = (IM / 2. * (PI / 2. - phi / 2. - x11.arg())).exp();
     let r2 = (IM / 2. * (PI / 2. - phi / 2. + x11.arg() + PI)).exp();
 
-    let r: Matrix2<Complex64> = Matrix2::from_row_slice(&[r1, C_ZERO, C_ZERO, r2]);
-    let (mut diag, mut u) = compute_2x2_eig(r * x * r);
+    let r = Matrix2::new(r1, C_ZERO, C_ZERO, r2);
+    let (diag, mut u) = compute_2x2_eig(r * x * r);
 
     // If d is not equal to diag(i,-i), then we put it into this "standard" form
     // (see eq. (13) in https://arxiv.org/pdf/quant-ph/0410066.pdf) by interchanging
     // the eigenvalues and eigenvectors
     if (diag[0] + IM).abs() < EPS {
-        diag = [diag[1], diag[0]];
-        u = [[u[(0, 1)], u[(0, 0)]], [u[(1, 1)], u[(1, 0)]]].into();
+        u = Matrix2::new(u[(0, 1)], u[(0, 0)], u[(1, 1)], u[(1, 0)]);
     }
-    diag.iter_mut().for_each(|x| *x = x.sqrt());
 
-    let d = Matrix2::from_diagonal(&diag.into());
+    let d = Matrix2::new(RZ_PI2_00, C_ZERO, C_ZERO, RZ_PI2_11);
     let v = d * u.adjoint() * r.adjoint() * b;
     [v, u, r]
 }
@@ -119,8 +128,8 @@ pub fn dec_ucg_help(
     let mut single_qubit_gates: Vec<Matrix2<Complex64>> = sq_gates
         .into_iter()
         .map(|x| {
-            let res: MatrixView2<Complex64> = x.try_as_matrix().unwrap();
-            res.into_owned()
+            let arr = x.as_array();
+            Matrix2::new(arr[[0, 0]], arr[[0, 1]], arr[[1, 0]], arr[[1, 1]])
         })
         .collect();
     let mut diag: Vec<Complex64> = vec![Complex64::ONE; 2_usize.pow(num_qubits)];
@@ -139,7 +148,9 @@ pub fn dec_ucg_help(
                 // https://arxiv.org/pdf/quant-ph/0410066.pdf
                 // to demultiplex one control of all the num_ucgs uniformly-controlled gates
                 // with log2(len_ucg) uniform controls
+
                 let [v, u, r] = demultiplex_single_uc(&a, &b);
+
                 // replace the single-qubit gates with v,u (the already existing ones
                 // are not needed any more)
                 single_qubit_gates[shift + i] = v;
