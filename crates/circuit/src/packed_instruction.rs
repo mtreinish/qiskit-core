@@ -334,7 +334,7 @@ mod pointer {
     impl_packable_pointer!(PyGate, PackedOperationType::PyGate);
     impl_packable_pointer!(PyInstruction, PackedOperationType::PyInstruction);
     impl_packable_pointer!(PyOperation, PackedOperationType::PyOperation);
-    impl_packable_pointer!(UnitaryGate, PackedOperationType::UnitaryGate);
+    impl_packable_pointer!(UnitaryGate<'_>, PackedOperationType::UnitaryGate);
 }
 
 impl PackedOperation {

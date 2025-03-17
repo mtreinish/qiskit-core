@@ -20,7 +20,7 @@ use crate::imports::{PARAMETER_EXPRESSION, QUANTUM_CIRCUIT, UNITARY_GATE};
 use crate::{gate_matrix, impl_intopyobject_for_copy_pyclass, Qubit};
 
 use nalgebra::{Matrix2, Matrix4};
-use ndarray::{array, aview2, Array2};
+use ndarray::{array, aview2, Array2, ArrayView2};
 use num_complex::Complex64;
 use smallvec::{smallvec, SmallVec};
 
@@ -172,7 +172,7 @@ pub enum OperationRef<'a> {
     Gate(&'a PyGate),
     Instruction(&'a PyInstruction),
     Operation(&'a PyOperation),
-    Unitary(&'a UnitaryGate),
+    Unitary(&'a UnitaryGate<'a>),
 }
 
 impl Operation for OperationRef<'_> {
@@ -2747,27 +2747,29 @@ impl Operation for PyOperation {
 }
 
 #[derive(Clone, Debug)]
-pub enum ArrayType {
+pub enum ArrayType<'a> {
     NDArray(Array2<Complex64>),
     OneQ(Matrix2<Complex64>),
     TwoQ(Matrix4<Complex64>),
+    NDArrayView(ArrayView2<'a, Complex64>),
 }
 
 /// This class is a rust representation of a UnitaryGate in Python,
 /// a gate represented solely by it's unitary matrix.
 #[derive(Clone, Debug)]
 #[repr(align(8))]
-pub struct UnitaryGate {
-    pub array: ArrayType,
+pub struct UnitaryGate<'a> {
+    pub array: ArrayType<'a>,
 }
 
-impl Operation for UnitaryGate {
+impl<'a> Operation for UnitaryGate<'a> {
     fn name(&self) -> &str {
         "unitary"
     }
     fn num_qubits(&self) -> u32 {
         match &self.array {
             ArrayType::NDArray(arr) => arr.shape()[0].ilog2(),
+            ArrayType::NDArrayView(arr) => arr.shape()[0].ilog2(),
             ArrayType::OneQ(_) => 1,
             ArrayType::TwoQ(_) => 2,
         }
@@ -2787,6 +2789,7 @@ impl Operation for UnitaryGate {
     fn matrix(&self, _params: &[Param]) -> Option<Array2<Complex64>> {
         match &self.array {
             ArrayType::NDArray(arr) => Some(arr.clone()),
+            ArrayType::NDArrayView(arr) => Some(arr.to_owned()),
             ArrayType::OneQ(mat) => Some(array!(
                 [mat[(0, 0)], mat[(0, 1)]],
                 [mat[(1, 0)], mat[(1, 1)]],
@@ -2812,7 +2815,7 @@ impl Operation for UnitaryGate {
     }
 }
 
-impl UnitaryGate {
+impl<'a> UnitaryGate<'a> {
     pub fn create_py_op(&self, py: Python, label: Option<&str>) -> PyResult<Py<PyAny>> {
         let kwargs = PyDict::new(py);
         if let Some(label) = label {
@@ -2820,6 +2823,7 @@ impl UnitaryGate {
         }
         let out_array = match &self.array {
             ArrayType::NDArray(arr) => arr.to_pyarray(py),
+            ArrayType::NDArrayView(arr) => arr.to_pyarray(py),
             ArrayType::OneQ(arr) => arr.to_pyarray(py),
             ArrayType::TwoQ(arr) => arr.to_pyarray(py),
         };

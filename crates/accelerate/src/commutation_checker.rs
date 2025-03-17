@@ -275,15 +275,15 @@ impl CommutationChecker {
 
 impl CommutationChecker {
     #[allow(clippy::too_many_arguments)]
-    pub fn commute_inner(
+    pub fn commute_inner<'a>(
         &mut self,
         py: Python,
-        op1: &OperationRef,
-        params1: &[Param],
+        op1: &'a OperationRef<'a>,
+        params1: &'a [Param],
         qargs1: &[Qubit],
         cargs1: &[Clbit],
-        op2: &OperationRef,
-        params2: &[Param],
+        op2: &'a OperationRef<'a>,
+        params2: &'a [Param],
         qargs2: &[Qubit],
         cargs2: &[Clbit],
         max_num_qubits: u32,
