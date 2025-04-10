@@ -36,7 +36,7 @@ from qiskit.transpiler.basepasses import TransformationPass
 from qiskit.transpiler.exceptions import TranspilerError
 from qiskit._accelerate.nlayout import NLayout
 from qiskit._accelerate.sabre import sabre_layout_and_routing, Heuristic, NeighborTable, SetScaling
-from qiskit.transpiler.passes.routing.sabre_swap import _build_sabre_dag, _apply_sabre_result
+from qiskit.transpiler.passes.routing.sabre_swap import _apply_sabre_result
 from qiskit.transpiler.target import Target
 from qiskit.transpiler.coupling import CouplingMap
 from qiskit.utils import default_num_processes
@@ -378,7 +378,6 @@ class SabreLayout(TransformationPass):
                     mapped_dag.qubits[component.coupling_map.graph[phys]]
                     for phys in range(component_size)
                 ],
-                component.circuit_to_dag_dict,
             )
         disjoint_utils.combine_barriers(mapped_dag, retain_uuid=False)
         return mapped_dag
@@ -408,11 +407,6 @@ class SabreLayout(TransformationPass):
                     out_layout[pos] = coupling_map_reverse_mapping[phys]
                 partial_layouts.append(out_layout)
 
-        sabre_dag, circuit_to_dag_dict = _build_sabre_dag(
-            dag,
-            coupling_map.size(),
-            original_qubit_indices,
-        )
         heuristic = (
             Heuristic(attempt_limit=10 * coupling_map.size())
             .with_basic(1.0, SetScaling.Size)
@@ -421,7 +415,7 @@ class SabreLayout(TransformationPass):
         )
         sabre_start = time.perf_counter()
         (initial_layout, final_permutation, sabre_result) = sabre_layout_and_routing(
-            sabre_dag,
+            dag,
             neighbor_table,
             dist_matrix,
             heuristic,
@@ -442,7 +436,6 @@ class SabreLayout(TransformationPass):
             initial_layout,
             final_permutation,
             sabre_result,
-            circuit_to_dag_dict,
         )
 
     def _ancilla_allocation_no_pass_manager(self, dag):
@@ -495,7 +488,6 @@ class _DisjointComponent:
         "initial_layout",
         "final_permutation",
         "sabre_result",
-        "circuit_to_dag_dict",
     )
 
     dag: DAGCircuit
@@ -503,4 +495,3 @@ class _DisjointComponent:
     initial_layout: NLayout
     final_permutation: "list[int]"
     sabre_result: "tuple[SwapMap, Sequence[int], NodeBlockResults]"
-    circuit_to_dag_dict: "dict[int, DAGCircuit]"

@@ -24,9 +24,11 @@ type Nodes = (usize, Vec<VirtualQubit>, HashSet<usize>, bool);
 /// - A list of nodes (Vec<Nodes>)
 type Block = (bool, Vec<Nodes>);
 
+use qiskit_circuit::dag_circuit::DAGCircuit;
+
 use crate::nlayout::PhysicalQubit;
 use crate::nlayout::VirtualQubit;
-use crate::sabre::sabre_dag::SabreDAG;
+use crate::sabre::sabre_dag::build_sabre_dag;
 use crate::sabre::swap_map::SwapMap;
 use crate::sabre::BlockResult;
 use crate::sabre::NodeBlockResults;
@@ -42,10 +44,11 @@ use pyo3::prelude::*;
 #[pyo3(text_signature = "(dag, blocks, processing_order, /)")]
 fn star_preroute(
     py: Python,
-    dag: &mut SabreDAG,
+    dag: &DAGCircuit,
     blocks: Vec<Block>,
     processing_order: Vec<Nodes>,
-) -> (SwapMap, PyObject, NodeBlockResults, PyObject) {
+) -> PyResult<(SwapMap, PyObject, NodeBlockResults, PyObject)> {
+    let dag = build_sabre_dag(dag)?;
     let mut qubit_mapping: Vec<usize> = (0..dag.num_qubits).collect();
     let mut processed_block_ids: HashSet<usize> = HashSet::with_capacity(blocks.len());
     let last_2q_gate = processing_order.iter().rev().find(|node| node.1.len() == 2);
@@ -118,7 +121,7 @@ fn star_preroute(
         qubit_mapping.into_pyarray(py).into_any().unbind(),
     );
 
-    final_res
+    Ok(final_res)
 }
 
 /// Processes a star block, applying operations and handling swaps.

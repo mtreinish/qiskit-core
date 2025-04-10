@@ -27,7 +27,7 @@ from qiskit.dagcircuit import (
 )
 from qiskit.transpiler.basepasses import TransformationPass
 from qiskit.transpiler.layout import Layout
-from qiskit.transpiler.passes.routing.sabre_swap import _build_sabre_dag, _apply_sabre_result
+from qiskit.transpiler.passes.routing.sabre_swap import _apply_sabre_result
 
 from qiskit._accelerate import star_prerouting
 from qiskit._accelerate.nlayout import NLayout
@@ -325,7 +325,6 @@ class StarPreRouting(TransformationPass):
         qubit_indices = {bit: idx for idx, bit in enumerate(canonical_register)}
         layout_mapping = {qubit_indices[k]: v for k, v in current_layout.get_virtual_bits().items()}
         initial_layout = NLayout(layout_mapping, num_qubits, num_qubits)
-        sabre_dag, circuit_to_dag_dict = _build_sabre_dag(dag, num_qubits, qubit_indices)
 
         # Extract the nodes from the blocks for the Rust representation
         rust_blocks = [
@@ -352,7 +351,7 @@ class StarPreRouting(TransformationPass):
 
         # Run the star prerouting algorithm to obtain the new DAG and qubit mapping
         *sabre_result, qubit_mapping = star_prerouting.star_preroute(
-            sabre_dag, rust_blocks, rust_processing_order
+            dag, rust_blocks, rust_processing_order
         )
 
         res_dag = _apply_sabre_result(
@@ -361,7 +360,6 @@ class StarPreRouting(TransformationPass):
             sabre_result,
             initial_layout,
             dag.qubits,
-            circuit_to_dag_dict,
         )
 
         return res_dag, qubit_mapping

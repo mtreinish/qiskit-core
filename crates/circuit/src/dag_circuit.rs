@@ -5377,7 +5377,7 @@ impl DAGCircuit {
                 .unwrap()
     }
 
-    fn additional_wires(
+    pub fn additional_wires(
         &self,
         py: Python,
         op: OperationRef,

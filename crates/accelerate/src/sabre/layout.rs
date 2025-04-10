@@ -21,13 +21,15 @@ use rand::prelude::*;
 use rand_pcg::Pcg64Mcg;
 use rayon::prelude::*;
 
+use qiskit_circuit::dag_circuit::DAGCircuit;
+
 use crate::getenv_use_multiple_threads;
 use crate::nlayout::{NLayout, PhysicalQubit};
 
 use super::heuristic::Heuristic;
 use super::neighbor_table::NeighborTable;
 use super::route::{swap_map, swap_map_trial, RoutingTargetView};
-use super::sabre_dag::SabreDAG;
+use super::sabre_dag::{build_sabre_dag, SabreDAG};
 use super::swap_map::SwapMap;
 use super::{NodeBlockResults, SabreResult};
 
@@ -37,7 +39,7 @@ use crate::dense_layout::best_subset_inner;
 #[pyo3(signature = (dag, neighbor_table, distance_matrix, heuristic, max_iterations, num_swap_trials, num_random_trials, seed=None, partial_layouts=vec![]))]
 pub fn sabre_layout_and_routing(
     py: Python,
-    dag: &SabreDAG,
+    dag: &DAGCircuit,
     neighbor_table: &NeighborTable,
     distance_matrix: PyReadonlyArray2<f64>,
     heuristic: &Heuristic,
@@ -46,7 +48,8 @@ pub fn sabre_layout_and_routing(
     num_random_trials: usize,
     seed: Option<u64>,
     mut partial_layouts: Vec<Vec<Option<u32>>>,
-) -> (NLayout, PyObject, (SwapMap, PyObject, NodeBlockResults)) {
+) -> PyResult<(NLayout, PyObject, (SwapMap, PyObject, NodeBlockResults))> {
+    let dag = build_sabre_dag(dag)?;
     let run_in_parallel = getenv_use_multiple_threads();
     let target = RoutingTargetView {
         neighbors: neighbor_table,
@@ -143,7 +146,7 @@ pub fn sabre_layout_and_routing(
                     index,
                     layout_trial(
                         &target,
-                        dag,
+                        &dag,
                         heuristic,
                         seed_trial,
                         max_iterations,
@@ -168,7 +171,7 @@ pub fn sabre_layout_and_routing(
             .map(|(index, seed_trial)| {
                 layout_trial(
                     &target,
-                    dag,
+                    &dag,
                     heuristic,
                     seed_trial,
                     max_iterations,
@@ -180,7 +183,7 @@ pub fn sabre_layout_and_routing(
             .min_by_key(|(_, _, result)| result.map.map.values().map(|x| x.len()).sum::<usize>())
             .unwrap()
     };
-    (
+    Ok((
         res.0,
         PyArray::from_vec(py, res.1).into_any().unbind(),
         (
@@ -188,7 +191,7 @@ pub fn sabre_layout_and_routing(
             res.2.node_order.into_pyarray(py).into_any().unbind(),
             res.2.node_block_results,
         ),
-    )
+    ))
 }
 
 fn layout_trial(

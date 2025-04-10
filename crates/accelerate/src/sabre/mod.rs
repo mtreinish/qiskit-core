@@ -28,7 +28,6 @@ use pyo3::Python;
 
 use crate::nlayout::PhysicalQubit;
 use neighbor_table::NeighborTable;
-use sabre_dag::SabreDAG;
 use swap_map::SwapMap;
 
 /// A container for Sabre mapping results.
@@ -119,7 +118,6 @@ pub fn sabre(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<heuristic::LookaheadHeuristic>()?;
     m.add_class::<heuristic::DecayHeuristic>()?;
     m.add_class::<NeighborTable>()?;
-    m.add_class::<SabreDAG>()?;
     m.add_class::<SwapMap>()?;
     m.add_class::<BlockResult>()?;
     m.add_class::<NodeBlockResults>()?;

@@ -21,7 +21,7 @@ import rustworkx
 from qiskit.circuit import SwitchCaseOp, Clbit, ClassicalRegister
 from qiskit.circuit.library.standard_gates import SwapGate
 from qiskit.circuit.controlflow import node_resources
-from qiskit.converters import dag_to_circuit
+from qiskit.converters import dag_to_circuit, circuit_to_dag
 from qiskit.transpiler.basepasses import TransformationPass
 from qiskit.transpiler.coupling import CouplingMap
 from qiskit.transpiler.exceptions import TranspilerError
@@ -31,7 +31,7 @@ from qiskit.transpiler.passes.layout import disjoint_utils
 from qiskit.dagcircuit import DAGCircuit, DAGOpNode
 from qiskit.utils import default_num_processes
 
-from qiskit._accelerate.sabre import sabre_routing, Heuristic, SetScaling, NeighborTable, SabreDAG
+from qiskit._accelerate.sabre import sabre_routing, Heuristic, SetScaling, NeighborTable
 from qiskit._accelerate.nlayout import NLayout
 
 logger = logging.getLogger(__name__)
@@ -245,14 +245,9 @@ class SabreSwap(TransformationPass):
         }
         initial_layout = NLayout(layout_mapping, len(dag.qubits), self.coupling_map.size())
 
-        sabre_dag, circuit_to_dag_dict = _build_sabre_dag(
-            dag,
-            self.coupling_map.size(),
-            self._qubit_indices,
-        )
         sabre_start = time.perf_counter()
         *sabre_result, final_permutation = sabre_routing(
-            sabre_dag,
+            dag,
             self._neighbor_table,
             self.dist_matrix,
             heuristic,
@@ -277,58 +272,7 @@ class SabreSwap(TransformationPass):
             sabre_result,
             initial_layout,
             dag.qubits,
-            circuit_to_dag_dict,
         )
-
-
-def _build_sabre_dag(dag, num_physical_qubits, qubit_indices):
-    from qiskit.converters import circuit_to_dag
-
-    # Maps id(block): circuit_to_dag(block) for all descendant blocks
-    circuit_to_dag_dict = {}
-
-    def recurse(block, block_qubit_indices):
-        block_id = id(block)
-        if block_id in circuit_to_dag_dict:
-            block_dag = circuit_to_dag_dict[block_id]
-        else:
-            block_dag = circuit_to_dag(block)
-            circuit_to_dag_dict[block_id] = block_dag
-        return process_dag(block_dag, block_qubit_indices)
-
-    def process_dag(block_dag, wire_map):
-        dag_list = []
-        node_blocks = {}
-        for node in block_dag.topological_op_nodes():
-            cargs_bits = set(node.cargs)
-            if node.is_control_flow() and isinstance(node.op, SwitchCaseOp):
-                target = node.op.target
-                if isinstance(target, Clbit):
-                    cargs_bits.add(target)
-                elif isinstance(target, ClassicalRegister):
-                    cargs_bits.update(target)
-                else:  # Expr
-                    cargs_bits.update(node_resources(target).clbits)
-            cargs = {block_dag.find_bit(x).index for x in cargs_bits}
-            if node.is_control_flow():
-                node_blocks[node._node_id] = [
-                    recurse(
-                        block,
-                        {inner: wire_map[outer] for inner, outer in zip(block.qubits, node.qargs)},
-                    )
-                    for block in node.op.blocks
-                ]
-            dag_list.append(
-                (
-                    node._node_id,
-                    [wire_map[x] for x in node.qargs],
-                    cargs,
-                    node.is_directive(),
-                )
-            )
-        return SabreDAG(num_physical_qubits, block_dag.num_clbits(), dag_list, node_blocks)
-
-    return process_dag(dag, qubit_indices), circuit_to_dag_dict
 
 
 def _apply_sabre_result(
@@ -337,7 +281,6 @@ def _apply_sabre_result(
     sabre_result,
     initial_layout,
     physical_qubits,
-    circuit_to_dag_dict,
 ):
     """Apply the ``SabreResult`` to ``out_dag``, mutating it in place.  This function in effect
     performs the :class:`.ApplyLayout` transpiler pass with ``initial_layout`` and the Sabre routing
@@ -357,9 +300,6 @@ def _apply_sabre_result(
         physical_qubits (list[Qubit]): an indexable sequence of :class:`.circuit.Qubit` objects
             representing the physical qubits of the circuit.  Note that disjoint-coupling
             handling can mean that these are not strictly a "canonical physical register" in order.
-        circuit_to_dag_dict (Mapping[int, DAGCircuit]): a mapping of the Python object identity
-            (as returned by :func:`id`) of a control-flow block :class:`.QuantumCircuit` to a
-            :class:`.DAGCircuit` that represents the same thing.
     """
 
     # The swap gate is a singleton instance, so we don't need to waste time reconstructing it each
@@ -422,7 +362,7 @@ def _apply_sabre_result(
                 }
                 block_dag, block_layout = recurse(
                     empty_dag(block),
-                    circuit_to_dag_dict[id(block)],
+                    circuit_to_dag(block),
                     (
                         block_result.result.map,
                         block_result.result.node_order,

@@ -29,13 +29,15 @@ use rustworkx_core::shortest_path::dijkstra;
 use rustworkx_core::token_swapper::token_swapper;
 use smallvec::{smallvec, SmallVec};
 
+use qiskit_circuit::dag_circuit::DAGCircuit;
+
 use crate::getenv_use_multiple_threads;
 use crate::nlayout::{NLayout, PhysicalQubit};
 
 use super::heuristic::{BasicHeuristic, DecayHeuristic, Heuristic, LookaheadHeuristic, SetScaling};
 use super::layer::{ExtendedSet, FrontLayer};
 use super::neighbor_table::NeighborTable;
-use super::sabre_dag::SabreDAG;
+use super::sabre_dag::{build_sabre_dag, SabreDAG};
 use super::swap_map::SwapMap;
 use super::{BlockResult, NodeBlockResults, SabreResult};
 
@@ -445,7 +447,7 @@ impl RoutingState<'_, '_> {
 #[pyo3(signature=(dag, neighbor_table, distance_matrix, heuristic, initial_layout, num_trials, seed=None, run_in_parallel=None))]
 pub fn sabre_routing(
     py: Python,
-    dag: &SabreDAG,
+    dag: &DAGCircuit,
     neighbor_table: &NeighborTable,
     distance_matrix: PyReadonlyArray2<f64>,
     heuristic: &Heuristic,
@@ -453,7 +455,8 @@ pub fn sabre_routing(
     num_trials: usize,
     seed: Option<u64>,
     run_in_parallel: Option<bool>,
-) -> (SwapMap, PyObject, NodeBlockResults, PyObject) {
+) -> PyResult<(SwapMap, PyObject, NodeBlockResults, PyObject)> {
+    let dag = build_sabre_dag(dag)?;
     let target = RoutingTargetView {
         neighbors: neighbor_table,
         coupling: &neighbor_table.coupling_graph(),
@@ -461,14 +464,14 @@ pub fn sabre_routing(
     };
     let (res, final_layout) = swap_map(
         &target,
-        dag,
+        &dag,
         heuristic,
         initial_layout,
         seed,
         num_trials,
         run_in_parallel,
     );
-    (
+    Ok((
         res.map,
         res.node_order.into_pyarray(py).into_any().unbind(),
         res.node_block_results,
@@ -482,7 +485,7 @@ pub fn sabre_routing(
         )
         .into_any()
         .unbind(),
-    )
+    ))
 }
 
 /// Run (potentially in parallel) several trials of the Sabre routing algorithm on the given
