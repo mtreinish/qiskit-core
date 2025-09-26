@@ -138,6 +138,7 @@ sys.modules["qiskit._accelerate.wrap_angles"] = _accelerate.wrap_angles
 sys.modules["qiskit._accelerate.angle_bound_registry"] = _accelerate.angle_bound_registry
 sys.modules["qiskit._accelerate.litinski_transformation"] = _accelerate.litinski_transformation
 sys.modules["qiskit._accelerate.unroll_3q_or_more"] = _accelerate.unroll_3q_or_more
+sys.modules["qiskit._accelerate.degree_matching"] = _accelerate.degree_matching
 
 from qiskit.exceptions import QiskitError, MissingOptionalLibraryError
 

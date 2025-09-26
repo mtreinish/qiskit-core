@@ -43,6 +43,7 @@ fn _accelerate(m: &Bound<PyModule>) -> PyResult<()> {
     add_submodule(m, ::qiskit_transpiler::passes::consolidate_blocks_mod, "consolidate_blocks")?;
     add_submodule(m, ::qiskit_synthesis::linalg::cos_sin_decomp::cos_sin_decomp, "cos_sin_decomp")?;
     add_submodule(m, ::qiskit_transpiler::passes::dense_layout_mod, "dense_layout")?;
+    add_submodule(m, ::qiskit_transpiler::passes::degree_matching_layout_mod, "degree_matching")?;
     add_submodule(m, ::qiskit_transpiler::equivalence::equivalence, "equivalence")?;
     add_submodule(m, ::qiskit_transpiler::passes::error_map_mod, "error_map")?;
     add_submodule(m, ::qiskit_transpiler::passes::elide_permutations_mod, "elide_permutations")?;

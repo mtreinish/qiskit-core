@@ -160,6 +160,7 @@ default = "qiskit.transpiler.preset_passmanagers.builtin_plugins:DefaultLayoutPa
 dense = "qiskit.transpiler.preset_passmanagers.builtin_plugins:DenseLayoutPassManager"
 sabre = "qiskit.transpiler.preset_passmanagers.builtin_plugins:SabreLayoutPassManager"
 trivial = "qiskit.transpiler.preset_passmanagers.builtin_plugins:TrivialLayoutPassManager"
+degree_matching = "qiskit.transpiler.preset_passmanagers.builtin_plugins:DegreeMatchingLayoutPassManager"
 
 [project.entry-points."qiskit.transpiler.scheduling"]
 alap = "qiskit.transpiler.preset_passmanagers.builtin_plugins:AlapSchedulingPassManager"

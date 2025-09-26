@@ -27,6 +27,7 @@ from qiskit.transpiler.passes import SetLayout
 from qiskit.transpiler.passes import VF2Layout
 from qiskit.transpiler.passes import SabreLayout
 from qiskit.transpiler.passes import DenseLayout
+from qiskit.transpiler.passes import DegreeMatchingLayout
 from qiskit.transpiler.passes import TrivialLayout
 from qiskit.transpiler.passes import CheckMap
 from qiskit.transpiler.passes import BarrierBeforeFinalMeasurements
@@ -901,6 +902,36 @@ class DenseLayoutPassManager(PassManagerStagePlugin):
                 )
             )
         layout += common.generate_embed_passmanager(coupling_map)
+        return layout
+
+
+class DegreeMatchingLayoutPassManager(PassManagerStagePlugin):
+    """Plugin class for dense layout stage."""
+
+    def pass_manager(self, pass_manager_config, optimization_level=None) -> PassManager:
+        _given_layout = SetLayout(pass_manager_config.initial_layout)
+
+        def _choose_layout_condition(property_set):
+            return not property_set["layout"]
+
+        if pass_manager_config.target is None:
+            cmap = pass_manager_config.coupling_map
+            target = None
+            if cmap is not None:
+                target = Target.from_configuration(["u", "cx"], cmap)
+        else:
+            target = pass_manager_config.target
+
+        layout = PassManager()
+        layout.append(_given_layout)
+        if target is not None:
+            layout.append(
+                ConditionalController(
+                    DegreeMatchingLayout(target),
+                    condition=_choose_layout_condition,
+                )
+            )
+        layout += common.generate_embed_passmanager(target)
         return layout
 
 

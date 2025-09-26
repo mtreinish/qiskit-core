@@ -26,6 +26,7 @@ Layout Selection (Placement)
    SetLayout
    TrivialLayout
    DenseLayout
+   DegreeMatchingLayout
    SabreLayout
    CSPLayout
    VF2Layout
@@ -180,6 +181,7 @@ Additional Passes
 from .layout import SetLayout
 from .layout import TrivialLayout
 from .layout import DenseLayout
+from .layout import DegreeMatchingLayout
 from .layout import SabreLayout
 from .layout import CSPLayout
 from .layout import VF2Layout
