@@ -42,7 +42,7 @@ use crate::{
 use num_complex::Complex64;
 use numpy::PyReadonlyArray1;
 use pyo3::IntoPyObjectExt;
-use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyTuple, PyType};
 use pyo3::{PyTraverseError, PyVisit, import_exception, intern};
@@ -93,10 +93,10 @@ pub enum CircuitDataError {
         "Mismatching number of values and parameters. For partial binding please pass a mapping of parameter to value pairs."
     )]
     ParameterSliceLenMismatch,
-    #[error("internal error: circuit parameter table is inconsistent")]
-    InconsistentParameterTable,
     #[error(transparent)]
     ParameterError(#[from] ParameterError),
+    #[error("Invalid Parameter")]
+    InvalidParameter,
     #[error("bad type after binding for gate '{0}': '{1}'")]
     StandardGateParameterIsComplex(String, String),
 }
@@ -134,10 +134,10 @@ impl From<CircuitDataError> for PyErr {
             CircuitDataError::ParameterSliceLenMismatch => PyValueError::new_err(
                 "Mismatching number of values and parameters. For partial binding please pass a mapping of {parameter: value} pairs.",
             ),
-            CircuitDataError::InconsistentParameterTable => {
-                PyRuntimeError::new_err("internal error: circuit parameter table is inconsistent")
-            }
             CircuitDataError::ParameterError(e) => e.into(),
+            CircuitDataError::InvalidParameter => {
+                PyValueError::new_err("An invalid parameter was provided.")
+            }
             CircuitDataError::StandardGateParameterIsComplex(gate_name, expr) => {
                 CircuitError::new_err(format!(
                     "bad type after binding for gate '{gate_name}': '{expr}'"
@@ -2748,6 +2748,7 @@ impl CircuitData {
         I: IntoIterator<Item = (Symbol, T, HashSet<ParameterUse>)>,
         T: AsRef<Param> + Clone,
     {
+        let inconsistent = || panic!("internal error: parameter table is in an inconsistent state");
         // Bind a single `Parameter` into a `ParameterExpression`.
         let bind_expr = |expr: &ParameterExpression,
                          symbol: &Symbol,
@@ -2805,7 +2806,7 @@ impl CircuitData {
                 match usage {
                     ParameterUse::GlobalPhase => {
                         let Param::ParameterExpression(expr) = &self.global_phase else {
-                            return Err(CircuitDataError::InconsistentParameterTable);
+                            inconsistent()
                         };
                         self.set_global_phase(bind_expr(expr, &symbol, value.as_ref(), true)?)?;
                     }
@@ -2819,7 +2820,7 @@ impl CircuitData {
                             let previous = &mut self.data[instruction];
                             let params = previous.params_mut();
                             let Param::ParameterExpression(expr) = &params[parameter] else {
-                                return Err(CircuitDataError::InconsistentParameterTable);
+                                panic!("internal error: parameter table contains non-parameters");
                             };
                             let new_param = bind_expr(expr, &symbol, value.as_ref(), true)?;
 
@@ -2847,24 +2848,20 @@ impl CircuitData {
                         } else if let OperationRef::ControlFlow(op) = previous_op.view() {
                             let blocks = self.data[instruction].blocks_view();
                             let block_to_edit = match &op.control_flow {
-                                ControlFlow::BreakLoop => {
-                                    Err(CircuitDataError::InconsistentParameterTable)
-                                }
-                                ControlFlow::ContinueLoop => {
-                                    Err(CircuitDataError::InconsistentParameterTable)
-                                }
+                                ControlFlow::BreakLoop => inconsistent(),
+                                ControlFlow::ContinueLoop => inconsistent(),
                                 ControlFlow::ForLoop { .. } => {
                                     match parameter {
                                         // In Python land, the loop body exists at parameter
                                         // position 2.
-                                        2 => Ok(blocks[0]),
-                                        _ => Err(CircuitDataError::InconsistentParameterTable),
+                                        2 => blocks[0],
+                                        _ => inconsistent(),
                                     }
                                 }
                                 // Most control flow instructions use the parameters for
                                 // *just* their blocks.
-                                _ => Ok(blocks[parameter]),
-                            }?;
+                                _ => blocks[parameter],
+                            };
                             if !seen_blocks.contains(&block_to_edit) {
                                 self.blocks[block_to_edit]
                                     .assign_single_parameter(symbol.clone(), value.as_ref())?;
@@ -2896,7 +2893,7 @@ impl CircuitData {
                             // it in rust without Python that's a mistake and this attach() call
                             // will panic and point out the error of your ways when this comment is
                             // read.
-                            Python::attach(|py| {
+                            Python::attach(|py| -> Result<_, CircuitDataError> {
                                 let validate_parameter_attr = intern!(py, "validate_parameter");
                                 let assign_parameters_attr = intern!(py, "assign_parameters");
 
@@ -2907,9 +2904,7 @@ impl CircuitData {
                                 // All "user" operations (e.g. PyOperation) use Parameters::Param.
                                 let previous_param = &previous.params_view()[parameter];
                                 let new_param = match previous_param {
-                                    Param::Float(_) => {
-                                        return Err(CircuitDataError::InconsistentParameterTable);
-                                    }
+                                    Param::Float(_) => inconsistent(),
                                     Param::ParameterExpression(expr) => {
                                         let new_param =
                                             bind_expr(expr, &symbol, value.as_ref(), false)?;
@@ -2951,9 +2946,7 @@ impl CircuitData {
                                     Param::Obj(obj) => {
                                         let obj = obj.bind_borrowed(py);
                                         if !obj.is_instance(QUANTUM_CIRCUIT.get_bound(py))? {
-                                            return Err(
-                                                CircuitDataError::InconsistentParameterTable,
-                                            );
+                                            inconsistent()
                                         }
                                         Param::extract_no_coerce(
                                             obj.call_method(
