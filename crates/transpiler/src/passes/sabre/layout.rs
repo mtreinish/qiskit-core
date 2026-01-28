@@ -13,7 +13,7 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-use hashbrown::HashSet;
+use hashbrown::{HashSet, HashMap};
 use ndarray::aview2;
 use rand::prelude::*;
 use rand_pcg::Pcg64Mcg;
@@ -29,8 +29,9 @@ use crate::neighbors::Neighbors;
 use crate::passes::{
     dense_layout,
     disjoint_layout::{self, DisjointSplit},
+    tram_mapping,
 };
-use crate::target::{Target, TargetCouplingError};
+use crate::target::{Target, TargetCouplingError, Qargs};
 
 use super::dag::SabreDAG;
 use super::heuristic::Heuristic;
@@ -124,6 +125,8 @@ pub fn sabre_layout_and_routing(
             // All the DAG fits into a single component of a disjoint `Target`, so we can safely
             // continue with the entire layout and routing, providing we stay within the subset of
             // the `Target` (if any).
+            let mut t2_times: Option<Vec<f64>> = None;
+            let mut avg_dur: Option<HashMap<&[PhysicalQubit], f64>> = None;
             let neighbors = match subset.as_deref_mut() {
                 Some(subset) => {
                     // TODO: currently, the `subset` we get from `disjoint_layout` has a
@@ -131,6 +134,27 @@ pub fn sabre_layout_and_routing(
                     // exact order doesn't matter.  Sorted order happens to cause us to be RNG
                     // compatible with the prior Sabre disjoint handling.
                     subset.sort_unstable();
+                    if let Some(ref qubit_properties) = target.qubit_properties {
+                        t2_times = qubit_properties.iter().map(|x| x.t2).collect::<Option<Vec<f64>>>();
+                        if let Some(x) = target.qargs() {
+                            avg_dur = Some(x.filter_map(|y| {
+                                if let Qargs::Concrete(qargs) = y {
+                                    if qargs.len() != 2 {
+                                        return None;
+                                    }
+                                    let gate_names = target.operation_names_for_qargs(&qargs).unwrap();
+                                    let dur = gate_names
+                                        .iter()
+                                        .filter_map(|name| target.get_duration(name, &qargs)) // E: cannot find value `target` …
+                                        .sum::<f64>() / gate_names.len() as f64;
+                                    Some((qargs.as_slice(), dur))
+                                } else {
+                                        None
+                                    }
+                                })
+                                .collect());
+                        }
+                    }
                     Neighbors::from_coupling_subset_with_map(&coupling, subset, |q| {
                         NodeIndex::new(q.index())
                     })
@@ -145,7 +169,14 @@ pub fn sabre_layout_and_routing(
                 heuristic,
             };
             starting_layouts.extend(partial_layouts);
-            add_heuristic_layouts(&mut starting_layouts, problem, allow_parallel);
+            add_heuristic_layouts(
+                &mut starting_layouts,
+                problem,
+                allow_parallel,
+                Some(&target.neighbors),
+                t2_times,
+                avg_dur,
+            );
             let num_layout_trials = starting_layouts.len();
             let (_, result) = CondIterator::new(
                 seeds(num_layout_trials),
@@ -251,7 +282,8 @@ pub fn sabre_layout_and_routing(
                         .collect::<PyResult<Vec<_>>>()?;
                     starting_layouts.push(mapped_partial);
                 }
-                add_heuristic_layouts(&mut starting_layouts, sub_problem, allow_parallel);
+
+                add_heuristic_layouts(&mut starting_layouts, sub_problem, allow_parallel, None, None, None);
                 let num_layout_trials = starting_layouts.len();
                 let (_, result) = CondIterator::new(
                     seeds(num_layout_trials),
@@ -445,6 +477,9 @@ fn add_heuristic_layouts(
     starting_layouts: &mut Vec<Vec<Option<PhysicalQubit>>>,
     problem: RoutingProblem,
     run_in_parallel: bool,
+    target: Option<&Neighbors>,
+    qubit_t2_times: Option<Vec<f64>>,
+    avg_dur: Option<HashMap<&[PhysicalQubit], f64>>,
 ) {
     let lift = |i| Some(PhysicalQubit::new(i));
     let num_physical_qubits = problem.target.neighbors.num_qubits();
@@ -508,5 +543,11 @@ fn add_heuristic_layouts(
             .map(lift)
             .collect(),
         );
+    }
+    if let Some(target) = target {
+        if let Ok(tram_layout) = tram_mapping::tram_initial_mapping(problem.dag, target, qubit_t2_times, avg_dur, 0.5, 0.025)
+        {
+            starting_layouts.push(tram_layout);
+        }
     }
 }
