@@ -16,6 +16,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use pyo3::{Bound, PyResult, Python, pyfunction, wrap_pyfunction};
 
+use rayon::prelude::*;
 use indexmap::IndexMap;
 use rustworkx_core::petgraph::stable_graph::NodeIndex;
 
@@ -52,13 +53,11 @@ const MAX_NUM_QUBITS: u32 = 3;
 ///
 pub fn analyze_commutations(
     dag: &mut DAGCircuit,
-    commutation_checker: &mut CommutationChecker,
+    commutation_checker: &CommutationChecker,
     approximation_degree: f64,
 ) -> PyResult<(CommutationSet, NodeIndices)> {
-    let mut commutation_set: CommutationSet = Default::default();
-    let mut node_indices: NodeIndices = Default::default();
 
-    for qubit in 0..dag.num_qubits() {
+    let evaluate_qubit = |qubit: usize, commutation_set: &mut CommutationSet, node_indices: &mut NodeIndices| -> PyResult<()> {
         let wire = Wire::Qubit(Qubit(qubit as u32));
 
         for current_gate_idx in dag.nodes_on_wire(wire, false) {
@@ -130,9 +129,32 @@ pub fn analyze_commutations(
 
             node_indices.insert((current_gate_idx, wire), commutation_entry.len() - 1);
         }
-    }
+        Ok(())
+    };
 
-    Ok((commutation_set, node_indices))
+    if qiskit_util::getenv_use_multiple_threads() {
+        let result_vec: PyResult<Vec<(CommutationSet, NodeIndices)>> = (0..dag.num_qubits()).into_par_iter().map(|qubit| {
+            let mut commutation_set: CommutationSet = Default::default();
+            let mut node_indices: NodeIndices = Default::default();
+            evaluate_qubit(qubit, &mut commutation_set, &mut node_indices)?;
+            Ok((commutation_set, node_indices))
+        }).collect();
+        let result_vec = result_vec?;
+        let mut commutation_set: CommutationSet = IndexMap::with_capacity_and_hasher(result_vec.len(), ahash::RandomState::default());
+        let mut node_indices: NodeIndices = IndexMap::with_capacity_and_hasher(result_vec.len(), ahash::RandomState::default());
+        for (local_set, local_indices) in result_vec {
+            commutation_set.extend(local_set);
+            node_indices.extend(local_indices);
+        }
+        Ok((commutation_set, node_indices))
+    } else {
+        let mut commutation_set: CommutationSet = Default::default();
+        let mut node_indices: NodeIndices = Default::default();
+        for qubit in 0..dag.num_qubits() {
+            evaluate_qubit(qubit, &mut commutation_set, &mut node_indices)?;
+        }
+        Ok((commutation_set, node_indices))
+    }
 }
 
 #[pyfunction]
