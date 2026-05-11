@@ -122,7 +122,8 @@ class TestPhaseOracleAndGate(QiskitTestCase):
         1 -2 -3 0
         -1 2 3 0
         """
-        filename = tempfile.mkstemp(suffix=".dimacs")[1]
+        f,filename = tempfile.mkstemp(suffix=".dimacs")
+        os.close(f)
         self.addCleanup(os.remove, filename)
         with open(filename, "w") as file:
             file.write(input_3sat_instance)
