@@ -56,7 +56,8 @@ use qiskit_util::{IndexMap, IndexSet};
 
 use pyo3::IntoPyObjectExt;
 use pyo3::exceptions::{
-    PyDeprecationWarning, PyIndexError, PyRuntimeError, PyTypeError, PyValueError,
+    PyDeprecationWarning, PyIndexError, PyRuntimeError, PyTypeError, PyUnicodeDecodeError,
+    PyValueError,
 };
 use pyo3::intern;
 use pyo3::prelude::*;
@@ -4508,7 +4509,11 @@ impl DAGCircuit {
     ) -> PyResult<Bound<'py, PyString>> {
         let mut buffer = Vec::<u8>::new();
         build_dot(py, self, &mut buffer, graph_attrs, node_attrs, edge_attrs)?;
-        Ok(PyString::new(py, std::str::from_utf8(&buffer)?))
+        Ok(PyString::new(
+            py,
+            std::str::from_utf8(&buffer)
+                .map_err(|e| PyUnicodeDecodeError::new_err_from_utf8(py, &buffer, e))?,
+        ))
     }
 
     /// Add an input variable to the circuit.

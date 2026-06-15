@@ -22,7 +22,7 @@ use std::{
 use hashbrown::HashSet;
 use pyo3::prelude::*;
 use pyo3::{
-    IntoPyObjectExt, PyTypeInfo,
+    IntoPyObjectExt, PyClassInitializer, PyTypeInfo,
     exceptions::{PyIndexError, PyTypeError, PyValueError},
     types::{PyList, PyType},
 };
@@ -443,7 +443,7 @@ macro_rules! create_bit_object {
             fn new(
                 register: Option<Bound<$pyreg_struct>>,
                 index: Option<u32>,
-            ) -> PyResult<(Self, PyBit)> {
+            ) -> PyResult<PyClassInitializer<Self>> {
                 match (register, index) {
                     (Some(register), Some(index)) => {
                         let register = &register.borrow().0;
@@ -454,9 +454,9 @@ macro_rules! create_bit_object {
                                 register.len()
                             ))
                         })?;
-                        Ok((Self(bit), PyBit))
+                        Ok(PyClassInitializer::from(PyBit).add_subclass(Self(bit)))
                     }
-                    (None, None) => Ok((Self($bit_struct::new_anonymous()), PyBit)),
+                    (None, None) => Ok(PyClassInitializer::from(PyBit).add_subclass(Self($bit_struct::new_anonymous()))),
                     _ => Err(PyTypeError::new_err(
                         "either both 'register' and 'index' are provided, or neither are",
                     )),
@@ -746,7 +746,7 @@ macro_rules! create_bit_object {
                 size: Option<isize>,
                 name: Option<String>,
                 bits: Option<Vec<$bit_struct>>,
-            ) -> PyResult<(Self, PyRegister)> {
+            ) -> PyResult<PyClassInitializer<Self>> {
                 let name = name.unwrap_or_else(|| {
                     format!(
                         "{}{}",
@@ -767,7 +767,7 @@ macro_rules! create_bit_object {
                         let Ok(size) = size.try_into() else {
                             return Err(CircuitError::new_err("Register size too large."));
                         };
-                        Ok((Self($reg_struct::new_owning(name, size)), PyRegister))
+                        Ok(PyClassInitializer::from(PyRegister).add_subclass(Self($reg_struct::new_owning(name, size))))
                     }
                     (None, Some(bits)) => {
                         if bits.iter().cloned().collect::<HashSet<_>>().len() != bits.len() {
@@ -775,7 +775,7 @@ macro_rules! create_bit_object {
                                 "Register bits must not be duplicated.",
                             ));
                         }
-                        Ok((Self($reg_struct::new_alias(Some(name), bits)), PyRegister))
+                        Ok(PyClassInitializer::from(PyRegister).add_subclass(Self($reg_struct::new_alias(Some(name), bits))))
                     }
                 }
             }
