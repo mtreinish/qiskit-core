@@ -72,6 +72,10 @@ pub enum ExitCode {
     ParameterError = 600,
     /// Parameter name conflict.
     ParameterNameConflict = 601,
+    /// Duplicate program label.
+    DuplicateProgramLabel = 700,
+    /// Port already connected in quantum program
+    ProgramPortAlreadyConnected = 701
 }
 
 impl From<ArithmeticError> for ExitCode {

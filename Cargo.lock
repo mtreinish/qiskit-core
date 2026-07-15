@@ -2305,6 +2305,7 @@ dependencies = [
  "pyo3",
  "qiskit-circuit",
  "qiskit-circuit-library",
+ "qiskit-providers",
  "qiskit-quantum-info",
  "qiskit-transpiler",
  "qiskit-util",

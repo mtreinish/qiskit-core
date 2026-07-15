@@ -21,6 +21,7 @@ pub mod dag;
 pub mod exit_codes;
 pub mod param;
 pub mod sparse_observable;
+pub mod providers;
 pub mod transpiler;
 
 pub use exit_codes::ExitCode;

@@ -30,6 +30,8 @@ pub static FUNCTIONS_CIRCUIT: ExportedFunctions =
 pub static FUNCTIONS_QI: ExportedFunctions =
     ExportedFunctions::empty().add_child(0, &sparse_observable::FUNCTIONS);
 pub use transpiler::FUNCTIONS as FUNCTIONS_TRANSPILE;
+pub static FUNCTIONS_PROVIDERS: ExportedFunctions =
+    ExportedFunctions::empty().add_child(0, &providers::QUANTUM_PROGRAM_FUNCTIONS);
 
 // Below this line is close to a mirror of the actual `cext` structure.  Ideally, all of the
 // above exports would be locally within `cext` itself, but that has problems with needing to
@@ -247,6 +249,28 @@ mod sparse_observable {
             export_fn!(qk_obs_to_python, feature = "python_binding"),
             export_fn!(qk_obs_borrow_from_python, feature = "python_binding"),
             export_fn!(qk_obs_convert_from_python, feature = "python_binding"),
+        ]
+    });
+}
+
+mod providers {
+    use crate::impl_::prelude::*;
+    #[cfg(feature = "addr")]
+    use qiskit_cext::providers::quantum_program::*;
+
+    pub static QUANTUM_PROGRAM_FUNCTIONS: ExportedFunctions = ExportedFunctions::leaves(50, || {
+        vec![
+            export_fn!(qk_quantum_program_new),
+            export_fn!(qk_quantum_program_free),
+            export_fn!(qk_quantum_program_port_new),
+            export_fn!(qk_owned_path_new),
+            export_fn!(qk_owned_path_free),
+            export_fn!(qk_owned_path_append_index),
+            export_fn!(qk_owned_path_append_key),
+            export_fn!(qk_quantum_program_add_node),
+            export_fn!(qk_quantum_program_add_edge),
+            export_fn!(qk_quantum_program_set_input),
+            export_fn!(qk_quantum_program_set_output),
         ]
     });
 }
