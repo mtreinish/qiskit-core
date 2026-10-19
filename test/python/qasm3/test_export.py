@@ -35,6 +35,7 @@ from qiskit.circuit import (
     ParameterVector,
     annotation,
     Instruction,
+    CircuitError,
 )
 from qiskit.circuit.classical import expr, types
 from qiskit.circuit.controlflow import CASE_DEFAULT
@@ -3586,3 +3587,42 @@ box {
         )
         self.assertEqual(prog.strip(), expected.strip())
         self.assertTrue(skip_triggered)
+
+    def test_defcal_expr_params(self):
+
+        class CustomQuantumClassical(Instruction):
+            def __init__(self, params: list[expr.Expr]):
+                super().__init__("customquantumclassical", 1, 0, params=params)
+
+            def validate_parameter(self, parameter):
+                """DynamicMeasure parameter must be an lvalue expr."""
+                if not isinstance(parameter, expr.Expr):
+                    raise CircuitError("Must be an expr param")
+                return parameter
+
+            def defcal(self, name: str | None = None):
+                if name is None:
+                    name = self.name
+
+                return DefcalInstruction(name, self.params, self.num_qubits, return_type=None)
+
+        qc = QuantumCircuit(1)
+        a = qc.add_input("a", types.Bool())
+        b = qc.add_input("b", types.Uint(8))
+        qc.store(a, expr.logic_not(a))
+        qc.store(b, expr.bit_and(b, 8))
+        op = CustomQuantumClassical([expr.mul(expr.cast(a, types.Uint(8)), b)])
+        qc.append(op, (0,))
+
+        prog = dumps(qc, implicit_defcals={"customquantumclassical": op.defcal()})
+        expected = """
+OPENQASM 3.0;
+include "stdgates.inc";
+input bool a;
+input uint[8] b;
+qubit[1] q;
+a = !a;
+b = b & 8;
+customquantumclassical(uint[8](a) * b) q[0];
+"""
+        self.assertEqual(prog.strip(), expected.strip())
