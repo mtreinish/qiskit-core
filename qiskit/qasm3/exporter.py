@@ -94,7 +94,7 @@ class DefcalInstruction:
 
     name: str
     """Name of the instruction."""
-    parameters: int
+    parameters: int | list[expr.Expr]
     """Number of angle-like parameters the instruction takes.
 
     .. note::
@@ -1354,10 +1354,15 @@ class QASM3Builder:
                 f" returns an unsupported classical type: {defcal.return_type}"
             )
         returns_bit = defcal.return_type is not None
+        if isinstance(defcal.parameters, int):
+            num_params = defcal.parameters
+        else:
+            num_params = len(defcal.parameters)
+
         # Check simple consistency.
         if (
             len(instruction.qubits) != defcal.qubits
-            or len(instruction.params) != defcal.parameters
+            or len(instruction.params) != num_params
             # Here, we're assuming that the `clbit` is only an output, not an input.
             # Qiskit's data model can't actually tell us this, so we're assuming that the
             # user is correct if they tell us this via the `DefcalInstruction`.
@@ -1367,9 +1372,14 @@ class QASM3Builder:
                 f"Instruction '{instruction!r}' has a call signature that is inconsistent with"
                 f" its associated defcal: '{defcal!r}'."
             )
+        if isinstance(defcal.parameters, int):
+            parameters = self._build_quantum_call_parameters(instruction.params)
+        else:
+            parameters = [self.build_expression(x) for x in instruction.params]
+
         return ast.DefcalCallStatement(
             ident=ast.Identifier(defcal.name),
-            parameters=self._build_quantum_call_parameters(instruction.params),
+            parameters=parameters,
             qubits=[self._lookup_bit(qubit) for qubit in instruction.qubits],
             lvalue=self._lookup_bit(instruction.clbits[0]) if returns_bit else None,
         )
