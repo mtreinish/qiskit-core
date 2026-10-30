@@ -2487,9 +2487,36 @@ class TestDagEquivalence(DAGTest):
         }
         self.assertEqual(set(dag.edges()), expected_edges)
 
-    def test_allow_mixing_captures_inputs(self):
-        """Test that a DAG can have both captures and inputs, such as the body of a `ForLoopOp`
-        with a `Var` loop parameter that also reads variables from its enclosing scope."""
+    def test_get_var_by_name(self):
+        """Look up input, captured, and declared variables by name."""
+        input_var = expr.Var.new("input", types.Bool())
+        dag = DAGCircuit()
+        dag.add_input_var(input_var)
+        self.assertEqual(dag.get_var("input"), input_var)
+        self.assertIsNone(dag.get_var("missing"))
+
+        captured_var = expr.Var.new("captured", types.Bool())
+        declared_var = expr.Var.new("declared", types.Bool())
+        dag = DAGCircuit()
+        dag.add_captured_var(captured_var)
+        dag.add_declared_var(declared_var)
+        self.assertEqual(dag.get_var("captured"), captured_var)
+        self.assertEqual(dag.get_var("declared"), declared_var)
+        self.assertIsNone(dag.get_var("missing"))
+
+    def test_get_stretch_by_name(self):
+        """Look up captured and declared stretches by name."""
+        captured = expr.Stretch.new("captured")
+        declared = expr.Stretch.new("declared")
+        dag = DAGCircuit()
+        dag.add_captured_stretch(captured)
+        dag.add_declared_stretch(declared)
+        self.assertEqual(dag.get_stretch("captured"), captured)
+        self.assertEqual(dag.get_stretch("declared"), declared)
+        self.assertIsNone(dag.get_stretch("missing"))
+
+    def test_forbid_mixing_captures_inputs(self):
+        """Test that a DAG can't have both captures and inputs."""
         a = expr.Var.new("a", types.Bool())
         b = expr.Var.new("b", types.Bool())
         c = expr.Stretch.new("c")
