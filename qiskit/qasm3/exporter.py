@@ -763,7 +763,7 @@ class QASM3Builder:
         # The only defcal return types we can handle.  Qiskit doesn't have a way of specifying an
         # instruction that acts on qubits and returns a ``bit[n]``-like type, so we forbid that
         # early here too.
-        allowed_defcal_types = (None, types.Bool())
+        allowed_defcal_types = (None, types.Bool(), types.Uint)
         for name, defcal in self.implicit_defcals.items():
             if defcal.return_type not in allowed_defcal_types:
                 raise QASM3ExporterError(
@@ -1347,7 +1347,7 @@ class QASM3Builder:
         """Build a statement associated with a defcal instruction."""
         # We forbade return types other than `Bool` and `None` in the initialiser,
         # but we error so that this breaks if we support the full defcal spec later on.
-        allowed_defcal_types = (None, types.Bool())
+        allowed_defcal_types = (None, types.Bool(), types.Uint)
         if defcal.return_type not in allowed_defcal_types:
             raise QASM3ExporterError(
                 f"The defcal '{defcal.name}' associated with instructions with name '{instruction.name}'"
@@ -1358,19 +1358,27 @@ class QASM3Builder:
             num_params = defcal.parameters
         else:
             num_params = len(defcal.parameters)
-
         # Check simple consistency.
         if (
             len(instruction.qubits) != defcal.qubits
-            or len(instruction.params) != num_params
+#            or ddlen(instruction.params) != num_params
             # Here, we're assuming that the `clbit` is only an output, not an input.
             # Qiskit's data model can't actually tell us this, so we're assuming that the
             # user is correct if they tell us this via the `DefcalInstruction`.
-            or len(instruction.clbits) != int(returns_bit)
+#            or (len(instruction.params) == 1 and num_params == 0 and not returns_bit)
+#            or len(instruction.clbits) != int(returns_bit)
         ):
             raise QASM3ExporterError(
                 f"Instruction '{instruction!r}' has a call signature that is inconsistent with"
                 f" its associated defcal: '{defcal!r}'."
+            )
+
+        if len(instruction.params) == 1 and num_params == 0 and returns_bit:
+            return ast.DefcalCallStatement(
+                ident=ast.Identifier(defcal.name),
+                parameters=[],
+                qubits=[self._lookup_bit(qubit) for qubit in instruction.qubits],
+                lvalue=instruction.params[0]
             )
         if isinstance(defcal.parameters, int):
             parameters = self._build_quantum_call_parameters(instruction.params)

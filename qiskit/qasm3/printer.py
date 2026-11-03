@@ -18,6 +18,7 @@ from collections.abc import Sequence
 
 from . import ast
 from .experimental import ExperimentalFeatures
+from qiskit.circuit.classical import expr, types
 
 # Precedence and associativity table for prefix, postfix and infix operators.  The rules are a
 # lookup table of two-tuples; the "binding power" of the operator to the left and to the right.
@@ -350,7 +351,13 @@ class BasicPrinter:
         self.stream.write(")")
 
     def _visit_Index(self, node: ast.Index):
-        if isinstance(node.target, (ast.Unary, ast.Binary)):
+        if isinstance(node.target, expr.Var) and isinstance(node.target.type, types.Uint):
+            self.stream.write(node.target.name)
+            self.stream.write("[")
+            self.stream.write(node.index.name)
+            self.stream.write("]")
+            return
+        elif isinstance(node.target, (ast.Unary, ast.Binary)):
             self.stream.write("(")
             self.visit(node.target)
             self.stream.write(")")
