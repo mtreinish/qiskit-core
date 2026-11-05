@@ -1300,12 +1300,29 @@ pub struct ScheduleBlockPack {
     // originally to be handled with metadata deserializer
     pub metadata: Bytes,
     pub alignment_context: AlignmentContextPack,
-    #[br(count = num_elements, args { inner: (version, depth, max_depth) })]
+    #[br(args((version, depth, max_depth, num_elements)), parse_with = schedule_block_element_pack_parser)]
     pub elements: Vec<ScheduleBlockElementPack>,
     #[br(if(version >= 7))]
     // originially a reference is either null or ScheduleBlockPack
     pub references: Option<MappingPack>,
 }
+
+#[binrw::parser(reader, endian)]
+fn schedule_block_element_pack_parser(args: (u8, usize, usize, u16)) -> BinResult<Vec<ScheduleBlockElementPack>> {
+    let mut output = Vec::new();
+    let (version, depth, max_depth, count) = args;
+    output.try_reserve_exact(count as usize).map_err(|e| {
+        binrw::Error::Io(binrw::io::Error::new(
+            binrw::io::ErrorKind::OutOfMemory,
+            e.to_string(),
+        ))
+    })?;
+    for _ in 0..count {
+        output.push(ScheduleBlockElementPack::read_options(reader, endian, (version, depth, max_depth))?)
+    }
+    Ok(output)
+}
+
 
 #[binrw]
 #[brw(big)]
