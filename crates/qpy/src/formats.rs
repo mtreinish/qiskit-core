@@ -65,7 +65,7 @@ pub struct QPYFileHeader {
 pub struct QPYCircuit {
     #[brw(args(version,))]
     pub header: CircuitHeaderV12Pack,
-    #[br(count = header.num_vars)]
+    #[br(args((header.num_vars,)), parse_with = parse_vec_types)]
     pub standalone_vars: Vec<ExpressionVarDeclarationPack>,
     #[br(if(version >= 15))]
     pub annotation_headers: Option<AnnotationHeaderStaticPack>,
@@ -1354,23 +1354,28 @@ pub struct ScheduleBlockElementPack {
 pub struct ScheduleBlockElementNonNestedDataPack {
     #[bw(calc = operands.len() as u64)]
     pub operands_size: u64,
-    #[br(args((operands_size,)), parse_with = parse_schedule_operands)]
+    #[br(args((operands_size,)), parse_with = parse_vec_types)]
     pub operands: Vec<ScheduleOperandPack>, // _loads_operand
     pub name: GenericDataPack,
 }
 
 #[binrw::parser(reader, endian)]
-fn parse_schedule_operands(args: (u64,)) -> BinResult<Vec<ScheduleOperandPack>> {
-    let (count,) = args;
+fn parse_vec_types<'a, T, A>(args: (A,)) -> BinResult<Vec<T>>
+where
+    T: BinRead<Args<'a> = ()>,
+    A: TryInto<usize>
+{
+    let (raw_count,) = args;
+    let count: usize = raw_count.try_into().map_err(|_| binrw::Error::Io(binrw::io::Error::new(binrw::io::ErrorKind::InvalidData, "Invalid size parameter")))?;
     let mut output = Vec::new();
-    output.try_reserve_exact(count as usize).map_err(|e| {
+    output.try_reserve_exact(count.into()).map_err(|e| {
         binrw::Error::Io(binrw::io::Error::new(
             binrw::io::ErrorKind::OutOfMemory,
             e.to_string(),
         ))
     })?;
-    for _ in 0..count {
-        output.push(ScheduleOperandPack::read_options(reader, endian, ())?)
+    for _ in 0..count.into() {
+        output.push(T::read_options(reader, endian, ())?)
     }
     Ok(output)
 }
