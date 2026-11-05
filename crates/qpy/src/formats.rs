@@ -1317,9 +1317,25 @@ pub struct ScheduleBlockElementPack {
 pub struct ScheduleBlockElementNonNestedDataPack {
     #[bw(calc = operands.len() as u64)]
     pub operands_size: u64,
-    #[br(count = operands_size)]
+    #[br(args((operands_size,)), parse_with = parse_schedule_operands)]
     pub operands: Vec<ScheduleOperandPack>, // _loads_operand
     pub name: GenericDataPack,
+}
+
+#[binrw::parser(reader, endian)]
+fn parse_schedule_operands(args: (u64,)) -> BinResult<Vec<ScheduleOperandPack>> {
+    let (count,) = args;
+    let mut output = Vec::new();
+    output.try_reserve_exact(count as usize).map_err(|e| {
+        binrw::Error::Io(binrw::io::Error::new(
+            binrw::io::ErrorKind::OutOfMemory,
+            e.to_string(),
+        ))
+    })?;
+    for _ in 0..count {
+        output.push(ScheduleOperandPack::read_options(reader, endian, ())?)
+    }
+    Ok(output)
 }
 
 #[binrw]
