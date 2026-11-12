@@ -10,21 +10,28 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+#[cfg(feature = "py")]
 use numpy::PyArrayLike1;
 use smallvec::smallvec;
 
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
+#[cfg(feature = "py")]
 use pyo3::wrap_pyfunction;
 
 use qiskit_circuit::Qubit;
+#[cfg(feature = "py")]
 use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
-use qiskit_circuit::operations::{Param, StandardGate};
+#[cfg(feature = "py")]
+use qiskit_circuit::operations::Param;
+use qiskit_circuit::operations::StandardGate;
 
 use super::linear_phase::cz_depth_lnn::LnnGatesVec;
 
 mod utils;
 
 /// Checks whether an array of size N is a permutation of 0, 1, ..., N - 1.
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (pattern))]
 pub fn _validate_permutation(
@@ -37,6 +44,7 @@ pub fn _validate_permutation(
 }
 
 /// Finds inverse of a permutation pattern.
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (pattern))]
 pub fn _inverse_pattern(
@@ -48,6 +56,7 @@ pub fn _inverse_pattern(
     Ok(inverse_i64.into_pyobject(py)?.unbind())
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (pattern))]
 pub fn _synth_permutation_basic(
@@ -69,6 +78,7 @@ pub fn _synth_permutation_basic(
     .into())
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (pattern))]
 fn _synth_permutation_acg(
@@ -96,6 +106,7 @@ fn _synth_permutation_acg(
 
 /// Synthesize a permutation circuit for a linear nearest-neighbor
 /// architecture using the Kutin, Moulton, Smithline method.
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (pattern))]
 pub fn _synth_permutation_depth_lnn_kms(
@@ -187,6 +198,7 @@ pub(crate) fn _append_reverse_permutation_lnn_kms(gates: &mut LnnGatesVec, num_q
 ///     1. Kutin, S., Moulton, D. P., Smithline, L.,
 ///        *Computation at a distance*, Chicago J. Theor. Comput. Sci., vol. 2007, (2007),
 ///        `arXiv:quant-ph/0701194 <https://arxiv.org/abs/quant-ph/0701194>`_
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (num_qubits))]
 fn synth_permutation_reverse_lnn_kms(num_qubits: usize) -> PyResult<PyCircuitData> {
@@ -194,7 +206,7 @@ fn synth_permutation_reverse_lnn_kms(num_qubits: usize) -> PyResult<PyCircuitDat
     _append_reverse_permutation_lnn_kms(&mut gates, num_qubits);
     Ok(CircuitData::from_standard_gates(num_qubits as u32, gates, Param::Float(0.0))?.into())
 }
-
+#[cfg(feature = "py")]
 pub fn permutation(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(_validate_permutation, m)?)?;
     m.add_function(wrap_pyfunction!(_inverse_pattern, m)?)?;

@@ -10,11 +10,18 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
 
-use qiskit_circuit::circuit_data::{CircuitData, CircuitDataError, CircuitError, PyCircuitData};
+#[cfg(feature = "py")]
+use qiskit_circuit::NoBlocks;
+use qiskit_circuit::circuit_data::{CircuitData, CircuitDataError};
+#[cfg(feature = "py")]
+use qiskit_circuit::circuit_data::{CircuitError, PyCircuitData};
+#[cfg(feature = "py")]
 use qiskit_circuit::circuit_instruction::OperationFromPython;
 use qiskit_circuit::operations::Operation;
+#[cfg(feature = "py")]
 use qiskit_circuit::operations::OperationRef;
 use qiskit_circuit::operations::Param;
 use qiskit_circuit::operations::PauliProductMeasurement;
@@ -22,13 +29,33 @@ use qiskit_circuit::operations::PauliProductRotation;
 use qiskit_circuit::operations::StandardGate;
 use qiskit_circuit::operations::StandardInstruction;
 use qiskit_circuit::packed_instruction::PackedOperation;
-use qiskit_circuit::{Clbit, NoBlocks, Qubit};
+use qiskit_circuit::{Clbit, Qubit};
+
+use thiserror::Error;
 
 use crate::pauli_evolution::sparse_term_evolution;
 
+#[derive(Debug, Error)]
+pub enum PPMSynthError {
+    #[error(transparent)]
+    CircuitDataError(#[from] CircuitDataError),
+    #[error("A pauli measurement gate must have at least one non-'I' bit.")]
+    NoNonIdentityTerms,
+}
+
+#[cfg(feature = "py")]
+impl From<PPMSynthError> for PyErr {
+    fn from(err: PPMSynthError) -> PyErr {
+        match err {
+            PPMSynthError::CircuitDataError(e) => e.into(),
+            PPMSynthError::NoNonIdentityTerms => CircuitError::new_err(err.to_string()),
+        }
+    }
+}
+
 /// Synthesizes a PauliProductMeasurement instruction.
 /// This function is used in HighLevelSynthesis and is exposed to Python's class definition method.
-pub fn synthesize_ppm(ppm: &PauliProductMeasurement) -> PyResult<CircuitData> {
+pub fn synthesize_ppm(ppm: &PauliProductMeasurement) -> Result<CircuitData, PPMSynthError> {
     // The code is somewhat similar to pauli_evolution synthesis, however combining the two branches
     // is tricky.
     let num_qubits = ppm.num_qubits();
@@ -48,9 +75,7 @@ pub fn synthesize_ppm(ppm: &PauliProductMeasurement) -> PyResult<CircuitData> {
     let first_qubit = if !pauli_qubits.is_empty() {
         Qubit(pauli_qubits[0].0 as u32)
     } else {
-        return Err(CircuitError::new_err(
-            "A pauli measurement gate must have at least one non-'I' bit.",
-        ));
+        return Err(PPMSynthError::NoNonIdentityTerms);
     };
 
     // Basis change layer
@@ -136,6 +161,7 @@ pub fn synthesize_ppr(ppr: &PauliProductRotation) -> Result<CircuitData, Circuit
     CircuitData::from_packed_operations(ppr.num_qubits(), 0, instructions.map(Ok), global_phase)
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 fn synth_pauli_product_measurement(operation: &Bound<PyAny>) -> PyResult<PyCircuitData> {
     let op_from_python = operation.extract::<OperationFromPython<NoBlocks>>()?;
@@ -149,6 +175,7 @@ fn synth_pauli_product_measurement(operation: &Bound<PyAny>) -> PyResult<PyCircu
     }
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 fn synth_pauli_product_rotation(operation: &Bound<PyAny>) -> PyResult<PyCircuitData> {
     let op_from_python = operation.extract::<OperationFromPython<NoBlocks>>()?;
@@ -165,6 +192,7 @@ fn synth_pauli_product_rotation(operation: &Bound<PyAny>) -> PyResult<PyCircuitD
     }
 }
 
+#[cfg(feature = "py")]
 pub fn pauli_products_mod(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(synth_pauli_product_measurement))?;
     m.add_wrapped(wrap_pyfunction!(synth_pauli_product_rotation))?;

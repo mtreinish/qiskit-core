@@ -12,15 +12,17 @@
 
 use hashbrown::HashMap;
 use ndarray::{Array1, Array2, ArrayViewMut2, Axis, s};
+#[cfg(feature = "py")]
 use numpy::PyReadonlyArray2;
 use smallvec::{SmallVec, smallvec};
 use std::cmp;
 
+#[cfg(feature = "py")]
+use pyo3::prelude::*;
 use qiskit_circuit::Qubit;
+#[cfg(feature = "py")]
 use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
 use qiskit_circuit::operations::{Param, StandardGate};
-
-use pyo3::prelude::*;
 
 use super::utils::_add_row_or_col;
 
@@ -147,6 +149,7 @@ fn lower_cnot_synth(
 /// Synthesize a linear function, given by a boolean square matrix, into a circuit.
 /// This function uses the Patel-Markov-Hayes algorithm, described in arXiv:quant-ph/0302002,
 /// using section-wise elimination of the rows.
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (matrix, section_size=None))]
 pub fn synth_cnot_count_full_pmh(

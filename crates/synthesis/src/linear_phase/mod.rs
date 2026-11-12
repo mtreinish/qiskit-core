@@ -9,8 +9,9 @@
 // Any modifications or derivative works of this code must retain this
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
-
+#[cfg(feature = "py")]
 use numpy::PyReadonlyArray2;
+#[cfg(feature = "py")]
 use pyo3::{
     Bound, PyResult,
     exceptions::PyValueError,
@@ -18,6 +19,7 @@ use pyo3::{
     types::{PyModule, PyModuleMethods},
     wrap_pyfunction,
 };
+#[cfg(feature = "py")]
 use qiskit_circuit::{circuit_data::CircuitData, circuit_data::PyCircuitData, operations::Param};
 mod cnot_phase_synth;
 mod cx_cz_depth_lnn;
@@ -35,6 +37,7 @@ pub(crate) mod cz_depth_lnn;
 ///     1. Dmitri Maslov, Martin Roetteler,
 ///        *Shorter stabilizer circuits via Bruhat decomposition and quantum circuit transformations*,
 ///        `arXiv:1705.09176 <https://arxiv.org/abs/1705.09176>`_.
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (mat))]
 fn synth_cz_depth_line_mr(mat: PyReadonlyArray2<bool>) -> PyResult<PyCircuitData> {
@@ -49,7 +52,7 @@ fn synth_cz_depth_line_mr(mat: PyReadonlyArray2<bool>) -> PyResult<PyCircuitData
     let (num_qubits, lnn_gates) = cz_depth_lnn::synth_cz_depth_line_mr_inner(view);
     Ok(CircuitData::from_standard_gates(num_qubits as u32, lnn_gates, Param::Float(0.0))?.into())
 }
-
+#[cfg(feature = "py")]
 pub fn linear_phase(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(synth_cz_depth_line_mr))?;
     m.add_wrapped(wrap_pyfunction!(

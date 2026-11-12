@@ -9,20 +9,24 @@
 // Any modifications or derivative works of this code must retain this
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
-
+#[cfg(feature = "py")]
 use mcx::{
     c3x, c4x, synth_mcp_noaux_sp22, synth_mcx_1_clean_b95, synth_mcx_1_kg24, synth_mcx_2_kg24,
     synth_mcx_explicit, synth_mcx_n_clean_m15, synth_mcx_n_dirty_i15, synth_mcx_n_dirty_m15,
     synth_mcx_noaux_hp24, synth_mcx_noaux_sp22,
 };
+#[cfg(feature = "py")]
 use pyo3::exceptions::PyTypeError;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
+#[cfg(feature = "py")]
 use qiskit_circuit::circuit_data::PyCircuitData;
+#[cfg(feature = "py")]
 use qiskit_circuit::operations::Param;
 
 mod mcmt;
 mod mcx;
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name="synth_mcx_n_dirty_i15", signature = (num_controls, relative_phase=false, action_only=false))]
 fn py_synth_mcx_n_dirty_i15(
@@ -32,43 +36,43 @@ fn py_synth_mcx_n_dirty_i15(
 ) -> PyResult<PyCircuitData> {
     Ok(synth_mcx_n_dirty_i15(num_controls, relative_phase, action_only)?.into())
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name="synth_mcx_n_dirty_m15", signature = (num_controls))]
 fn py_synth_mcx_n_dirty_m15(num_controls: usize) -> PyResult<PyCircuitData> {
     Ok(synth_mcx_n_dirty_m15(num_controls)?.into())
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name="synth_mcx_1_kg24", signature = (num_controls, clean))]
 fn py_synth_mcx_1_kg24(num_controls: usize, clean: bool) -> PyResult<PyCircuitData> {
     Ok(synth_mcx_1_kg24(num_controls, clean)?.into())
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name="synth_mcx_2_kg24", signature = (num_controls, clean))]
 fn py_synth_mcx_2_kg24(num_controls: usize, clean: bool) -> PyResult<PyCircuitData> {
     Ok(synth_mcx_2_kg24(num_controls, clean)?.into())
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name="synth_mcx_n_clean_m15", signature = (num_controls))]
 fn py_synth_mcx_n_clean_m15(num_controls: usize) -> PyResult<PyCircuitData> {
     Ok(synth_mcx_n_clean_m15(num_controls)?.into())
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name="synth_mcx_noaux_hp24", signature = (num_controls))]
 fn py_synth_mcx_noaux_hp24(num_controls: usize) -> PyResult<PyCircuitData> {
     synth_mcx_noaux_hp24(num_controls).map(Into::into)
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name="synth_mcx_1_clean_b95", signature = (num_controls))]
 fn py_synth_mcx_1_clean_b95(num_controls: usize) -> PyResult<PyCircuitData> {
     Ok(synth_mcx_1_clean_b95(num_controls)?.into())
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "synth_mcp_noaux_sp22")]
 fn py_synth_mcp_noaux_sp22(num_controls: usize, phase: Param) -> PyResult<PyCircuitData> {
@@ -81,31 +85,31 @@ fn py_synth_mcp_noaux_sp22(num_controls: usize, phase: Param) -> PyResult<PyCirc
     }
     Ok(synth_mcp_noaux_sp22(num_controls, phase)?.into())
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "synth_mcx_noaux_sp22")]
 fn py_synth_mcx_noaux_sp22(num_controls: usize) -> PyResult<PyCircuitData> {
     Ok(synth_mcx_noaux_sp22(num_controls)?.into())
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "c3x")]
 fn py_c3x() -> PyResult<PyCircuitData> {
     Ok(c3x().into())
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "c4x")]
 fn py_c4x() -> PyResult<PyCircuitData> {
     Ok(c4x().into())
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "synth_mcx_explicit")]
 fn py_synth_mcx_explicit(num_controls: usize) -> PyResult<PyCircuitData> {
     Ok(synth_mcx_explicit(num_controls)?.into())
 }
-
+#[cfg(feature = "py")]
 pub fn multi_controlled(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_c3x, m)?)?;
     m.add_function(wrap_pyfunction!(py_c4x, m)?)?;

@@ -10,15 +10,20 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+#[cfg(feature = "py")]
 use crate::QiskitError;
+#[cfg(feature = "py")]
 use numpy::{IntoPyArray, PyArray2, PyReadonlyArray2, PyReadwriteArray2};
+#[cfg(feature = "py")]
 use pyo3::IntoPyObjectExt;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
 
 pub mod lnn;
 pub mod pmh;
 pub mod utils;
 
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (mat, ncols=None, full_elim=false))]
 /// Gauss elimination of a matrix mat with m rows and n columns.
@@ -43,7 +48,7 @@ fn gauss_elimination_with_perm(
     let perm = utils::gauss_elimination_with_perm_inner(matmut, ncols, full_elim);
     perm.into_py_any(py)
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (mat, ncols=None, full_elim=false))]
 /// Gauss elimination of a matrix mat with m rows and n columns.
@@ -62,7 +67,7 @@ fn gauss_elimination(
     let matmut = mat.as_array_mut();
     let _perm = utils::gauss_elimination_with_perm_inner(matmut, ncols, full_elim);
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (mat))]
 /// Given a boolean matrix mat after Gaussian elimination, computes its rank
@@ -76,7 +81,7 @@ fn compute_rank_after_gauss_elim(py: Python, mat: PyReadonlyArray2<bool>) -> PyR
     let rank = utils::compute_rank_after_gauss_elim_inner(view);
     rank.into_py_any(py)
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (mat))]
 /// Given a boolean matrix mat computes its rank
@@ -88,7 +93,7 @@ fn compute_rank(py: Python, mat: PyReadonlyArray2<bool>) -> PyResult<Py<PyAny>> 
     let rank = utils::compute_rank_inner(mat.as_array());
     rank.into_py_any(py)
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (mat, verify=false))]
 /// Given a boolean matrix mat, tries to calculate its inverse matrix
@@ -109,7 +114,7 @@ pub fn calc_inverse_matrix(
         utils::calc_inverse_matrix_inner(view, verify.is_some()).map_err(QiskitError::new_err)?;
     Ok(invmat.into_pyarray(py).unbind())
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (mat1, mat2))]
 /// Binary matrix multiplication
@@ -130,7 +135,7 @@ pub fn binary_matmul(
     let result = utils::binary_matmul_inner(view1, view2).map_err(QiskitError::new_err)?;
     Ok(result.into_pyarray(py).unbind())
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (mat, ctrl, trgt))]
 /// Perform ROW operation on a matrix mat
@@ -138,7 +143,7 @@ fn row_op(mut mat: PyReadwriteArray2<bool>, ctrl: usize, trgt: usize) {
     let matmut = mat.as_array_mut();
     utils::_add_row_or_col(matmut, &false, ctrl, trgt)
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (mat, ctrl, trgt))]
 /// Perform COL operation on a matrix mat (in the inverse direction)
@@ -146,7 +151,7 @@ fn col_op(mut mat: PyReadwriteArray2<bool>, ctrl: usize, trgt: usize) {
     let matmut = mat.as_array_mut();
     utils::_add_row_or_col(matmut, &true, trgt, ctrl)
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (num_qubits, seed=None))]
 /// Generate a random invertible n x n binary matrix.
@@ -163,7 +168,7 @@ fn random_invertible_binary_matrix(
     let matrix = utils::random_invertible_binary_matrix_inner(num_qubits, seed);
     Ok(matrix.into_pyarray(py).unbind())
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (mat))]
 /// Check that a binary matrix is invertible.
@@ -175,7 +180,7 @@ fn check_invertible_binary_matrix(mat: PyReadonlyArray2<bool>) -> bool {
     let view = mat.as_array();
     utils::check_invertible_binary_matrix_inner(view)
 }
-
+#[cfg(feature = "py")]
 pub fn linear(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(gauss_elimination_with_perm))?;
     m.add_wrapped(wrap_pyfunction!(gauss_elimination))?;

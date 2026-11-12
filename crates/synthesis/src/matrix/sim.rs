@@ -10,15 +10,19 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+#[cfg(feature = "py")]
+use crate::QiskitError;
 use ndarray::Array2;
 use num_complex::Complex64;
+#[cfg(feature = "py")]
 use numpy::IntoPyArray;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
-use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
+use qiskit_circuit::circuit_data::CircuitData;
+#[cfg(feature = "py")]
+use qiskit_circuit::circuit_data::PyCircuitData;
 use qiskit_circuit::operations::{Operation, OperationRef, Param, StandardInstruction};
 use qiskit_quantum_info::unitary_compose;
-
-use crate::QiskitError;
 
 // The code is based on top of unitary_compose. For circuits with 13 or more qubits, einsum
 // throws an "index out of bounds" error.
@@ -76,6 +80,7 @@ pub fn sim_unitary_circuit(circuit: &CircuitData) -> Result<Array2<Complex64>, S
 }
 
 /// Create a unitary matrix for a circuit.
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "sim_unitary_circuit")]
 pub fn py_sim_unitary_circuit(py: Python, circuit: &PyCircuitData) -> PyResult<Py<PyAny>> {
@@ -83,6 +88,7 @@ pub fn py_sim_unitary_circuit(py: Python, circuit: &PyCircuitData) -> PyResult<P
     Ok(product_mat.into_pyarray(py).into_any().unbind())
 }
 
+#[cfg(feature = "py")]
 pub fn unitary_sim(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(py_sim_unitary_circuit))?;
     Ok(())

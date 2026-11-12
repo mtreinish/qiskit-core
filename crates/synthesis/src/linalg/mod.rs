@@ -10,6 +10,8 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+#[cfg(feature = "py")]
+use crate::QiskitError;
 use approx::{abs_diff_eq, relative_ne};
 use faer::Mat;
 use faer::MatRef;
@@ -17,10 +19,9 @@ use nalgebra::{DMatrix, DMatrixView, Dim, Dyn, MatrixView, Scalar, ViewStorage};
 use ndarray::ArrayView2;
 use ndarray::ShapeBuilder;
 use num_complex::Complex64;
+#[cfg(feature = "py")]
 use pyo3::PyErr;
 use thiserror::Error;
-
-use crate::QiskitError;
 
 pub mod cos_sin_decomp;
 
@@ -40,6 +41,7 @@ pub enum LinAlgError {
     SVDDecompositionFailed,
 }
 
+#[cfg(feature = "py")]
 impl From<LinAlgError> for PyErr {
     fn from(error: LinAlgError) -> Self {
         match error {

@@ -2605,6 +2605,7 @@ dependencies = [
 name = "qiskit-synthesis"
 version = "2.7.0-dev"
 dependencies = [
+ "anyhow",
  "approx",
  "binrw",
  "bytemuck",

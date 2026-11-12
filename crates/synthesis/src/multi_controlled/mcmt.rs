@@ -9,14 +9,20 @@
 // Any modifications or derivative works of this code must retain this
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
-
+#[cfg(feature = "py")]
 use crate::QiskitError;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
-use qiskit_circuit::circuit_data::{CircuitData, CircuitDataError, PyCircuitData};
+#[cfg(feature = "py")]
+use qiskit_circuit::NoBlocks;
+use qiskit_circuit::circuit_data::CircuitDataError;
+#[cfg(feature = "py")]
+use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
+#[cfg(feature = "py")]
 use qiskit_circuit::circuit_instruction::OperationFromPython;
 use qiskit_circuit::operations::{Param, StandardGate};
 use qiskit_circuit::packed_instruction::PackedOperation;
-use qiskit_circuit::{Clbit, NoBlocks, Qubit};
+use qiskit_circuit::{Clbit, Qubit};
 use smallvec::{SmallVec, smallvec};
 
 type CCXChainItem = Result<
@@ -92,6 +98,7 @@ fn ccx_chain<'a>(
 ///     q_8: ──────────┤ X ├──■────■──┤ X ├──────────
 ///                    └───┘          └───┘
 ///
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (controlled_gate, num_ctrl_qubits, num_target_qubits, control_state=None))]
 pub fn mcmt_v_chain(

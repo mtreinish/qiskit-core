@@ -15,7 +15,9 @@ use std::f64::consts::FRAC_1_SQRT_2;
 use nalgebra::{Matrix2, Matrix4};
 use ndarray::{Array2, ArrayView2, array, aview2};
 use num_complex::{Complex64, ComplexFloat};
+#[cfg(feature = "py")]
 use numpy::{IntoPyArray, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
 
 use crate::linalg::ndarray_to_faer;
@@ -36,6 +38,7 @@ impl TraceToFidelity for Complex64 {
     }
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "trace_to_fid")]
 /// Average gate fidelity is :math:`Fbar = (d + |Tr (Utarget \\cdot U^dag)|^2) / d(d+1)`
@@ -162,7 +165,7 @@ pub(crate) fn ud(a: f64, b: f64, c: f64) -> Array2<Complex64> {
         ]
     ]
 }
-
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "Ud")]
 pub fn py_ud(py: Python, a: f64, b: f64, c: f64) -> Py<PyArray2<Complex64>> {
@@ -177,6 +180,7 @@ pub fn py_ud(py: Python, a: f64, b: f64, c: f64) -> Py<PyArray2<Complex64>> {
 /// Y. Makhlin, Quant. Info. Proc. 1, 243-252 (2002).
 ///
 /// Zhang et al., Phys Rev A. 67, 042313 (2003).
+#[cfg(feature = "py")]
 #[pyfunction]
 pub fn two_qubit_local_invariants(unitary: PyReadonlyArray2<Complex64>) -> [f64; 3] {
     let mat = unitary.as_array();
@@ -198,6 +202,7 @@ pub fn two_qubit_local_invariants(unitary: PyReadonlyArray2<Complex64>) -> [f64;
     [g1.re + 0., g1.im + 0., g2.re + 0.]
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 pub fn local_equivalence(weyl: PyReadonlyArray1<f64>) -> PyResult<[f64; 3]> {
     let weyl = weyl.as_array();

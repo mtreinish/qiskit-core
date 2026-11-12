@@ -9,21 +9,24 @@
 // Any modifications or derivative works of this code must retain this
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
-
+#[cfg(feature = "py")]
 use pyo3::types::PyAnyMethods;
+#[cfg(feature = "py")]
 use pyo3::{PyResult, Python};
+use qiskit_circuit::BlocksMode;
 use qiskit_circuit::circuit_data::{CircuitData, CircuitDataError};
-use qiskit_circuit::operations::{
-    Operation, OperationRef, Param, PyInstruction, PyOpKind, StandardGate, multiply_param,
-};
-use qiskit_circuit::{BlocksMode, imports};
+#[cfg(feature = "py")]
+use qiskit_circuit::imports;
+use qiskit_circuit::operations::{Operation, OperationRef, Param, StandardGate, multiply_param};
+#[cfg(feature = "py")]
+use qiskit_circuit::operations::{PyInstruction, PyOpKind};
 use qiskit_circuit::{Clbit, Qubit, VarsMode};
 use smallvec::SmallVec;
 
+#[cfg(feature = "py")]
+use crate::QiskitError;
 use qiskit_circuit::instruction::Parameters;
 use std::f64::consts::PI;
-
-use crate::QiskitError;
 const PI2: f64 = PI / 2.0;
 
 /// Definition circuit for CCX.
@@ -420,7 +423,10 @@ fn linear_depth_ladder_ops(num_controls: u32) -> Result<(CircuitData, u32), Circ
     let k = num_controls;
 
     if k < 3 {
-        return Err(QiskitError::new_err("linear_depth_ladder_ops requires >= 3 controls.").into());
+        return Err(CircuitDataError::BitExceedsCapacity(
+            "linear_depth_ladder_ops requires >= 3 controls.".to_string(),
+            num_controls as usize,
+        ));
     }
 
     // At most k-2 rungs, each RCCX (9 gates) + X (1 gate); pre-size to avoid reallocation.
@@ -545,7 +551,11 @@ pub fn synth_mcx_1_kg24(num_controls: usize, clean: bool) -> Result<CircuitData,
 ///    [arXiv:2407.17966](https://arxiv.org/abs/2407.17966).
 fn log_depth_ladder_ops(num_controls: u32) -> Result<(CircuitData, Vec<u32>), CircuitDataError> {
     if num_controls < 3 {
-        return Err(QiskitError::new_err("log_depth_ladder_ops requires >= 3 controls.").into());
+        return Err(CircuitDataError::BitExceedsCapacity(
+            "log_depth_ladder_ops requires >= 3 controls.".to_string(),
+            num_controls as usize,
+        )
+        .into());
     }
 
     // Rough upper bound: at most (num_controls-1) X+RCCX pairs across all rounds, 10 gates each.
@@ -757,6 +767,7 @@ pub fn synth_mcx_2_kg24(num_controls: usize, clean: bool) -> Result<CircuitData,
 ///
 /// A quantum circuit with :math:`k + 1` qubits.
 ///
+#[cfg(feature = "py")]
 #[allow(dead_code)]
 pub fn synth_mcx_mcp_noaux(
     py: Python,
@@ -1184,9 +1195,9 @@ pub fn synth_mcx_n_dirty_m15(num_controls: usize) -> Result<CircuitData, Circuit
 /// The construction appears in Fig. 18 in the supplementary material [2].
 ///
 /// Best suitable when n is large.
-fn increment_n_dirty_large(n: u32) -> PyResult<CircuitData> {
+fn increment_n_dirty_large(n: u32) -> Result<CircuitData, CircuitDataError> {
     // U_x^3-gate from Fig. 22 in [2].
-    fn ux(circuit: &mut CircuitData, q1: u32, q2: u32, q3: u32) -> PyResult<()> {
+    fn ux(circuit: &mut CircuitData, q1: u32, q2: u32, q3: u32) -> Result<(), CircuitDataError> {
         circuit.cx(q1, q3)?;
         circuit.cx(q1, q2)?;
         circuit.ccx(q2, q3, q1)?;
@@ -1194,7 +1205,7 @@ fn increment_n_dirty_large(n: u32) -> PyResult<CircuitData> {
     }
 
     // U_z^3-gate from Fig. 24 in [2].
-    fn uz(circuit: &mut CircuitData, q1: u32, q2: u32, q3: u32) -> PyResult<()> {
+    fn uz(circuit: &mut CircuitData, q1: u32, q2: u32, q3: u32) -> Result<(), CircuitDataError> {
         circuit.ccx(q2, q3, q1)?;
         circuit.cx(q1, q2)?;
         circuit.cx(q2, q3)?;
@@ -1272,7 +1283,7 @@ fn increment_n_dirty_large(n: u32) -> PyResult<CircuitData> {
 /// The construction appears in Fig. 10 in the main paper [1].
 ///
 /// Best suitable for when n is small.
-fn increment_n_dirty_small(n: u32) -> PyResult<CircuitData> {
+fn increment_n_dirty_small(n: u32) -> Result<CircuitData, CircuitDataError> {
     let mut circuit = CircuitData::with_capacity(2 * n, 0, 0, Param::Float(0.0))?;
 
     for k in (1..n).rev() {
@@ -1293,7 +1304,7 @@ fn increment_n_dirty_small(n: u32) -> PyResult<CircuitData> {
 /// # Returns
 ///
 /// A quantum circuit with :math:`2 * n` qubits.
-fn increment_n_dirty(n: u32) -> PyResult<CircuitData> {
+fn increment_n_dirty(n: u32) -> Result<CircuitData, CircuitDataError> {
     if n <= 10 {
         increment_n_dirty_small(n)
     } else {
@@ -1393,10 +1404,11 @@ fn synth_relative_mcx_n_dirty(num_controls: usize) -> Result<CircuitData, Circui
 /// # Returns
 ///
 /// A quantum circuit with :math:`n+1` qubits.
-fn increment_1_dirty(n: u32, flag_add: bool) -> PyResult<CircuitData> {
+fn increment_1_dirty(n: u32, flag_add: bool) -> Result<CircuitData, CircuitDataError> {
     if n.is_multiple_of(2) {
-        return Err(QiskitError::new_err(
-            "increment_1_dirty_large requires an odd number of qubits.",
+        return Err(CircuitDataError::BitExceedsCapacity(
+            "increment_1_dirty_large requires an odd number of qubits.".to_string(),
+            n as usize,
         ));
     }
 
@@ -1491,7 +1503,7 @@ fn increment_1_dirty(n: u32, flag_add: bool) -> PyResult<CircuitData> {
 /// # Returns
 ///
 /// A quantum circuit with :math:`n+2` qubits.
-fn increment_2_dirty(n: u32, flag_add: bool) -> PyResult<CircuitData> {
+fn increment_2_dirty(n: u32, flag_add: bool) -> Result<CircuitData, CircuitDataError> {
     let k = (n + 2) / 2; // same as (n+1)/2 for n odd, and (n+2)/2 for n even
 
     // This construction is a slight modification of the construction described
@@ -1597,7 +1609,7 @@ fn increment_2_dirty(n: u32, flag_add: bool) -> PyResult<CircuitData> {
 ///
 /// 1. Huang and Palsberg, *Compiling Conditional Quantum Gates without Using Helper Qubits*, PLDI (2024),
 ///    https://dl.acm.org/doi/10.1145/3656436.
-pub fn synth_mcx_noaux_hp24(num_controls: usize) -> PyResult<CircuitData> {
+pub fn synth_mcx_noaux_hp24(num_controls: usize) -> Result<CircuitData, CircuitDataError> {
     // Handle small cases explicitly.
     if num_controls <= 1 {
         synth_mcx_explicit(num_controls).map_err(Into::into)

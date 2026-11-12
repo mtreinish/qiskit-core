@@ -15,12 +15,20 @@ pub(crate) mod greedy_synthesis;
 mod random_clifford;
 pub(crate) mod utils;
 
+#[cfg(feature = "py")]
 use crate::QiskitError;
+#[cfg(feature = "py")]
 use crate::clifford::bm_synthesis::synth_clifford_bm_inner;
+#[cfg(feature = "py")]
 use crate::clifford::greedy_synthesis::GreedyCliffordSynthesis;
+
+#[cfg(feature = "py")]
 use numpy::{IntoPyArray, PyArray2, PyReadonlyArray2};
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
+#[cfg(feature = "py")]
 use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
+#[cfg(feature = "py")]
 use qiskit_circuit::operations::Param;
 
 /// Create a circuit that synthesizes a given Clifford operator represented as a tableau.
@@ -33,6 +41,7 @@ use qiskit_circuit::operations::Param;
 ///
 /// Note that this function only implements the greedy Clifford compiler and not the
 /// templates and symbolic Pauli gates optimizations that are also described in the paper.
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (clifford))]
 fn synth_clifford_greedy(clifford: PyReadonlyArray2<bool>) -> PyResult<PyCircuitData> {
@@ -58,6 +67,7 @@ fn synth_clifford_greedy(clifford: PyReadonlyArray2<bool>) -> PyResult<PyCircuit
 ///     seed: an optional random seed.
 /// Returns:
 ///     result: a random clifford tableau.
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (num_qubits, seed=None))]
 fn random_clifford_tableau(
@@ -74,6 +84,7 @@ fn random_clifford_tableau(
 ///
 /// This implementation follows the paper "Hadamard-free circuits expose the structure
 /// of the Clifford group" by S. Bravyi, D. Maslov (2020), `<https://arxiv.org/abs/2003.09412>`__.
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (clifford))]
 fn synth_clifford_bm(clifford: PyReadonlyArray2<bool>) -> PyResult<PyCircuitData> {
@@ -86,6 +97,7 @@ fn synth_clifford_bm(clifford: PyReadonlyArray2<bool>) -> PyResult<PyCircuitData
     )
 }
 
+#[cfg(feature = "py")]
 pub fn clifford(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(synth_clifford_greedy, m)?)?;
     m.add_function(wrap_pyfunction!(synth_clifford_bm, m)?)?;

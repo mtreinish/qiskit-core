@@ -18,20 +18,30 @@ use num_traits::Zero;
 use smallvec::{SmallVec, smallvec};
 use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_2, FRAC_PI_4, PI, TAU};
 
+use faer::linalg::evd::EvdError;
 use nalgebra::{Matrix2, MatrixView2, U2};
 use ndarray::linalg::kron;
 use ndarray::prelude::*;
+#[cfg(feature = "py")]
 use numpy::PyReadonlyArray2;
+#[cfg(feature = "py")]
 use numpy::{IntoPyArray, ToPyArray};
 
+#[cfg(feature = "py")]
 use pyo3::exceptions::PyValueError;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
 use thiserror::Error;
 
 use super::common::{DEFAULT_FIDELITY, HGATE, IPZ, TraceToFidelity, rx_matrix, rz_matrix};
 use super::gate_sequence::{TwoQubitGateSequence, TwoQubitSequenceVec};
-use super::weyl_decomposition::{__num_basis_gates, _num_basis_gates, TwoQubitWeylDecomposition};
+#[cfg(feature = "py")]
+use super::weyl_decomposition::_num_basis_gates;
+use super::weyl_decomposition::{
+    __num_basis_gates, TwoQubitWeylDecomposition, WeylDecompositionError,
+};
 
+#[cfg(feature = "py")]
 use crate::QiskitError;
 use crate::euler_one_qubit_decomposer::{
     ANGLE_ZERO_EPSILON, EulerBasis, EulerBasisSet, OneQubitGateSequence, angles_from_unitary,
@@ -40,15 +50,25 @@ use crate::euler_one_qubit_decomposer::{
 use crate::linalg::{nalgebra_array_view, ndarray_to_faer};
 use crate::matrix::two_qubit;
 
+#[cfg(feature = "py")]
+use qiskit_circuit::NoBlocks;
+use qiskit_circuit::Qubit;
+#[cfg(feature = "py")]
 use qiskit_circuit::bit::ShareableQubit;
-use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
+#[cfg(feature = "py")]
+use qiskit_circuit::circuit_data::PyCircuitData;
+use qiskit_circuit::circuit_data::{CircuitData, CircuitDataError};
+#[cfg(feature = "py")]
 use qiskit_circuit::circuit_instruction::OperationFromPython;
-use qiskit_circuit::dag_circuit::{DAGCircuit, PyDAGCircuit};
+#[cfg(feature = "py")]
+use qiskit_circuit::dag_circuit::DAGCircuit;
+#[cfg(feature = "py")]
+use qiskit_circuit::dag_circuit::PyDAGCircuit;
 use qiskit_circuit::gate_matrix::{CX_GATE, ONE_QUBIT_IDENTITY};
+#[cfg(feature = "py")]
 use qiskit_circuit::instruction::{Instruction, Parameters};
 use qiskit_circuit::operations::{Operation, OperationRef, Param, StandardGate};
 use qiskit_circuit::packed_instruction::PackedOperation;
-use qiskit_circuit::{NoBlocks, Qubit};
 use qiskit_util::complex::{C_M_ONE, C_ONE, C_ZERO, IM, M_IM, c64};
 
 /// Errors that can occur during two-qubit basis decomposition.
@@ -68,14 +88,19 @@ pub enum TwoQubitBasisError {
 
     #[error("KAK gate must be unparameterized")]
     ParameterizedKAKGate,
+
+    #[error(transparent)]
+    WeylDecompositionError(#[from] WeylDecompositionError),
 }
 
+#[cfg(feature = "py")]
 impl From<TwoQubitBasisError> for PyErr {
     fn from(error: TwoQubitBasisError) -> Self {
         let msg = error.to_string();
         match error {
             TwoQubitBasisError::UnsupportedControlFlow
             | TwoQubitBasisError::ParameterizedKAKGate => PyValueError::new_err(msg),
+            TwoQubitBasisError::WeylDecompositionError(err) => err.into(),
             _ => QiskitError::new_err(msg),
         }
     }
@@ -123,7 +148,10 @@ static K22R: Matrix2<Complex64> = Matrix2::new(Complex64::ZERO, C_ONE, C_M_ONE, 
 
 #[derive(Clone, Debug)]
 #[allow(non_snake_case)]
-#[pyclass(module = "qiskit._accelerate.two_qubit_decompose", subclass)]
+#[cfg_attr(
+    feature = "py",
+    pyclass(module = "qiskit._accelerate.two_qubit_decompose", subclass)
+)]
 pub struct TwoQubitBasisDecomposer {
     gate: PackedOperation,
     gate_params: SmallVec<[f64; 3]>,
@@ -131,7 +159,7 @@ pub struct TwoQubitBasisDecomposer {
     euler_basis: EulerBasis,
     pulse_optimize: Option<bool>,
     basis_decomposer: TwoQubitWeylDecomposition,
-    #[pyo3(get)]
+    #[cfg_attr(feature = "py", pyo3(get))]
     super_controlled: bool,
     u0l: Matrix2<Complex64>,
     u0r: Matrix2<Complex64>,
@@ -160,7 +188,7 @@ impl TwoQubitBasisDecomposer {
     }
 
     /// Compute the number of basis gates needed for a given unitary
-    pub fn num_basis_gates_inner(&self, unitary: ArrayView2<Complex64>) -> PyResult<usize> {
+    pub fn num_basis_gates_inner(&self, unitary: ArrayView2<Complex64>) -> Result<usize, EvdError> {
         let u = ndarray_to_faer(unitary);
         __num_basis_gates(self.basis_decomposer.b, self.basis_fidelity, u)
     }
@@ -554,6 +582,25 @@ impl TwoQubitBasisDecomposer {
         Ok(res)
     }
 
+    fn traces(&self, target: &TwoQubitWeylDecomposition) -> [Complex64; 4] {
+        [
+            4. * c64(
+                target.a.cos() * target.b.cos() * target.c.cos(),
+                target.a.sin() * target.b.sin() * target.c.sin(),
+            ),
+            4. * c64(
+                (FRAC_PI_4 - target.a).cos()
+                    * (self.basis_decomposer.b - target.b).cos()
+                    * target.c.cos(),
+                (FRAC_PI_4 - target.a).sin()
+                    * (self.basis_decomposer.b - target.b).sin()
+                    * target.c.sin(),
+            ),
+            c64(4. * target.c.cos(), 0.),
+            c64(4., 0.),
+        ]
+    }
+
     pub fn new_inner(
         gate: PackedOperation,
         gate_params: SmallVec<[f64; 3]>,
@@ -561,7 +608,7 @@ impl TwoQubitBasisDecomposer {
         basis_fidelity: f64,
         euler_basis: EulerBasis,
         pulse_optimize: Option<bool>,
-    ) -> PyResult<Self> {
+    ) -> Result<Self, TwoQubitBasisError> {
         let basis_decomposer =
             TwoQubitWeylDecomposition::new_inner(gate_matrix, Some(DEFAULT_FIDELITY), None)?;
         let super_controlled = relative_eq!(basis_decomposer.a, FRAC_PI_4, max_relative = 1e-09)
@@ -677,7 +724,7 @@ impl TwoQubitBasisDecomposer {
         basis_fidelity: Option<f64>,
         approximate: bool,
         _num_basis_uses: Option<u8>,
-    ) -> PyResult<TwoQubitGateSequence> {
+    ) -> Result<TwoQubitGateSequence, TwoQubitBasisError> {
         let basis_fidelity = if !approximate {
             1.0
         } else {
@@ -770,8 +817,10 @@ fn decomp0_inner(target: &TwoQubitWeylDecomposition) -> SmallVec<[Matrix2<Comple
     smallvec![target.K1r * target.K2r, target.K1l * target.K2l,]
 }
 
+#[cfg(feature = "py")]
 type PickleNewArgs<'a> = (Py<PyAny>, Py<PyAny>, f64, &'a str, Option<bool>);
 
+#[cfg(feature = "py")]
 #[pymethods]
 impl TwoQubitBasisDecomposer {
     fn __getnewargs__(&self, py: Python) -> PyResult<PickleNewArgs<'_>> {
@@ -825,23 +874,9 @@ impl TwoQubitBasisDecomposer {
         )
     }
 
-    fn traces(&self, target: &TwoQubitWeylDecomposition) -> [Complex64; 4] {
-        [
-            4. * c64(
-                target.a.cos() * target.b.cos() * target.c.cos(),
-                target.a.sin() * target.b.sin() * target.c.sin(),
-            ),
-            4. * c64(
-                (FRAC_PI_4 - target.a).cos()
-                    * (self.basis_decomposer.b - target.b).cos()
-                    * target.c.cos(),
-                (FRAC_PI_4 - target.a).sin()
-                    * (self.basis_decomposer.b - target.b).sin()
-                    * target.c.sin(),
-            ),
-            c64(4. * target.c.cos(), 0.),
-            c64(4., 0.),
-        ]
+    #[pyo3(name = "traces")]
+    fn py_traces(&self, target: &TwoQubitWeylDecomposition) -> [Complex64; 4] {
+        self.traces(target)
     }
 
     /// Decompose target :math:`\sim U_d(x, y, z)` with :math:`0` uses of the basis gate.
@@ -1031,6 +1066,7 @@ fn real_trace_transform(mat: ArrayView2<Complex64>) -> Array2<Complex64> {
     Array2::from_diag(&arr1(&temp))
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "two_qubit_decompose_up_to_diagonal")]
 pub fn py_two_qubit_decompose_up_to_diagonal(
@@ -1042,9 +1078,27 @@ pub fn py_two_qubit_decompose_up_to_diagonal(
     Ok((real_map.into_pyarray(py).into_any().unbind(), circ.into()))
 }
 
+#[derive(Debug, Error)]
+enum TwoQubitUpToDiagonalError {
+    #[error(transparent)]
+    TwoQubitBasisError(#[from] TwoQubitBasisError),
+    #[error(transparent)]
+    CircuitError(#[from] CircuitDataError),
+}
+
+#[cfg(feature = "py")]
+impl From<TwoQubitUpToDiagonalError> for PyErr {
+    fn from(err: TwoQubitUpToDiagonalError) -> PyErr {
+        match err {
+            TwoQubitUpToDiagonalError::TwoQubitBasisError(e) => e.into(),
+            TwoQubitUpToDiagonalError::CircuitError(e) => e.inot(),
+        }
+    }
+}
+
 pub fn two_qubit_decompose_up_to_diagonal(
     mat: ArrayView2<Complex64>,
-) -> PyResult<(Array2<Complex64>, CircuitData)> {
+) -> Result<(Array2<Complex64>, CircuitData), TwoQubitUpToDiagonalError> {
     let (su4, phase) = u4_to_su4(mat);
     let mut real_map = real_trace_transform(su4.view());
     let mapped_su4 = real_map.dot(&su4.view());

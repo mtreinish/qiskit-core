@@ -14,30 +14,43 @@ use approx::abs_diff_eq;
 use num_complex::Complex64;
 use smallvec::{SmallVec, smallvec};
 use std::f64::consts::FRAC_PI_2;
+use std::str::FromStr;
 
-use nalgebra::{Matrix2, MatrixView2, U2};
-use ndarray::prelude::*;
-use numpy::PyReadonlyArray2;
-
-use pyo3::intern;
-use pyo3::prelude::*;
-use pyo3::types::PyType;
-
+#[cfg(feature = "py")]
 use crate::QiskitError;
 use crate::euler_one_qubit_decomposer::{
     EulerBasis, EulerBasisSet, unitary_to_gate_sequence_inner,
 };
 use crate::linalg::nalgebra_array_view;
+use nalgebra::{Matrix2, MatrixView2, U2};
+use ndarray::prelude::*;
+#[cfg(feature = "py")]
+use numpy::PyReadonlyArray2;
+#[cfg(feature = "py")]
+use pyo3::exceptions::PyValueError;
+#[cfg(feature = "py")]
+use pyo3::intern;
+#[cfg(feature = "py")]
+use pyo3::prelude::*;
+#[cfg(feature = "py")]
+use pyo3::types::PyType;
 
-use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
+use qiskit_circuit::circuit_data::CircuitData;
+#[cfg(feature = "py")]
+use qiskit_circuit::circuit_data::PyCircuitData;
+#[cfg(feature = "py")]
 use qiskit_circuit::circuit_instruction::OperationFromPython;
 use qiskit_circuit::operations::{Operation, OperationRef, Param, StandardGate};
 use qiskit_circuit::packed_instruction::PackedOperation;
+#[cfg(feature = "py")]
 use qiskit_circuit::{NoBlocks, Qubit};
+use thiserror::Error;
 
 use super::common::{DEFAULT_FIDELITY, HGATE, SDGGATE, SGATE};
 use super::gate_sequence::{TwoQubitGateSequence, TwoQubitSequenceVec};
-use super::weyl_decomposition::{Specialization, TwoQubitWeylDecomposition};
+use super::weyl_decomposition::{
+    Specialization, TwoQubitWeylDecomposition, WeylDecompositionError,
+};
 
 /// The output representing an equivalent circuit to an RXXGate
 struct TwoQubitUnitary {
@@ -51,16 +64,27 @@ struct TwoQubitUnitary {
     one_qubit_components: [Matrix2<Complex64>; 4],
 }
 
-#[derive(Clone, Debug, FromPyObject)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "py", derive(FromPyObject))]
 pub enum RXXEquivalent {
     Standard(StandardGate),
+    #[cfg(feature = "py")]
     CustomPython(Py<PyType>),
 }
 
 impl RXXEquivalent {
+    #[cfg(not(feature = "py"))]
+    fn matrix(&self, param: f64) -> Array2<Complex64> {
+        match self {
+            Self::Standard(gate) => gate.matrix(&[Param::Float(param)]).unwrap(),
+        }
+    }
+
+    #[cfg(feature = "py")]
     fn matrix(&self, param: f64) -> PyResult<Array2<Complex64>> {
         match self {
             Self::Standard(gate) => Ok(gate.matrix(&[Param::Float(param)]).unwrap()),
+            #[cfg(feature = "py")]
             Self::CustomPython(gate_cls) => Python::attach(|py: Python| {
                 let gate_obj = gate_cls.bind(py).call1((param,))?;
                 let raw_matrix = gate_obj
@@ -71,6 +95,7 @@ impl RXXEquivalent {
         }
     }
 }
+#[cfg(feature = "py")]
 impl<'a, 'py> IntoPyObject<'py> for &'a RXXEquivalent {
     type Target = PyAny;
     type Output = Borrowed<'a, 'py, Self::Target>;
@@ -82,6 +107,7 @@ impl<'a, 'py> IntoPyObject<'py> for &'a RXXEquivalent {
         }
     }
 }
+#[cfg(feature = "py")]
 impl<'py> IntoPyObject<'py> for RXXEquivalent {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -95,11 +121,14 @@ impl<'py> IntoPyObject<'py> for RXXEquivalent {
 }
 
 #[derive(Clone, Debug)]
-#[pyclass(module = "qiskit._accelerate.two_qubit_decompose", subclass)]
+#[cfg_attr(
+    feature = "py",
+    pyclass(module = "qiskit._accelerate.two_qubit_decompose", subclass)
+)]
 pub struct TwoQubitControlledUDecomposer {
     rxx_equivalent_gate: RXXEquivalent,
     euler_basis: EulerBasis,
-    #[pyo3(get)]
+    #[cfg_attr(feature = "py", pyo3(get))]
     scale: f64,
 }
 
@@ -111,7 +140,10 @@ type InverseReturn = (PackedOperation, SmallVec<[f64; 3]>, SmallVec<[u8; 2]>);
 ///  gate that is locally equivalent to an :class:`.RXXGate`.
 impl TwoQubitControlledUDecomposer {
     /// Compute the number of basis gates needed for a given unitary
-    pub fn num_basis_gates_inner(&self, unitary: ArrayView2<Complex64>) -> PyResult<usize> {
+    pub fn num_basis_gates_inner(
+        &self,
+        unitary: ArrayView2<Complex64>,
+    ) -> Result<usize, WeylDecompositionError> {
         let target_decomposed =
             TwoQubitWeylDecomposition::new_inner(unitary, Some(DEFAULT_FIDELITY), None)?;
         let num_basis_gates = (((target_decomposed.a).abs() > DEFAULT_ATOL) as usize)
@@ -124,7 +156,7 @@ impl TwoQubitControlledUDecomposer {
     fn invert_2q_gate(
         &self,
         gate: (PackedOperation, SmallVec<[f64; 3]>, SmallVec<[u8; 2]>),
-    ) -> PyResult<InverseReturn> {
+    ) -> Result<InverseReturn, RXXGateError> {
         let (gate, params, qubits) = gate;
         let inv_gate = match gate.view() {
             OperationRef::StandardGate(gate) => {
@@ -133,6 +165,7 @@ impl TwoQubitControlledUDecomposer {
                     .unwrap();
                 (res.0.into(), res.1)
             }
+            #[cfg(feature = "py")]
             OperationRef::PyCustom(inst) => {
                 Python::attach(|py: Python| -> PyResult<(PackedOperation, SmallVec<_>)> {
                     let raw_inverse = inst.ob.call_method0(py, intern!(py, "inverse"))?;
@@ -181,13 +214,15 @@ impl TwoQubitControlledUDecomposer {
     ///      ├─────┤│  Equiv_inv │├─────┤
     /// q_1: ┤ k1l ├┤1           ├┤ k2l ├
     ///      └─────┘└────────────┘└─────┘
-    fn to_rxx_gate(&self, angle: f64, is_inv_rxx: bool) -> PyResult<TwoQubitUnitary> {
+    fn to_rxx_gate(&self, angle: f64, is_inv_rxx: bool) -> Result<TwoQubitUnitary, RXXGateError> {
         // The user-provided RXX equivalent gate may be locally equivalent to the RXX gate
         // but with some scaling in the rotation angle. For example, RXX(angle) has Weyl
         // parameters (angle, 0, 0) for angle in [0, pi/2] but the user provided gate, i.e.
         // :code:`self.rxx_equivalent_gate(angle)` might produce the Weyl parameters
         // (scale * angle, 0, 0) where scale != 1. This is the case for the CPhase gate.
-
+        #[cfg(not(feature = "py"))]
+        let mat = self.rxx_equivalent_gate.matrix(self.scale * angle);
+        #[cfg(feature = "py")]
         let mat = self.rxx_equivalent_gate.matrix(self.scale * angle)?;
         let decomposer_inv =
             TwoQubitWeylDecomposition::new_inner(mat.view(), Some(DEFAULT_FIDELITY), None)?;
@@ -222,6 +257,7 @@ impl TwoQubitControlledUDecomposer {
         }
         let rxx_op = match &self.rxx_equivalent_gate {
             RXXEquivalent::Standard(gate) => PackedOperation::from_standard_gate(*gate),
+            #[cfg(feature = "py")]
             RXXEquivalent::CustomPython(gate_cls) => {
                 Python::attach(|py| -> PyResult<PackedOperation> {
                     let op: OperationFromPython<NoBlocks> =
@@ -301,7 +337,7 @@ impl TwoQubitControlledUDecomposer {
         atol: f64,
         c_mats: [Matrix2<Complex64>; 4],
         target_1q_basis_list: EulerBasisSet,
-    ) -> PyResult<()> {
+    ) -> Result<(), RXXGateError> {
         // RXX(a)
         let TwoQubitUnitary {
             op: circ_a_gate,
@@ -512,7 +548,7 @@ impl TwoQubitControlledUDecomposer {
         &self,
         unitary: ArrayView2<Complex64>,
         atol: Option<f64>,
-    ) -> PyResult<TwoQubitGateSequence> {
+    ) -> Result<TwoQubitGateSequence, ControlledUDecomposerError> {
         let target_decomposed =
             TwoQubitWeylDecomposition::new_inner(unitary, Some(DEFAULT_FIDELITY), None)?;
 
@@ -548,32 +584,35 @@ impl TwoQubitControlledUDecomposer {
     }
 
     /// Initialize the KAK decomposition.
-    pub fn new_inner(rxx_equivalent_gate: RXXEquivalent, euler_basis: &str) -> PyResult<Self> {
+    pub fn new_inner(
+        rxx_equivalent_gate: RXXEquivalent,
+        euler_basis: &str,
+    ) -> Result<Self, ControlledUDecomposerError> {
         let atol = DEFAULT_ATOL;
         let test_angles = [0.2, 0.3, FRAC_PI_2];
 
-        let scales: PyResult<Vec<f64>> = test_angles
+        let scales: Result<Vec<f64>, ControlledUDecomposerError> = test_angles
             .into_iter()
             .map(|test_angle| {
                 match &rxx_equivalent_gate {
                     RXXEquivalent::Standard(gate) => {
                         if gate.num_params() != 1 {
-                            return Err(QiskitError::new_err(
-                                "Equivalent gate needs to take exactly 1 angle parameter.",
-                            ));
+                            return Err(ControlledUDecomposerError::InvalidParamCount);
                         }
                     }
+                    #[cfg(feature = "py")]
                     RXXEquivalent::CustomPython(gate_cls) => {
                         let takes_param = Python::attach(|py: Python| {
                             gate_cls.bind(py).call1((test_angle,)).ok().is_none()
                         });
                         if takes_param {
-                            return Err(QiskitError::new_err(
-                                "Equivalent gate needs to take exactly 1 angle parameter.",
-                            ));
+                            return Err(ControlledUDecomposerError::InvalidParamCount);
                         }
                     }
                 };
+                #[cfg(not(feature = "py"))]
+                let mat = rxx_equivalent_gate.matrix(test_angle);
+                #[cfg(feature = "py")]
                 let mat = rxx_equivalent_gate.matrix(test_angle)?;
                 let decomp =
                     TwoQubitWeylDecomposition::new_inner(mat.view(), Some(DEFAULT_FIDELITY), None)?;
@@ -592,9 +631,7 @@ impl TwoQubitControlledUDecomposer {
                 )?;
                 let scale_a = decomposer_rxx.a / decomposer_equiv.a;
                 if (decomp.a * 2.0 - test_angle / scale_a).abs() > atol {
-                    return Err(QiskitError::new_err(
-                        "The provided gate is not equivalent to an RXX.",
-                    ));
+                    return Err(ControlledUDecomposerError::NotRxxEquivalent);
                 }
                 Ok(scale_a)
             })
@@ -606,16 +643,16 @@ impl TwoQubitControlledUDecomposer {
         // Check that all three tested angles give the same scale
         for scale_val in &scales {
             if !abs_diff_eq!(scale_val, &scale, epsilon = atol) {
-                return Err(QiskitError::new_err(
-                    "Inconsistent scaling parameters in check.",
-                ));
+                return Err(ControlledUDecomposerError::ScaleError);
             }
         }
 
         Ok(TwoQubitControlledUDecomposer {
             scale,
             rxx_equivalent_gate,
-            euler_basis: EulerBasis::__new__(euler_basis)?,
+            euler_basis: EulerBasis::from_str(euler_basis).map_err(|_| {
+                ControlledUDecomposerError::InvalidEulerBasis(euler_basis.to_string())
+            })?,
         })
     }
 
@@ -645,6 +682,71 @@ impl TwoQubitControlledUDecomposer {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum ControlledUDecomposerError {
+    #[error("{0}")]
+    InvalidEulerBasis(String),
+    #[error(transparent)]
+    WeylDecompositionError(WeylDecompositionError),
+    #[error("Inconsistent scaling parameters in check.")]
+    ScaleError,
+    #[error("The provided gate is not equivalent to an RXX.")]
+    NotRxxEquivalent,
+    #[error("Equivalent gate needs to take exactly 1 angle parameter.")]
+    InvalidParamCount,
+    #[cfg(feature = "py")]
+    #[error("{0}")]
+    FromPython(#[from] PyErr),
+}
+
+impl From<WeylDecompositionError> for ControlledUDecomposerError {
+    fn from(err: WeylDecompositionError) -> Self {
+        Self::WeylDecompositionError(err)
+    }
+}
+
+impl From<RXXGateError> for ControlledUDecomposerError {
+    fn from(err: RXXGateError) -> ControlledUDecomposerError {
+        match err {
+            RXXGateError::WeylDecompositionError(e) => {
+                ControlledUDecomposerError::WeylDecompositionError(e)
+            }
+            #[cfg(feature = "py")]
+            RXXGateError::FromPython(e) => ControlledUDecomposerError::FromPython(e),
+        }
+    }
+}
+
+#[cfg(feature = "py")]
+impl From<ControlledUDecomposerError> for PyErr {
+    fn from(err: ControlledUDecomposerError) -> PyErr {
+        match err {
+            InvalidEulerBasis(basis) => {
+                PyValueError::new_err(format!("Invalid target basis '{basis}'"))
+            }
+            WeylDecompositionError(err) => err.into(),
+            FromPython(err) => err,
+            _ => QiskitError::new_err(err.to_string()),
+        }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum RXXGateError {
+    #[error("{0}")]
+    WeylDecompositionError(WeylDecompositionError),
+    #[cfg(feature = "py")]
+    #[error("{0}")]
+    FromPython(#[from] PyErr),
+}
+
+impl From<WeylDecompositionError> for RXXGateError {
+    fn from(err: WeylDecompositionError) -> Self {
+        Self::WeylDecompositionError(err)
+    }
+}
+
+#[cfg(feature = "py")]
 #[pymethods]
 impl TwoQubitControlledUDecomposer {
     fn __getnewargs__(&self) -> (&RXXEquivalent, &str) {

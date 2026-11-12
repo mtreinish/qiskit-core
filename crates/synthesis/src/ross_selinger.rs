@@ -12,25 +12,51 @@
 
 use ndarray::ArrayView2;
 use num_complex::Complex64;
-
+#[cfg(feature = "py")]
+use numpy::PyReadonlyArray2;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
 
-use numpy::PyReadonlyArray2;
-
+#[cfg(feature = "py")]
+use crate::QiskitError;
+use crate::euler_one_qubit_decomposer::params_zxz_inner;
+use qiskit_circuit::Qubit;
+#[cfg(feature = "py")]
+use qiskit_circuit::circuit_data::PyCircuitData;
+use qiskit_circuit::circuit_data::{CircuitData, CircuitDataError};
+use qiskit_circuit::operations::{Param, StandardGate};
 use rsgridsynth::clear_caches;
 use rsgridsynth::config::config_from_theta_epsilon;
 use rsgridsynth::gridsynth::gridsynth_gates;
 
-use crate::QiskitError;
-use crate::euler_one_qubit_decomposer::params_zxz_inner;
-use qiskit_circuit::Qubit;
-use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
-use qiskit_circuit::operations::{Param, StandardGate};
+use thiserror::Error;
 
 use std::f64::consts::{FRAC_PI_4, FRAC_PI_8};
 
+#[derive(Debug, Error)]
+pub enum RossSelingerError {
+    #[error(transparent)]
+    CircuitDataError(#[from] CircuitDataError),
+    #[error("Unknown character in gridsynth output: {0}")]
+    InvalidCharacter(char),
+}
+
+#[cfg(feature = "py")]
+impl From<RossSelingerError> for PyErr {
+    fn from(err: RossSelingerError) -> PyErr {
+        match err {
+            RossSelingerError::CircuitDataError(e) => e.into(),
+            RossSelingerError::InvalidCharacter(e) => QiskitError::new_err(e.to_string()),
+        }
+    }
+}
+
 /// Creates a circuit from the (iterator over) gate names that are returned by rsgridsynth.
-fn circuit_from_string<S>(s: S, phase: f64, instruction_capacity: usize) -> PyResult<CircuitData>
+fn circuit_from_string<S>(
+    s: S,
+    phase: f64,
+    instruction_capacity: usize,
+) -> Result<CircuitData, RossSelingerError>
 where
     S: IntoIterator<Item = char>,
 {
@@ -57,17 +83,13 @@ where
                 // and not the Clifford W-gate used in Qiskit.
                 circuit.add_global_phase(&Param::Float(FRAC_PI_4))?;
             }
-            _ => {
-                return Err(QiskitError::new_err(format!(
-                    "Unknown character in gridsynth output: {c}"
-                )));
-            }
+            _ => return Err(RossSelingerError::InvalidCharacter(c)),
         };
     }
     Ok(circuit)
 }
 
-pub fn gridsynth_rz(theta: f64, epsilon: f64) -> PyResult<CircuitData> {
+pub fn gridsynth_rz(theta: f64, epsilon: f64) -> Result<CircuitData, RossSelingerError> {
     let res = gridsynth_gates(&mut config_from_theta_epsilon(
         theta, epsilon, 0u64, false, true,
     ));
@@ -85,6 +107,7 @@ pub fn gridsynth_cleanup() {
     clear_caches();
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "gridsynth_rz")]
 pub fn py_gridsynth_rz(theta: f64, epsilon: f64) -> PyResult<PyCircuitData> {
@@ -93,7 +116,10 @@ pub fn py_gridsynth_rz(theta: f64, epsilon: f64) -> PyResult<PyCircuitData> {
 
 /// Approximates 1q unitary matrix using Ross-Selinger algorithm
 /// as implemented in https://github.com/qiskit-community/rsgridsynth.
-pub fn gridsynth_unitary(mat: ArrayView2<Complex64>, epsilon: f64) -> PyResult<CircuitData> {
+pub fn gridsynth_unitary(
+    mat: ArrayView2<Complex64>,
+    epsilon: f64,
+) -> Result<CircuitData, RossSelingerError> {
     // Run ZXZ decomposition
     let [theta, phi, lambda, euler_phase] = params_zxz_inner(mat);
 
@@ -138,6 +164,7 @@ pub fn gridsynth_unitary(mat: ArrayView2<Complex64>, epsilon: f64) -> PyResult<C
 
 /// Approximates 1q unitary matrix using Ross-Selinger algorithm
 /// as implemented in https://github.com/qiskit-community/rsgridsynth.
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "gridsynth_unitary")]
 pub fn py_gridsynth_unitary(
@@ -147,6 +174,7 @@ pub fn py_gridsynth_unitary(
     gridsynth_unitary(unitary.as_array(), epsilon).map(Into::into)
 }
 
+#[cfg(feature = "py")]
 pub fn ross_selinger_mod(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_gridsynth_rz, m)?)?;
     m.add_function(wrap_pyfunction!(py_gridsynth_unitary, m)?)?;

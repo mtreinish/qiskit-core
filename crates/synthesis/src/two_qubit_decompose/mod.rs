@@ -10,6 +10,7 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
 
 mod basis_decomposer;
@@ -18,11 +19,14 @@ mod controlled_u_decomposer;
 mod gate_sequence;
 mod weyl_decomposition;
 
-pub use basis_decomposer::{TwoQubitBasisDecomposer, two_qubit_decompose_up_to_diagonal};
+pub use basis_decomposer::{
+    TwoQubitBasisDecomposer, TwoQubitBasisError, two_qubit_decompose_up_to_diagonal,
+};
 pub use controlled_u_decomposer::{RXXEquivalent, TwoQubitControlledUDecomposer};
 pub use gate_sequence::TwoQubitGateSequence;
 pub use weyl_decomposition::{Specialization, TwoQubitWeylDecomposition};
 
+#[cfg(feature = "py")]
 pub fn two_qubit_decompose(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(weyl_decomposition::_num_basis_gates))?;
     m.add_wrapped(wrap_pyfunction!(
