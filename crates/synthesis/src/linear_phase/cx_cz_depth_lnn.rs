@@ -10,19 +10,26 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+#[cfg(feature = "py")]
 use crate::linear::lnn::synth_cnot_lnn_instructions;
+#[cfg(feature = "py")]
 use crate::linear::utils::calc_inverse_matrix_inner;
 
 use hashbrown::HashSet;
 use ndarray::{Array2, ArrayView2, s};
+#[cfg(feature = "py")]
 use numpy::PyReadonlyArray2;
+#[cfg(feature = "py")]
+use pyo3::prelude::*;
+#[cfg(feature = "py")]
+use qiskit_circuit::Qubit;
+#[cfg(feature = "py")]
+use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
+#[cfg(feature = "py")]
+use qiskit_circuit::operations::{Param, StandardGate};
+#[cfg(feature = "py")]
 use smallvec::smallvec;
 use std::cmp::{max, min};
-
-use pyo3::prelude::*;
-use qiskit_circuit::Qubit;
-use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
-use qiskit_circuit::operations::{Param, StandardGate};
 
 enum CircuitInstructions {
     CX(u32, u32),
@@ -249,6 +256,7 @@ fn _apply_phase_to_nw_circuit(
 /// 2. Dmitri Maslov, Willers Yang, *CNOT circuits need little help to implement arbitrary
 /// Hadamard-free Clifford transformations they generate*,
 /// [arXiv:2210.16195] (https://arxiv.org/abs/2210.16195).
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (mat_x, mat_z))]
 pub fn py_synth_cx_cz_depth_line_my(

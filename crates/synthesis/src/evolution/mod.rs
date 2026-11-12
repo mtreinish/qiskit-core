@@ -14,13 +14,18 @@ mod chunks;
 mod mcts;
 mod pauli_network;
 
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
+#[cfg(feature = "py")]
 use pyo3::types::{PyList, PyString, PyTuple};
 
-use qiskit_circuit::circuit_data::{CircuitDataError, PyCircuitData};
+use qiskit_circuit::circuit_data::CircuitDataError;
+#[cfg(feature = "py")]
+use qiskit_circuit::circuit_data::PyCircuitData;
 use qiskit_circuit::operations::Param;
 use qiskit_quantum_info::clifford::PauliListError;
 
+#[cfg(feature = "py")]
 use crate::QiskitError;
 use crate::evolution::mcts::pauli_network_mcts_inner;
 use crate::evolution::pauli_network::pauli_network_synthesis_inner;
@@ -46,6 +51,7 @@ pub enum EvolutionSynthesisError {
     ErrorInvalidInputArguments(String),
 }
 
+#[cfg(feature = "py")]
 impl From<EvolutionSynthesisError> for PyErr {
     fn from(error: EvolutionSynthesisError) -> Self {
         match error {
@@ -76,6 +82,7 @@ fn expand_pauli(num_qubits: usize, sparse_pauli: String, qubits: Vec<u32>) -> St
 type PauliNetworkInput = (Vec<(String, Vec<u32>)>, Vec<Param>);
 
 /// Extracts sparse paulis and angles.
+#[cfg(feature = "py")]
 fn extract_sparse_paulis(pauli_network: &Bound<PyList>) -> PyResult<PauliNetworkInput> {
     let mut sparse_paulis: Vec<(String, Vec<u32>)> = Vec::with_capacity(pauli_network.len());
     let mut angles: Vec<Param> = Vec::with_capacity(pauli_network.len());
@@ -116,6 +123,7 @@ fn paulis_to_dense(num_qubits: usize, sparse_paulis: Vec<(String, Vec<u32>)>) ->
 /// Calls Rustiq's Pauli network synthesis algorithm.
 ///
 /// See python documentation for ``synth_pauli_network_rustiq`` for details.
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (num_qubits, pauli_network, optimize_count=true, preserve_order=true, upto_clifford=false, upto_phase=false, resynth_clifford_method=1))]
 #[allow(clippy::too_many_arguments)]
@@ -148,6 +156,7 @@ pub fn pauli_network_synthesis(
 /// Calls Monte Carlo Tree Search Pauli network synthesis algorithm.
 ///
 /// See python documentation for ``synth_pauli_network_mcts`` for details.
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (num_qubits, pauli_network, preserve_order=true, upto_clifford=false, upto_phase=false, num_simulations=1, max_parallel_simulations=None))]
 #[allow(clippy::too_many_arguments)]
@@ -175,6 +184,7 @@ pub fn pauli_network_mcts(
     .map_err(Into::into)
 }
 
+#[cfg(feature = "py")]
 pub fn evolution(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pauli_network_synthesis, m)?)?;
     m.add_function(wrap_pyfunction!(pauli_network_mcts, m)?)?;

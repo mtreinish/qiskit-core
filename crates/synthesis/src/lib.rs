@@ -22,16 +22,20 @@ mod multi_controlled;
 pub mod pauli_evolution;
 pub mod pauli_products;
 mod permutation;
+#[cfg(feature = "py")]
 mod qft;
 pub mod qsd;
 pub mod ross_selinger;
 pub mod two_qubit_decompose;
 
+#[cfg(feature = "py")]
 use pyo3::import_exception;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
-
+#[cfg(feature = "py")]
 import_exception!(qiskit.exceptions, QiskitError);
 
+#[cfg(feature = "py")]
 pub fn synthesis(m: &Bound<PyModule>) -> PyResult<()> {
     let linear_mod = PyModule::new(m.py(), "linear")?;
     linear::linear(&linear_mod)?;

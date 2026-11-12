@@ -15,15 +15,21 @@ use std::io;
 use binrw::{BinRead, BinWrite, binrw};
 use hashbrown::HashMap;
 use nalgebra::{Matrix2, Matrix3};
+use num_complex::Complex64;
 use num_complex::{Complex, ComplexFloat};
 use num_traits::FloatConst;
-use numpy::{Complex64, PyReadonlyArray2};
+#[cfg(feature = "py")]
+use numpy::PyReadonlyArray2;
+#[cfg(feature = "py")]
 use pyo3::{exceptions::PyValueError, prelude::*};
+#[cfg(feature = "py")]
 use qiskit_circuit::{
-    NoBlocks, Qubit,
+    NoBlocks, circuit_instruction::OperationFromPython, operations::OperationRef,
+};
+use qiskit_circuit::{
+    Qubit,
     circuit_data::CircuitData,
-    circuit_instruction::OperationFromPython,
-    operations::{Operation, OperationRef, Param, StandardGate},
+    operations::{Operation, Param, StandardGate},
 };
 use rstar::{Point, RTree};
 use std::fmt::Debug;
@@ -42,7 +48,7 @@ pub enum DiscreteBasisError {
     #[error("only standard gates are allowed in GateSequence.from_gates_and_matrix")]
     NonStandardGate,
 }
-
+#[cfg(feature = "py")]
 impl From<DiscreteBasisError> for PyErr {
     fn from(value: DiscreteBasisError) -> Self {
         PyValueError::new_err(value.to_string())
@@ -54,7 +60,7 @@ impl From<DiscreteBasisError> for PyErr {
 /// Gates are stored in **circuit order**, not in matrix multiplication order. That means that
 /// e.g. [H, T] corresponds to the matrix U = T @ H. The matrix is not stored as U(2), but in
 /// a SO(3) representation, which discards the global phase.
-#[pyclass(from_py_object)]
+#[cfg_attr(feature = "py", pyclass(from_py_object))]
 #[derive(Clone, Debug)]
 pub struct GateSequence {
     // The sequence of standard gates.
@@ -321,6 +327,7 @@ impl GateSequence {
     }
 }
 
+#[cfg(feature = "py")]
 #[pymethods]
 impl GateSequence {
     /// Initialize from a vector of standard gates, plus the SO(3) matrix.
@@ -544,6 +551,7 @@ impl BasicApproximations {
     }
 }
 
+#[cfg(feature = "py")]
 #[inline]
 fn matrix3_from_pyreadonly(array: &PyReadonlyArray2<f64>) -> Matrix3<f64> {
     Matrix3::from_fn(|i, j| *array.get((i, j)).unwrap())

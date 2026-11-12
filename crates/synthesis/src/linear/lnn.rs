@@ -12,13 +12,18 @@
 
 use crate::linear::utils::{_col_op, _row_op, _row_sum, calc_inverse_matrix_inner};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut2};
+#[cfg(feature = "py")]
 use numpy::PyReadonlyArray2;
-use smallvec::smallvec;
-
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
+#[cfg(feature = "py")]
 use qiskit_circuit::Qubit;
+#[cfg(feature = "py")]
 use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
+#[cfg(feature = "py")]
 use qiskit_circuit::operations::{Param, StandardGate};
+#[cfg(feature = "py")]
+use smallvec::smallvec;
 
 // Optimize the synthesis of an n-qubit circuit contains only CX gates for
 // linear nearest neighbor (LNN) connectivity.
@@ -291,6 +296,7 @@ pub fn synth_cnot_lnn_instructions(
 /// described in `arXiv:quant-ph/0701194 <https://arxiv.org/abs/quant-ph/0701194>`_.
 /// Returns: Tuple with two lists of instructions for CX gates
 /// Corresponding to the two parts of the algorithm
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (mat))]
 pub fn py_synth_cnot_lnn_instructions(
@@ -303,6 +309,7 @@ pub fn py_synth_cnot_lnn_instructions(
 /// Uses the algorithm by Kutin, Moulton, Smithline
 /// described in `arXiv:quant-ph/0701194 <https://arxiv.org/abs/quant-ph/0701194>`_.
 /// Returns: The CircuitData of the synthesized circuit.
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (mat))]
 pub fn py_synth_cnot_depth_line_kms(mat: PyReadonlyArray2<bool>) -> PyResult<PyCircuitData> {

@@ -10,13 +10,15 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+#[cfg(feature = "py")]
 use crate::PyErr;
 use ndarray::ArrayViewMut1;
 use ndarray::{Array1, ArrayView1};
+#[cfg(feature = "py")]
 use pyo3::exceptions::PyValueError;
-use std::vec::Vec;
-
+#[cfg(feature = "py")]
 use qiskit_util::py::PySequenceIndex;
+use std::vec::Vec;
 
 /// Possible errors that can occur when validating a permutation pattern.
 #[derive(Debug, thiserror::Error)]
@@ -30,7 +32,7 @@ pub(crate) enum PermutationError {
     #[error("invalid permutation: input contains {value} more than once")]
     DuplicateEntry { value: i64 },
 }
-
+#[cfg(feature = "py")]
 impl From<PermutationError> for PyErr {
     fn from(value: PermutationError) -> Self {
         PyValueError::new_err(value.to_string())
@@ -134,6 +136,7 @@ pub fn pattern_to_cycles(pattern: &ArrayView1<usize>) -> Vec<Vec<usize>> {
 
 /// Periodic (or Python-like) access to a vector.
 /// Util used below in ``decompose_cycles``.
+#[cfg(feature = "py")]
 #[inline]
 fn pget(vec: &[usize], index: isize) -> usize {
     vec[PySequenceIndex::convert_idx(index, vec.len()).unwrap()]
@@ -143,6 +146,7 @@ fn pget(vec: &[usize], index: isize) -> usize {
 /// ``pattern_to_cycles``), decomposes every cycle into a series of SWAPs to implement it.
 /// In combination with ``pattern_to_cycle``, this function allows to implement a
 /// full permutation pattern by applying SWAP gates on the returned index-pairs.
+#[cfg(feature = "py")]
 pub fn decompose_cycles(cycles: &Vec<Vec<usize>>) -> Vec<(usize, usize)> {
     let mut swaps: Vec<(usize, usize)> = Vec::new();
 

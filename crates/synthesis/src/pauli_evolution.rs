@@ -9,17 +9,18 @@
 // Any modifications or derivative works of this code must retain this
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
-
+#[cfg(feature = "py")]
 use pyo3::{
     Python, intern,
     types::{PyNone, PyString},
 };
 use qiskit_circuit::{
-    Clbit, NoBlocks, Qubit,
-    circuit_instruction::OperationFromPython,
+    Clbit, Qubit,
     operations::{Param, StandardGate, multiply_param},
     packed_instruction::PackedOperation,
 };
+#[cfg(feature = "py")]
+use qiskit_circuit::{NoBlocks, circuit_instruction::OperationFromPython};
 use smallvec::{SmallVec, smallvec};
 
 // custom type for a more readable code
@@ -378,6 +379,7 @@ fn cx_fountain(qubits: Vec<Qubit>) -> Box<dyn DoubleEndedIterator<Item = Instruc
     }))
 }
 
+#[cfg(feature = "py")]
 /// Add controls to a standard gate with a specified control state.
 fn add_control(gate: StandardGate, params: &[Param], control_state: &[bool]) -> PackedOperation {
     // This function does not return a PyResult to keep the evolution functions free from PyO3.

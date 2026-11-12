@@ -20,31 +20,49 @@ use std::cmp::Ordering;
 use std::f64::consts::PI;
 use std::str::FromStr;
 
+#[cfg(feature = "py")]
 use pyo3::IntoPyObjectExt;
+#[cfg(feature = "py")]
 use pyo3::Python;
+#[cfg(feature = "py")]
 use pyo3::exceptions::PyValueError;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
+#[cfg(feature = "py")]
 use pyo3::types::{PyList, PyString};
+#[cfg(feature = "py")]
 use pyo3::wrap_pyfunction;
 
 use ndarray::prelude::*;
+#[cfg(feature = "py")]
 use numpy::PyReadonlyArray2;
+#[cfg(feature = "py")]
 use pyo3::pybacked::PyBackedStr;
 
+#[cfg(feature = "py")]
 use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
+#[cfg(feature = "py")]
 use qiskit_circuit::dag_node::DAGOpNode;
-use qiskit_circuit::operations::{Operation, Param, StandardGate};
+#[cfg(feature = "py")]
+use qiskit_circuit::operations::Param;
+use qiskit_circuit::operations::{Operation, StandardGate};
+#[cfg(feature = "py")]
 use qiskit_circuit::{Qubit, impl_intopyobject_for_copy_pyclass};
 use qiskit_util::complex::c64;
+#[cfg(feature = "py")]
 use qiskit_util::py::{PySequenceIndex, SequenceIndex};
 
 pub const ANGLE_ZERO_EPSILON: f64 = 1e-12;
 
-#[pyclass(module = "qiskit._accelerate.euler_one_qubit_decomposer")]
+#[cfg_attr(
+    feature = "py",
+    pyclass(module = "qiskit._accelerate.euler_one_qubit_decomposer")
+)]
 pub struct OneQubitGateErrorMap {
     error_map: Vec<HashMap<String, f64>>,
 }
 
+#[cfg(feature = "py")]
 #[pymethods]
 impl OneQubitGateErrorMap {
     #[new]
@@ -72,15 +90,16 @@ impl OneQubitGateErrorMap {
 }
 
 #[derive(Debug)]
-#[pyclass(sequence)]
+#[cfg_attr(feature = "py", pyclass(sequence))]
 pub struct OneQubitGateSequence {
     pub gates: Vec<(StandardGate, SmallVec<[f64; 3]>)>,
-    #[pyo3(get)]
+    #[cfg_attr(feature = "py", pyo3(get))]
     pub global_phase: f64,
 }
 
 type OneQubitGateSequenceState = (Vec<(StandardGate, SmallVec<[f64; 3]>)>, f64);
 
+#[cfg(feature = "py")]
 #[pymethods]
 impl OneQubitGateSequence {
     #[new]
@@ -402,8 +421,8 @@ fn circuit_rr(
     }
 }
 
-#[pyfunction]
-#[pyo3(signature=(target_basis, theta, phi, lam, phase, simplify, atol=None))]
+#[cfg_attr(feature = "py", pyfunction)]
+#[cfg_attr(feature ="py", pyo3(signature=(target_basis, theta, phi, lam, phase, simplify, atol=None)))]
 pub fn generate_circuit(
     target_basis: &EulerBasis,
     theta: f64,
@@ -412,7 +431,7 @@ pub fn generate_circuit(
     phase: f64,
     simplify: bool,
     atol: Option<f64>,
-) -> PyResult<OneQubitGateSequence> {
+) -> OneQubitGateSequence {
     let res = match target_basis {
         EulerBasis::ZYZ => circuit_kak(
             theta,
@@ -582,7 +601,7 @@ pub fn generate_circuit(
         }
         EulerBasis::RR => circuit_rr(theta, phi, lam, phase, simplify, atol),
     };
-    Ok(res)
+    res
 }
 
 const EULER_BASIS_SIZE: usize = 12;
@@ -699,11 +718,14 @@ impl Default for EulerBasisSet {
 }
 
 #[derive(Clone, Debug, Copy, Eq, Hash, PartialEq)]
-#[pyclass(
-    module = "qiskit._accelerate.euler_one_qubit_decomposer",
-    eq,
-    eq_int,
-    from_py_object
+#[cfg_attr(
+    feature = "py",
+    pyclass(
+        module = "qiskit._accelerate.euler_one_qubit_decomposer",
+        eq,
+        eq_int,
+        from_py_object
+    )
 )]
 pub enum EulerBasis {
     U3 = 0,
@@ -719,6 +741,7 @@ pub enum EulerBasis {
     ZSXX = 10,
     ZSX = 11,
 }
+#[cfg(feature = "py")]
 impl_intopyobject_for_copy_pyclass!(EulerBasis);
 
 impl EulerBasis {
@@ -740,6 +763,7 @@ impl EulerBasis {
     }
 }
 
+#[cfg(feature = "py")]
 #[pymethods]
 impl EulerBasis {
     fn __reduce__(&self, py: Python) -> PyResult<Py<PyAny>> {
@@ -835,6 +859,7 @@ fn compute_error_str(
     }
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature=(circuit, qubit, error_map=None))]
 pub fn compute_error_list(
@@ -854,6 +879,7 @@ pub fn compute_error_list(
     compute_error_str(&circuit_list, error_map, qubit)
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (unitary, target_basis_list, qubit, error_map=None, simplify=true, atol=None))]
 pub fn unitary_to_gate_sequence(
@@ -894,7 +920,7 @@ pub fn unitary_to_gate_sequence_inner(
         .get_bases()
         .map(|target_basis| {
             let [theta, phi, lam, phase] = angles_from_unitary(unitary_mat, target_basis);
-            generate_circuit(&target_basis, theta, phi, lam, phase, simplify, atol).unwrap()
+            generate_circuit(&target_basis, theta, phi, lam, phase, simplify, atol)
         })
         .min_by(|a, b| {
             let error_a = compare_error_fn(a, &error_map, qubit);
@@ -903,6 +929,7 @@ pub fn unitary_to_gate_sequence_inner(
         })
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (unitary, target_basis_list, qubit, error_map=None, simplify=true, atol=None))]
 pub fn unitary_to_circuit(
@@ -980,6 +1007,7 @@ pub fn params_zxz_inner(mat: ArrayView2<Complex64>) -> [f64; 4] {
     [theta, phi + PI / 2., lam - PI / 2., phase]
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 pub fn params_zyz(unitary: PyReadonlyArray2<Complex64>) -> [f64; 4] {
     let mat = unitary.as_array();
@@ -995,6 +1023,7 @@ fn params_u3_inner(mat: ArrayView2<Complex64>) -> [f64; 4] {
     [theta, phi, lam, phase - 0.5 * (phi + lam)]
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 pub fn params_u3(unitary: PyReadonlyArray2<Complex64>) -> [f64; 4] {
     let mat = unitary.as_array();
@@ -1009,6 +1038,7 @@ fn params_u1x_inner(mat: ArrayView2<Complex64>) -> [f64; 4] {
     [theta, phi, lam, phase - 0.5 * (theta + phi + lam)]
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 pub fn params_u1x(unitary: PyReadonlyArray2<Complex64>) -> [f64; 4] {
     let mat = unitary.as_array();
@@ -1037,6 +1067,7 @@ fn params_xyx_inner(mat: ArrayView2<Complex64>) -> [f64; 4] {
     ]
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 pub fn params_xyx(unitary: PyReadonlyArray2<Complex64>) -> [f64; 4] {
     let mat = unitary.as_array();
@@ -1061,18 +1092,21 @@ fn params_xzx_inner(umat: ArrayView2<Complex64>) -> [f64; 4] {
     [theta, phi, lam, phase + phase_zxz]
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 pub fn params_xzx(unitary: PyReadonlyArray2<Complex64>) -> [f64; 4] {
     let umat = unitary.as_array();
     params_xzx_inner(umat)
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 pub fn params_zxz(unitary: PyReadonlyArray2<Complex64>) -> [f64; 4] {
     let mat = unitary.as_array();
     params_zxz_inner(mat)
 }
 
+#[cfg(feature = "py")]
 pub fn euler_one_qubit_decomposer(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(params_zyz))?;
     m.add_wrapped(wrap_pyfunction!(params_xyx))?;

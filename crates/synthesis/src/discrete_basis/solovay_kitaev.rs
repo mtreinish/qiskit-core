@@ -11,15 +11,27 @@
 // that they have been altered from the originals.
 
 use nalgebra::{Matrix2, Matrix3};
-use numpy::{Complex64, PyReadonlyArray2};
+use num_complex::Complex64;
+#[cfg(feature = "py")]
+use numpy::PyReadonlyArray2;
+#[cfg(feature = "py")]
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
+#[cfg(feature = "py")]
 use pyo3::types::PyString;
+#[cfg(feature = "py")]
 use pyo3::{prelude::*, types::PyList};
+#[cfg(feature = "py")]
 use qiskit_circuit::NoBlocks;
-use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
+use qiskit_circuit::circuit_data::CircuitData;
+#[cfg(feature = "py")]
+use qiskit_circuit::circuit_data::PyCircuitData;
+#[cfg(feature = "py")]
 use qiskit_circuit::circuit_instruction::OperationFromPython;
+#[cfg(feature = "py")]
 use qiskit_circuit::instruction::Instruction;
-use qiskit_circuit::operations::{OperationRef, Param, PyInstruction, PyOpKind, StandardGate};
+use qiskit_circuit::operations::{OperationRef, Param, StandardGate};
+#[cfg(feature = "py")]
+use qiskit_circuit::operations::{PyInstruction, PyOpKind};
 
 use crate::discrete_basis::basic_approximations::{BasicApproximations, GateSequence};
 
@@ -32,7 +44,7 @@ use super::math::{self, group_commutator_decomposition};
 ///
 /// This generates the basic approximation set once as R-tree and re-uses it for
 /// each queried decomposition.
-#[pyclass]
+#[cfg_attr(feature = "py", pyclass)]
 #[derive(Clone, Debug)]
 pub struct SolovayKitaevSynthesis {
     /// The set of basic approximations.
@@ -119,6 +131,7 @@ impl SolovayKitaevSynthesis {
                 let matrix_nalgebra: Matrix2<Complex64> = Matrix2::from_fn(|i, j| matrix[(i, j)]);
                 self.synthesize_matrix(&matrix_nalgebra, recursion_degree)
             }
+            #[cfg(feature = "py")]
             OperationRef::PyCustom(
                 gate @ PyInstruction {
                     kind: PyOpKind::Gate,
@@ -189,6 +202,7 @@ impl SolovayKitaevSynthesis {
     }
 }
 
+#[cfg(feature = "py")]
 #[pymethods]
 impl SolovayKitaevSynthesis {
     /// Args:
@@ -398,6 +412,7 @@ impl SolovayKitaevSynthesis {
     }
 }
 
+#[cfg(feature = "py")]
 #[inline]
 fn matrix2_from_pyreadonly(array: &PyReadonlyArray2<Complex64>) -> Matrix2<Complex64> {
     Matrix2::new(

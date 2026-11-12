@@ -18,7 +18,9 @@ use hashbrown::HashMap;
 use nalgebra::{Matrix4, U4};
 use ndarray::prelude::*;
 use num_complex::Complex64;
+#[cfg(feature = "py")]
 use numpy::PyReadonlyArray2;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
 use smallvec::smallvec;
 use thiserror::Error;
@@ -32,9 +34,13 @@ use crate::linalg::{
     svd_decomposition_faer, verify_unitary_faer,
 };
 use crate::matrix::two_qubit;
-use crate::two_qubit_decompose::{TwoQubitBasisDecomposer, two_qubit_decompose_up_to_diagonal};
+use crate::two_qubit_decompose::{
+    TwoQubitBasisDecomposer, TwoQubitBasisError, two_qubit_decompose_up_to_diagonal,
+};
 use qiskit_circuit::bit::ShareableQubit;
-use qiskit_circuit::circuit_data::{CircuitData, CircuitDataError, PyCircuitData};
+#[cfg(feature = "py")]
+use qiskit_circuit::circuit_data::PyCircuitData;
+use qiskit_circuit::circuit_data::{CircuitData, CircuitDataError};
 use qiskit_circuit::interner::Interned;
 use qiskit_circuit::operations::{ArrayType, OperationRef, Param, StandardGate, UnitaryGate};
 use qiskit_circuit::packed_instruction::{PackedInstruction, PackedOperation};
@@ -55,14 +61,22 @@ pub enum QSDError {
     ErrorFromCircuitData(#[from] CircuitDataError),
 
     // wraps PyErr, e.g. produced by 2q decomposer
+    #[cfg(feature = "py")]
     #[error(transparent)]
     ErrorFromPython(#[from] PyErr),
 
     // unknown one-qubit decomposer basis name
     #[error("unknown basis name {0}")]
     UnknownBasis(String),
+
+    #[error(transparent)]
+    TwoQubitBasisError(#[from] TwoQubitBasisError),
+
+    #[error(transparent)]
+    VersorFromGateError(#[from] two_qubit::VersorFromGateError),
 }
 
+#[cfg(feature = "py")]
 impl From<QSDError> for PyErr {
     fn from(error: QSDError) -> Self {
         match error {
@@ -73,6 +87,8 @@ impl From<QSDError> for PyErr {
             QSDError::ErrorFromPython(err) => err,
 
             QSDError::UnknownBasis(_) => pyo3::exceptions::PyValueError::new_err(error.to_string()),
+            QSDError::TwoQubitBasisError(e) => e.into(),
+            QSDError::VersorFromGateError(e) => e.into(),
         }
     }
 }
@@ -673,7 +689,7 @@ fn extract_multiplex_blocks(umat: MatRef<Complex64>, k: usize) -> [Mat<Complex64
 fn apply_a2(
     circ: &CircuitData,
     two_qubit_decomposer: &TwoQubitBasisDecomposer,
-) -> Result<CircuitData, CircuitDataError> {
+) -> Result<CircuitData, QSDError> {
     let ind2q: Vec<usize> = circ
         .data()
         .iter()
@@ -881,6 +897,7 @@ fn apply_a2(
 /// [2] Krol, Al-Ars, *Beyond Quantum Shannon: Circuit Construction for General
 ///        n-Qubit Gates Based on Block ZXZ-Decomposition*,
 ///        `arXiv:2403.13692 <https://arxiv.org/abs/2403.13692>`_
+#[cfg(feature = "py")]
 #[pyfunction]
 pub fn qs_decomposition(
     mat: PyReadonlyArray2<Complex64>,
@@ -910,6 +927,7 @@ pub fn qs_decomposition(
     Ok(res.into())
 }
 
+#[cfg(feature = "py")]
 pub fn qsd_mod(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(qs_decomposition, m)?)?;
     Ok(())

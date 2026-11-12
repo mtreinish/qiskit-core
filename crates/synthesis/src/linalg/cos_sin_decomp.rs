@@ -14,10 +14,14 @@
 //
 // https://github.com/CQCL/tket/blob/a61bbac1c07487521acd8da463023f3c85c799e8/tket/src/Utils/CosSinDecomposition.cpp
 
+#[cfg(feature = "py")]
 use numpy::PyReadonlyArray2;
+#[cfg(feature = "py")]
 use numpy::ToPyArray;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
 
+#[cfg(feature = "py")]
 use crate::linalg::faer_to_ndarray;
 use faer::{Mat, MatRef};
 use num_complex::{Complex64, ComplexFloat};
@@ -182,6 +186,7 @@ pub fn cos_sin_decomposition(u: MatRef<Complex64>) -> CosSinDecompReturn {
     }
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 pub fn cossin<'py>(py: Python<'py>, u: PyReadonlyArray2<Complex64>) -> PyResult<Bound<'py, PyAny>> {
     let array = u.as_array();
@@ -199,6 +204,7 @@ pub fn cossin<'py>(py: Python<'py>, u: PyReadonlyArray2<Complex64>) -> PyResult<
         .into_any())
 }
 
+#[cfg(feature = "py")]
 pub fn cos_sin_decomp(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(cossin))?;
     Ok(())

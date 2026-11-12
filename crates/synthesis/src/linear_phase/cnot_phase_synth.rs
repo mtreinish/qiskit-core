@@ -9,15 +9,21 @@
 // Any modifications or derivative works of this code must retain this
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
-
+#[cfg(feature = "py")]
 use crate::QiskitError;
+#[cfg(feature = "py")]
 use crate::linear::pmh::synth_pmh;
+#[cfg(feature = "py")]
 use crate::linear::utils::_row_op;
 use fixedbitset::FixedBitSet;
+#[cfg(feature = "py")]
 use ndarray::Array2;
+#[cfg(feature = "py")]
 use numpy::PyReadonlyArray2;
+#[cfg(feature = "py")]
 use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyList};
 use qiskit_circuit::Qubit;
+#[cfg(feature = "py")]
 use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
 use qiskit_circuit::operations::{Param, StandardGate};
 use smallvec::{SmallVec, smallvec};
@@ -65,6 +71,7 @@ struct Frame {
 
 /// Implements `GraySynth` algorithm by Amy, Azimzadeh, and Mosca, described in the paper
 ///`arXiv:1712.01859 <https://arxiv.org/abs/1712.01859>`_
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(signature = (cnots, angles, section_size=2))]
 pub fn synth_cnot_phase_aam(

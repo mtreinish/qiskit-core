@@ -17,17 +17,25 @@ use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, PI, TAU};
 use std::ops::Deref;
 
 use faer::Side::Lower;
+use faer::linalg::evd::EvdError;
 use faer::{Mat, MatRef, Scale, prelude::*};
 use nalgebra::{Matrix2, Matrix4, MatrixView4, U2, Vector4};
 use ndarray::prelude::*;
+#[cfg(feature = "py")]
 use numpy::ToPyArray;
+#[cfg(feature = "py")]
 use numpy::{IntoPyArray, PyArrayLike2, PyReadonlyArray2};
+#[cfg(feature = "py")]
 use pyo3::IntoPyObjectExt;
+#[cfg(feature = "py")]
 use pyo3::exceptions::PyValueError;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
+#[cfg(feature = "py")]
 use pyo3::pybacked::PyBackedStr;
 use thiserror::Error;
 
+#[cfg(feature = "py")]
 use crate::QiskitError;
 use crate::euler_one_qubit_decomposer::{
     ANGLE_ZERO_EPSILON, EulerBasis, EulerBasisSet, angles_from_unitary,
@@ -43,9 +51,13 @@ use super::common::{
     DEFAULT_FIDELITY, IPX, IPY, IPZ, TraceToFidelity, closest_partial_swap, ndarray_to_matrix2,
     ndarray_to_matrix4, rx_matrix, ry_matrix, rz_matrix,
 };
-use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
+use qiskit_circuit::Qubit;
+#[cfg(feature = "py")]
+use qiskit_circuit::circuit_data::PyCircuitData;
+use qiskit_circuit::circuit_data::{CircuitData, CircuitDataError};
+#[cfg(feature = "py")]
+use qiskit_circuit::impl_intopyobject_for_copy_pyclass;
 use qiskit_circuit::operations::{Param, StandardGate};
-use qiskit_circuit::{Qubit, impl_intopyobject_for_copy_pyclass};
 use qiskit_util::complex::{C_M_ONE, C_ONE, C_ZERO, IM, M_IM, c64};
 
 const PI32: f64 = 3.0 * FRAC_PI_2;
@@ -115,9 +127,24 @@ fn arg_sort<T: PartialOrd>(data: &[T]) -> Vec<usize> {
     indices
 }
 
+#[derive(Error, Debug)]
+enum TwoQubitProductDecompositionError {
+    #[error("unable to decompose: detR < 0.1")]
+    DetR,
+    #[error("unable to decompose: detL < 0.9")]
+    DetL,
+}
+
+#[cfg(feature = "py")]
+impl From<TwoQubitProductDecompositionError> for PyErr {
+    fn from(err: TwoQubitProductDecompositionError) -> Self {
+        QiskitError::new_err(format!("decompose_two_qubit_product_gate: {}", err))
+    }
+}
+
 fn decompose_two_qubit_product_gate(
     special_unitary: MatrixView4<Complex64>,
-) -> PyResult<(Matrix2<Complex64>, Matrix2<Complex64>, f64)> {
+) -> Result<(Matrix2<Complex64>, Matrix2<Complex64>, f64), TwoQubitProductDecompositionError> {
     let mut r: Matrix2<Complex64> = special_unitary
         .view((0, 0), (2, 2))
         .fixed_resize(Complex64::new(f64::NAN, f64::NAN));
@@ -129,9 +156,7 @@ fn decompose_two_qubit_product_gate(
         det_r = r.determinant();
     }
     if det_r.abs() < 0.1 {
-        return Err(QiskitError::new_err(
-            "decompose_two_qubit_product_gate: unable to decompose: detR < 0.1",
-        ));
+        return Err(TwoQubitProductDecompositionError::DetR);
     }
     r /= det_r.sqrt();
     let r_t_conj: Matrix2<Complex64> = r.adjoint();
@@ -142,9 +167,7 @@ fn decompose_two_qubit_product_gate(
         .fixed_resize(Complex64::new(f64::NAN, f64::NAN));
     let det_l = l.determinant();
     if det_l.abs() < 0.9 {
-        return Err(QiskitError::new_err(
-            "decompose_two_qubit_product_gate: unable to decompose: detL < 0.9",
-        ));
+        return Err(TwoQubitProductDecompositionError::DetL);
     }
     l /= det_l.sqrt();
     let phase = det_l.arg() / 2.;
@@ -152,6 +175,7 @@ fn decompose_two_qubit_product_gate(
     Ok((l, r, phase))
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "decompose_two_qubit_product_gate")]
 /// Decompose :math:`U = U_l \otimes U_r` where :math:`U \in SU(4)`,
@@ -181,6 +205,7 @@ pub fn py_decompose_two_qubit_product_gate(
 ///
 /// Returns:
 ///     np.ndarray: Array of the 3 Weyl coordinates.
+#[cfg(feature = "py")]
 #[pyfunction]
 pub fn weyl_coordinates(py: Python, unitary: PyReadonlyArray2<Complex64>) -> PyResult<Py<PyAny>> {
     let array = unitary.as_array();
@@ -191,12 +216,11 @@ pub fn weyl_coordinates(py: Python, unitary: PyReadonlyArray2<Complex64>) -> PyR
         .unbind())
 }
 
-fn __weyl_coordinates(unitary: MatRef<c64>) -> PyResult<[f64; 3]> {
+fn __weyl_coordinates(unitary: MatRef<c64>) -> Result<[f64; 3], EvdError> {
     let uscaled = Scale(C1 / unitary.determinant().powf(0.25)) * unitary;
     let uup = transform_from_magic_basis(uscaled);
     let mut darg: Vec<_> = (uup.transpose() * &uup)
-        .eigenvalues()
-        .map_err(|e| QiskitError::new_err(format!("{e:?}")))?
+        .eigenvalues()?
         .into_iter()
         .map(|x| -x.arg() / 2.0)
         .collect();
@@ -241,6 +265,7 @@ fn __weyl_coordinates(unitary: MatRef<c64>) -> PyResult<[f64; 3]> {
     Ok([cs[1], cs[0], cs[2]])
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(text_signature = "(basis_b, basis_fidelity, unitary, /")]
 pub fn _num_basis_gates(
@@ -249,14 +274,16 @@ pub fn _num_basis_gates(
     unitary: PyReadonlyArray2<Complex<f64>>,
 ) -> PyResult<usize> {
     let u = ndarray_to_faer(unitary.as_array());
-    __num_basis_gates(basis_b, basis_fidelity, u)
+    __num_basis_gates(basis_b, basis_fidelity, u)..map_err(|e| {
+        QiskitError::new_err(format!("{e:?}"))
+    })
 }
 
 pub(super) fn __num_basis_gates(
     basis_b: f64,
     basis_fidelity: f64,
     unitary: MatRef<c64>,
-) -> PyResult<usize> {
+) -> Result<usize, EvdError> {
     let [a, b, c] = __weyl_coordinates(unitary)?;
     let traces = [
         c64::new(
@@ -285,7 +312,10 @@ pub(super) fn __num_basis_gates(
 }
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
-#[pyclass(module = "qiskit._accelerate.two_qubit_decompose", eq, from_py_object)]
+#[cfg_attr(
+    feature = "py",
+    pyclass(module = "qiskit._accelerate.two_qubit_decompose", eq, from_py_object)
+)]
 pub enum Specialization {
     General,
     IdEquiv,
@@ -303,6 +333,7 @@ pub enum Specialization {
     #[allow(non_camel_case_types)]
     fSimabmbEquiv,
 }
+#[cfg(feature = "py")]
 impl_intopyobject_for_copy_pyclass!(Specialization);
 
 #[derive(Error, Debug)]
@@ -311,6 +342,7 @@ pub enum SpecializationError {
     UnknownDiscriminant(u8),
 }
 
+#[cfg(feature = "py")]
 impl From<SpecializationError> for PyErr {
     fn from(error: SpecializationError) -> Self {
         PyValueError::new_err(error.to_string())
@@ -335,6 +367,7 @@ impl Specialization {
     }
 }
 
+#[cfg(feature = "py")]
 #[pymethods]
 impl Specialization {
     fn __reduce__(&self, py: Python) -> PyResult<Py<PyAny>> {
@@ -384,28 +417,64 @@ fn matrixview4_to_faer<T: nalgebra::Scalar + Copy>(mat: MatrixView4<T>) -> MatRe
     }
 }
 
+#[derive(Error, Debug)]
+pub enum WeylDecompositionError {
+    #[error(
+        "TwoQubitWeylDecomposition: failed to diagonalize M2. Please report this at https://github.com/Qiskit/qiskit-terra/issues/4159. Input: {0})"
+    )]
+    M2DiagonalizationError(Array2<Complex64>),
+    #[error("{0:?}")]
+    HermitianEignError(EvdError),
+    #[error("Specialization: {0:?} calculated fidelity: {1} is worse than requested fidelity: {2}")]
+    OutsideTolerance(Specialization, f64, f64),
+    #[error(transparent)]
+    TwoQubitProductDecompositionError(TwoQubitProductDecompositionError),
+}
+
+impl From<TwoQubitProductDecompositionError> for WeylDecompositionError {
+    fn from(err: TwoQubitProductDecompositionError) -> WeylDecompositionError {
+        WeylDecompositionError::TwoQubitProductDecompositionError(err)
+    }
+}
+
+impl From<EvdError> for WeylDecompositionError {
+    fn from(err: EvdError) -> WeylDecompositionError {
+        WeylDecompositionError::HermitianEignError(err)
+    }
+}
+
+#[cfg(feature = "py")]
+impl From<WeylDecompositionError> for PyErr {
+    fn from(err: WeylDecompositionError) -> PyErr {
+        QiskitError::new_err(err.to_string())
+    }
+}
+
 #[derive(Clone, Debug)]
 #[allow(non_snake_case)]
-#[pyclass(module = "qiskit._accelerate.two_qubit_decompose", subclass)]
+#[cfg_attr(
+    feature = "py",
+    pyclass(module = "qiskit._accelerate.two_qubit_decompose", subclass)
+)]
 pub struct TwoQubitWeylDecomposition {
-    #[pyo3(get)]
+    #[cfg_attr(feature = "py", pyo3(get))]
     pub(super) a: f64,
-    #[pyo3(get)]
+    #[cfg_attr(feature = "py", pyo3(get))]
     pub(super) b: f64,
-    #[pyo3(get)]
+    #[cfg_attr(feature = "py", pyo3(get))]
     pub(super) c: f64,
-    #[pyo3(get)]
+    #[cfg_attr(feature = "py", pyo3(get))]
     pub global_phase: f64,
     pub(super) K1l: Matrix2<Complex64>,
     pub(super) K2l: Matrix2<Complex64>,
     pub(super) K1r: Matrix2<Complex64>,
     pub(super) K2r: Matrix2<Complex64>,
-    #[pyo3(get)]
+    #[cfg_attr(feature = "py", pyo3(get))]
     pub specialization: Specialization,
     default_euler_basis: EulerBasis,
-    #[pyo3(get)]
+    #[cfg_attr(feature = "py", pyo3(get))]
     requested_fidelity: Option<f64>,
-    #[pyo3(get)]
+    #[cfg_attr(feature = "py", pyo3(get))]
     calculated_fidelity: f64,
     pub(super) unitary_matrix: Matrix4<Complex64>,
 }
@@ -443,7 +512,7 @@ impl TwoQubitWeylDecomposition {
         sequence: &mut CircuitData,
         atol: f64,
         global_phase: &mut f64,
-    ) -> PyResult<()> {
+    ) -> Result<(), CircuitDataError> {
         match self.specialization {
             Specialization::MirrorControlledEquiv => {
                 sequence.push_standard_gate(StandardGate::Swap, &[], &[Qubit(0), Qubit(1)])?;
@@ -491,7 +560,7 @@ impl TwoQubitWeylDecomposition {
         unitary_matrix: ArrayView2<Complex64>,
         fidelity: Option<f64>,
         _specialization: Option<Specialization>,
-    ) -> PyResult<Self> {
+    ) -> Result<Self, WeylDecompositionError> {
         let mut u = ndarray_to_matrix4(unitary_matrix);
         let det_u = u.determinant();
         let det_pow = det_u.powf(-0.25);
@@ -532,9 +601,7 @@ impl TwoQubitWeylDecomposition {
                 rand_b = state.sample(StandardNormal);
             }
             let m2_real = m2.map(|val| rand_a * val.re + rand_b * val.im);
-            let temp = matrixview4_to_faer(m2_real.as_view())
-                .self_adjoint_eigen(Lower)
-                .map_err(|e| QiskitError::new_err(format!("{e:?}")))?;
+            let temp = matrixview4_to_faer(m2_real.as_view()).self_adjoint_eigen(Lower)?;
             let res = temp.U();
             let p_inner: Matrix4<Complex64> =
                 Matrix4::from_fn(|i, j| Complex64::new(res[(i, j)], 0.));
@@ -550,9 +617,9 @@ impl TwoQubitWeylDecomposition {
             }
         }
         if !found {
-            return Err(QiskitError::new_err(format!(
-                "TwoQubitWeylDecomposition: failed to diagonalize M2. Please report this at https://github.com/Qiskit/qiskit-terra/issues/4159. Input: {unitary_matrix:?}"
-            )));
+            return Err(WeylDecompositionError::M2DiagonalizationError(
+                unitary_matrix.to_owned(),
+            ));
         }
         let mut d = -d.map(|x| x.arg() / 2.);
         d[3] = -d[0] - d[1] - d[2];
@@ -967,16 +1034,17 @@ impl TwoQubitWeylDecomposition {
         if let Some(fid) = specialized.requested_fidelity
             && specialized.calculated_fidelity + 1.0e-13 < fid
         {
-            return Err(QiskitError::new_err(format!(
-                "Specialization: {:?} calculated fidelity: {} is worse than requested fidelity: {}",
-                specialized.specialization, specialized.calculated_fidelity, fid
-            )));
+            return Err(WeylDecompositionError::OutsideTolerance(
+                specialized.specialization,
+                specialized.calculated_fidelity,
+                fid,
+            ));
         }
         specialized.global_phase += tr.arg();
         Ok(specialized)
     }
 }
-
+#[cfg(feature = "py")]
 #[pymethods]
 impl TwoQubitWeylDecomposition {
     #[staticmethod]
@@ -1035,7 +1103,11 @@ impl TwoQubitWeylDecomposition {
         fidelity: Option<f64>,
         _specialization: Option<Specialization>,
     ) -> PyResult<Self> {
-        TwoQubitWeylDecomposition::new_inner(unitary_matrix.as_array(), fidelity, _specialization)
+        Ok(TwoQubitWeylDecomposition::new_inner(
+            unitary_matrix.as_array(),
+            fidelity,
+            _specialization,
+        )?)
     }
 
     #[allow(non_snake_case)]

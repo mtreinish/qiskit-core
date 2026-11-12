@@ -13,9 +13,9 @@
 mod basic_approximations;
 mod math;
 pub mod solovay_kitaev;
-
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
-
+#[cfg(feature = "py")]
 pub fn discrete_basis(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<solovay_kitaev::SolovayKitaevSynthesis>()?;
     m.add_class::<basic_approximations::GateSequence>()?;
