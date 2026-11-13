@@ -10,7 +10,13 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+use qiskit_circuit::operations::STANDARD_GATE_SIZE;
 use qiskit_circuit::operations::StandardGate;
+
+pub const UNITARY_GATE_CLASS_NAME: &str = "UnitaryGate";
+pub const STORE_INSTR_CLASS_NAME: &str = "Store";
+pub const PAULI_PRODUCT_MEASUREMENT_GATE_CLASS_NAME: &str = "PauliProductMeasurement";
+pub const PAULI_PRODUCT_ROTATION_GATE_CLASS_NAME: &str = "PauliProductRotationGate";
 
 pub fn standard_gate_from_gate_class_name(name: &str) -> Option<StandardGate> {
     match name {
@@ -69,11 +75,70 @@ pub fn standard_gate_from_gate_class_name(name: &str) -> Option<StandardGate> {
     }
 }
 
+static STDGATE_IMPORT_PATHS: [&str; STANDARD_GATE_SIZE] = [
+    "GlobalPhaseGate",
+    "HGate",
+    "IGate",
+    "XGate",
+    "YGate",
+    "ZGate",
+    "PhaseGate",
+    "RGate",
+    "RXGate",
+    "RYGate",
+    "RZGate",
+    "SGate",
+    "SdgGate",
+    "SXGate",
+    "SXdgGate",
+    "TGate",
+    "TdgGate",
+    "UGate",
+    "U1Gate",
+    "U2Gate",
+    "U3Gate",
+    "CHGate",
+    "CXGate",
+    "CYGate",
+    "CZGate",
+    "DCXGate",
+    "ECRGate",
+    "SwapGate",
+    "iSwapGate",
+    "CPhaseGate",
+    "CRXGate",
+    "CRYGate",
+    "CRZGate",
+    "CSGate",
+    "CSdgGate",
+    "CSXGate",
+    "CUGate",
+    "CU1Gate",
+    "CU3Gate",
+    "RXXGate",
+    "RYYGate",
+    "RZZGate",
+    "RZXGate",
+    "XXMinusYYGate",
+    "XXPlusYYGate",
+    "CCXGate",
+    "CCZGate",
+    "CSwapGate",
+    "RCCXGate",
+    "C3XGate",
+    "C3SXGate",
+    "RC3XGate",
+];
+
+#[inline]
+pub fn get_std_gate_class_name(rs_gate: &StandardGate) -> String {
+    STDGATE_IMPORT_PATHS[*rs_gate as usize].to_string()
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use qiskit_circuit::imports::get_std_gate_class_name;
     use qiskit_circuit::operations::STANDARD_GATE_SIZE;
     #[test]
     fn test_name_coverage() {

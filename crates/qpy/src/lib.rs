@@ -15,8 +15,11 @@
 // done here rather than in `Cargo.toml` so we don't override the workspace inheritance of lints.
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
+#[cfg(feature = "py")]
 use pyo3::types::PyModule;
+#[cfg(feature = "py")]
 use pyo3::{Bound, PyResult, wrap_pyfunction};
 
 mod annotations;
@@ -29,6 +32,7 @@ mod expr;
 mod formats;
 mod interface;
 mod params;
+#[cfg(feature = "py")]
 mod py_methods;
 mod value;
 
@@ -48,6 +52,7 @@ const NATIVE_QPY_RECURSION_DEPTH: usize = 100;
 
 /// Internal module supplying the QPY capabilities.  The entries in it should largely
 /// be re-exposed directly to public Python space.
+#[cfg(feature = "py")]
 pub fn qpy(module: &Bound<PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(interface::py_dump_qpy, module)?)?;
     module.add_function(wrap_pyfunction!(interface::py_load_qpy, module)?)?;

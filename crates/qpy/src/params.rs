@@ -23,6 +23,7 @@ use uuid::Uuid;
 use crate::bytes::Bytes;
 use crate::error::QpyError;
 use crate::formats;
+#[cfg(feature = "py")]
 use crate::py_methods::{py_convert_from_generic_value, py_pack_param};
 use crate::value::{
     GenericValue, QPYReadData, QPYWriteData, ValueType, deserialize, deserialize_vec, load_value,
@@ -627,6 +628,7 @@ pub(crate) fn pack_param_obj(
             },
         },
         Param::ParameterExpression(exp) => pack_param_expression(exp, qpy_data)?,
+        #[cfg(feature = "py")]
         Param::Obj(py_object) => qpy_data.caller.attach("Python parameter", |py| {
             py_pack_param(py_object.bind(py), qpy_data, endian)
         })?,
@@ -645,7 +647,7 @@ pub(crate) fn pack_param_obj(
 
 pub(crate) fn generic_value_to_param(
     value: &GenericValue,
-    qpy_data: &QPYReadData,
+    _qpy_data: &QPYReadData,
 ) -> Result<Param, QpyError> {
     match value {
         GenericValue::Float64(float_val) => Ok(Param::Float(*float_val)),
@@ -659,6 +661,7 @@ pub(crate) fn generic_value_to_param(
             Ok(Param::ParameterExpression(Arc::new(parameter_expression)))
         }
         GenericValue::ParameterExpression(exp) => Ok(Param::ParameterExpression(exp.clone())),
+        #[cfg(feature = "py")]
         _ => qpy_data.caller.attach("Python defined parameter", |py| {
             Ok(Param::Obj(py_convert_from_generic_value(
                 py,
@@ -666,6 +669,10 @@ pub(crate) fn generic_value_to_param(
                 qpy_data.remaining_depth,
             )?))
         }),
+        #[cfg(not(feature = "py"))]
+        _ => Err(QpyError::PythonOnly(
+            "Non numeric or parameterexpression parameters",
+        )),
     }
 }
 

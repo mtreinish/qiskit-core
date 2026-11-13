@@ -22,14 +22,21 @@
 use hashbrown::HashMap;
 use num_bigint::BigUint;
 use num_complex::Complex64;
+#[cfg(feature = "py")]
 use pyo3::IntoPyObjectExt;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
+#[cfg(feature = "py")]
 use pyo3::types::{PyAny, PyDict, PyList};
 use qiskit_circuit::annotation::Annotation;
 use qiskit_circuit::bit::{
     ClassicalRegister, QuantumRegister, Register, ShareableClbit, ShareableQubit,
 };
-use qiskit_circuit::circuit_data::{CircuitData, PyCircuitData};
+#[cfg(feature = "py")]
+use qiskit_circuit::circuit_data::PyCircuitData;
+use qiskit_circuit::circuit_data::CircuitData;
+#[cfg(feature = "py")]
+use qiskit_circuit::imports;
 use qiskit_circuit::instruction::Parameters;
 use qiskit_circuit::interner::Interned;
 use qiskit_circuit::operations::{
@@ -41,7 +48,7 @@ use qiskit_circuit::packed_instruction::{PackedInstruction, PackedOperation};
 use qiskit_circuit::parameter::parameter_expression::ParameterExpression;
 use qiskit_circuit::parameter::symbol_expr::SymbolVector;
 use qiskit_circuit::var_stretch_container::{StretchType, VarType};
-use qiskit_circuit::{Block, classical, imports};
+use qiskit_circuit::{Block, classical};
 use qiskit_circuit::{Clbit, Qubit};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -52,21 +59,23 @@ use smallvec::SmallVec;
 use crate::annotations::AnnotationHandler;
 use crate::bytes::Bytes;
 use crate::consts::standard_gate_from_gate_class_name;
+use crate::consts::{
+    PAULI_PRODUCT_MEASUREMENT_GATE_CLASS_NAME, PAULI_PRODUCT_ROTATION_GATE_CLASS_NAME,
+    STORE_INSTR_CLASS_NAME, UNITARY_GATE_CLASS_NAME,
+};
 use crate::error::QpyError;
 use crate::formats;
 use crate::formats::ConditionData;
 use crate::formats::QPYCircuit;
-use crate::formats::VirtualQBitPack;
 use crate::params::generic_value_to_param;
+#[cfg(feature = "py")]
 use crate::py_methods::{
-    PAULI_PRODUCT_MEASUREMENT_GATE_CLASS_NAME, PAULI_PRODUCT_ROTATION_GATE_CLASS_NAME,
-    STORE_INSTR_CLASS_NAME, UNITARY_GATE_CLASS_NAME, deserialize_pauli_evolution_gate,
-    py_convert_from_generic_value, unpack_custom_instruction, unpack_py_instruction,
+    deserialize_pauli_evolution_gate, py_convert_from_generic_value, unpack_custom_instruction,
+    unpack_py_instruction,
 };
 use crate::value::{
     BitType, CircuitInstructionType, ExpressionType, ExpressionVarDeclaration, GenericValue,
-    ParamRegisterValue, QPYReadData, QpyCaller, RegisterType, ValueEndian, ValueType,
-    deserialize_with_args, load_param_register_value, load_value, unpack_duration_value,
+    ParamRegisterValue, QPYReadData, QpyCaller, RegisterType, ValueEndian, ValueType, load_param_register_value, load_value, unpack_duration_value,
     unpack_for_collection, unpack_generic_value,
 };
 
@@ -81,7 +90,10 @@ pub struct CustomCircuitInstructionData {
     pub gate_type: CircuitInstructionType,
     pub num_qubits: u32,
     pub num_clbits: u32,
+    #[cfg(feature = "py")]
     pub definition_circuit: Option<Py<PyAny>>,
+    #[cfg(not(feature = "py"))]
+    pub definition_circuit: Option<()>,
     pub base_gate_raw: Bytes,
 }
 
@@ -334,6 +346,7 @@ pub fn instruction_values_to_params(
                             ParameterExpression::from_arc_symbol(symbol),
                         )))
                     }
+                    #[cfg(feature = "py")]
                     _ => qpy_data.caller.attach(
                         "convert arbitrary parameter value to python representation",
                         |py| -> Result<_, QpyError> {
@@ -344,6 +357,8 @@ pub fn instruction_values_to_params(
                             )?))
                         },
                     ),
+                    #[cfg(not(feature = "py"))]
+                    _ => Err(QpyError::PythonOnly("arbitrary parameter type")),
                 }
             })
             .collect::<Result<_, QpyError>>()?;
@@ -398,6 +413,7 @@ pub fn unpack_instruction(
         InstructionType::Unitary => unpack_unitary(instruction, qpy_data)?,
         InstructionType::ControlFlow => unpack_control_flow(instruction, qpy_data)?,
         InstructionType::Store => unpack_store(instruction, qpy_data)?,
+        #[cfg(feature = "py")]
         InstructionType::Custom => qpy_data.caller.attach("Custom instructions", |py| {
             unpack_custom_instruction(
                 py,
@@ -407,11 +423,16 @@ pub fn unpack_instruction(
                 custom_instructions,
             )
         })?,
+        #[cfg(not(feature = "py"))]
+        InstructionType::Custom => return Err(QpyError::PythonOnly("Custom instructions")),
+        #[cfg(feature = "py")]
         InstructionType::Python => qpy_data
             .caller
             .attach("Python defined instructions", |py| {
                 unpack_py_instruction(py, instruction, label.as_deref(), qpy_data)
             })?,
+        #[cfg(not(feature = "py"))]
+        InstructionType::Python => return Err(QpyError::PythonOnly("Python defined instructions")),
     };
     let (qubits, clbits) = get_instruction_bits(instruction, qpy_data)?;
     let params = instruction_values_to_params(parameter_values, qpy_data)?;
@@ -849,6 +870,7 @@ fn unpack_control_flow(
     Ok((op, param_values))
 }
 
+#[cfg(feature = "py")]
 pub fn unpack_layout<'py>(
     py: Python<'py>,
     layout: &formats::LayoutV2Pack,
@@ -860,6 +882,7 @@ pub fn unpack_layout<'py>(
     }
 }
 
+#[cfg(feature = "py")]
 fn unpack_transpile_layout<'py>(
     py: Python<'py>,
     layout: &formats::LayoutV2Pack,
@@ -979,6 +1002,7 @@ fn unpack_transpile_layout<'py>(
     Ok(transpiled_layout)
 }
 
+#[cfg(feature = "py")]
 fn read_custom_instructions(
     packed_circuit: &formats::QPYCircuit,
     qpy_data: &mut QPYReadData,
@@ -1481,7 +1505,19 @@ pub(crate) fn unpack_circuit(
     qpy_data.circuit_data.set_global_phase_param(global_phase)?;
     add_standalone_vars(packed_circuit, &mut qpy_data)?;
     add_registers_and_bits(packed_circuit, &mut qpy_data)?;
+    #[cfg(feature = "py")]
     let custom_instructions = read_custom_instructions(packed_circuit, &mut qpy_data)?;
+    #[cfg(not(feature = "py"))]
+    let custom_instructions = {
+        if !packed_circuit
+            .custom_instructions
+            .custom_instructions
+            .is_empty()
+        {
+            return Err(QpyError::PythonOnly("Custom Instructions"));
+        }
+        HashMap::new()
+    };
     for instruction in &packed_circuit.instructions {
         let inst = unpack_instruction(instruction, &custom_instructions, &mut qpy_data)?;
         qpy_data.circuit_data.push(inst)?;
@@ -1498,7 +1534,7 @@ pub fn wrap_conditional_gate(
     clbits: Interned<[Clbit]>,
     params: Option<Box<Parameters<Block>>>,
     qpy_data: &mut QPYReadData,
-) -> PyResult<(PackedOperation, Option<Box<Parameters<Block>>>)> {
+) -> Result<(PackedOperation, Option<Box<Parameters<Block>>>), QpyError> {
     use qiskit_circuit::circuit_data::CircuitData;
     use qiskit_circuit::operations::Param;
     use smallvec::SmallVec;
@@ -1542,8 +1578,7 @@ pub fn wrap_conditional_gate(
             clbit_indices.to_vec(),
         ))),
         Param::Float(0.0),
-    )
-    .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{:?}", e)))?;
+    )?;
 
     // Create GenericValue::CircuitData from the CircuitData
     // The instruction_values_to_params function will handle converting this to a Block

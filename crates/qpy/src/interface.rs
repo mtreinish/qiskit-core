@@ -17,18 +17,25 @@
 // including headers, circuit tables, and multiple circuits.
 
 use binrw::{BinRead, BinWrite, Endian, VecArgs};
+#[cfg(feature = "py")]
 use pyo3::PyResult;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
+#[cfg(feature = "py")]
 use pyo3::types::{PyAny, PyBytes, PyDict};
 use qiskit_circuit::circuit_data::CircuitData;
+#[cfg(feature = "py")]
 use qiskit_circuit::converters::QuantumCircuitData;
 
 use crate::annotations::{AnnotationHandler, NativeDeserializers, NativeSerializers};
 use crate::bytes::Bytes;
 use crate::circuit_reader::unpack_circuit;
-use crate::circuit_writer::{pack_circuit, pack_layout};
+use crate::circuit_writer::pack_circuit;
+#[cfg(feature = "py")]
+use crate::circuit_writer::pack_layout;
 use crate::error::QpyError;
 use crate::formats::{LayoutV2Pack, QPYCircuit, QPYFileHeader};
+#[cfg(feature = "py")]
 use crate::py_methods::{py_circuit_data_to_quantum_circuit, serialize_metadata};
 use crate::value::{ProgramType, QpyCaller, SymbolicEncoding, deserialize, deserialize_with_args};
 use crate::{NATIVE_QPY_RECURSION_DEPTH, QPY_READ_MIN_VERSION, QPY_WRITE_MIN_VERSION};
@@ -158,6 +165,7 @@ where
     Ok(())
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "dump")]
 /// Python entry point for serializing circuits to binary and writing to file.
@@ -391,6 +399,7 @@ pub fn load_qpy(
     Ok(circuits)
 }
 
+#[cfg(feature = "py")]
 #[pyfunction]
 #[pyo3(name = "load")]
 /// Python entry point for loading circuits from a readable file-like object.
@@ -458,6 +467,7 @@ pub fn native_load_qpy(data: &[u8]) -> Result<Vec<CircuitData>, QpyError> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::circuit_writer::default_layout;
     use qiskit_circuit::Qubit;
     use qiskit_circuit::operations::{DelayUnit, OperationRef, Param, StandardInstruction};
     use qiskit_circuit::packed_instruction::PackedOperation;
@@ -471,7 +481,7 @@ mod tests {
             // Circuit metadata is always decoded with `json.loads`, and older Qiskit
             // releases require the decoded value to be a dictionary.
             metadata: "{}".into(),
-            layout: Some(pack_layout(None, circuit, version).unwrap()),
+            layout: Some(default_layout()),
         }
     }
 

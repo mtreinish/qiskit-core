@@ -18,19 +18,25 @@ use binrw::meta::{ReadEndian, WriteEndian};
 use binrw::{BinRead, BinWrite, Endian, binrw};
 
 use hashbrown::HashMap;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
+#[cfg(feature = "py")]
 use pyo3::types::PyAny;
 
+use qiskit_circuit::Clbit;
 use qiskit_circuit::bit::{ClassicalRegister, ShareableClbit};
 use qiskit_circuit::circuit_data::CircuitData;
 use qiskit_circuit::classical::expr::{Expr, Stretch, Var};
 use qiskit_circuit::classical::types::Type;
 use qiskit_circuit::duration::Duration;
-use qiskit_circuit::operations::{ForCollection, OperationRef, PyInstruction, PyOpKind, PyRange};
+#[cfg(feature = "py")]
+use qiskit_circuit::imports;
+use qiskit_circuit::operations::{ForCollection, OperationRef, PyRange};
+#[cfg(feature = "py")]
+use qiskit_circuit::operations::{PyInstruction, PyOpKind};
 use qiskit_circuit::packed_instruction::PackedOperation;
 use qiskit_circuit::parameter::parameter_expression::ParameterExpression;
 use qiskit_circuit::parameter::symbol_expr::{Symbol, SymbolVector};
-use qiskit_circuit::{Clbit, imports};
 
 use crate::annotations::AnnotationHandler;
 use crate::bytes::Bytes;
@@ -44,6 +50,7 @@ use crate::params::{
     pack_parameter_expression, pack_parameter_vector, pack_symbol, unpack_parameter_expression,
     unpack_parameter_vector, unpack_symbol,
 };
+#[cfg(feature = "py")]
 use crate::py_methods::{py_pack_modifier, py_unpack_modifier};
 
 use ndarray::Array2;
@@ -57,13 +64,13 @@ use uuid::Uuid;
 // Data that is needed globally while writing the circuit
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum QpyCaller {
+    #[cfg(feature = "py")]
     Python,
-    // This is consumed by the C entry point when it is compiled into the QPY crate.
-    #[allow(dead_code)]
     Native,
 }
 
 impl QpyCaller {
+    #[cfg(feature = "py")]
     pub(crate) fn attach<T, E>(
         self,
         feature: &'static str,
@@ -76,6 +83,18 @@ impl QpyCaller {
             return Err(QpyError::PythonOnly(feature).into());
         }
         Python::attach(f)
+    }
+
+    #[cfg(not(feature = "py"))]
+    pub(crate) fn attach<T, E>(
+        self,
+        feature: &'static str,
+        _f: impl for<'py> FnOnce(()) -> Result<T, E>,
+    ) -> Result<T, E>
+    where
+        E: From<QpyError>,
+    {
+        Err(QpyError::PythonOnly(feature).into())
     }
 }
 
@@ -496,6 +515,7 @@ pub enum GenericValue {
     Duration(Duration),
     Null,
     Expression(Expr),
+    #[cfg(feature = "py")]
     Modifier(Py<PyAny>),
     CircuitData(Box<CircuitData>),
 }
@@ -743,13 +763,18 @@ pub(crate) fn load_value(
         }
         ValueType::NumpyObject => Ok(GenericValue::NumpyObject(bytes.clone())),
         ValueType::Modifier => {
-            let (modifier_pack, _) = deserialize::<formats::ModifierPack>(bytes)?;
-            let values = qpy_data
-                .caller
-                .attach("AnnotatedOperation", |py| -> Result<_, QpyError> {
-                    py_unpack_modifier(py, &modifier_pack)
-                })?;
-            Ok(GenericValue::Modifier(values))
+            #[cfg(feature = "py")]
+            {
+                let (modifier_pack, _) = deserialize::<formats::ModifierPack>(bytes)?;
+                let values = qpy_data
+                    .caller
+                    .attach("AnnotatedOperation", |py| -> Result<_, QpyError> {
+                        py_unpack_modifier(py, &modifier_pack)
+                    })?;
+                Ok(GenericValue::Modifier(values))
+            }
+            #[cfg(not(feature = "py"))]
+            Err(QpyError::PythonOnly("Annotated Gates"))
         }
         ValueType::Expression => {
             let expression = deserialize_expression(bytes, qpy_data)?;
@@ -862,6 +887,7 @@ pub(crate) fn serialize_generic_value(
             let range_pack = formats::RangePack { start, stop, step };
             (ValueType::Range, serialize(&range_pack)?)
         }
+        #[cfg(feature = "py")]
         GenericValue::Modifier(py_object) => {
             let packed_modifier = qpy_data
                 .caller
@@ -983,7 +1009,7 @@ pub(crate) fn unpack_generic_value_sequence(
 /// Each instruction type has a char representation in qpy
 pub(crate) fn get_circuit_type_key(
     op: &PackedOperation,
-    caller: QpyCaller,
+    _caller: QpyCaller,
 ) -> Result<CircuitInstructionType, QpyError> {
     match op.view() {
         OperationRef::StandardGate(_)
@@ -993,6 +1019,7 @@ pub(crate) fn get_circuit_type_key(
         | OperationRef::ControlFlow(_)
         | OperationRef::PauliProductMeasurement(_)
         | OperationRef::Store(_) => Ok(CircuitInstructionType::Instruction),
+        #[cfg(feature = "py")]
         OperationRef::PyCustom(PyInstruction { kind, ob, .. }) => {
             caller.attach("Python-defined operations", |py| {
                 let ob = ob.bind(py);

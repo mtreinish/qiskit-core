@@ -13,7 +13,9 @@
 use binrw::{BinRead, BinResult, BinWrite, Endian, VecArgs};
 
 use crate::error::QpyError;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
+#[cfg(feature = "py")]
 use pyo3::types::{PyAny, PyBytes};
 
 use num_complex::Complex64;
@@ -343,6 +345,7 @@ impl BinWrite for Bytes {
     }
 }
 
+#[cfg(feature = "py")]
 impl<'a, 'py> FromPyObject<'a, 'py> for Bytes {
     type Error = PyErr;
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
@@ -350,6 +353,7 @@ impl<'a, 'py> FromPyObject<'a, 'py> for Bytes {
     }
 }
 
+#[cfg(feature = "py")]
 impl<'py> IntoPyObject<'py> for Bytes {
     type Target = PyBytes;
     type Output = Bound<'py, PyBytes>;

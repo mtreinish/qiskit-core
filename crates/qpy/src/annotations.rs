@@ -12,15 +12,17 @@
 
 use std::sync::Arc;
 
-use qiskit_circuit::annotation::{
-    Annotation, AnnotationFromPython, PythonAnnotation, iter_namespaces,
-};
+use qiskit_circuit::annotation::{Annotation, iter_namespaces};
+#[cfg(feature = "py")]
+use qiskit_circuit::annotation::{AnnotationFromPython, PythonAnnotation};
 
 use hashbrown::HashMap;
 
 use crate::bytes::Bytes;
 use crate::error::QpyError;
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
+#[cfg(feature = "py")]
 use pyo3::types::{PyAny, PyDict};
 
 /// A deserializer for an [Annotation].
@@ -96,6 +98,7 @@ impl NativeSerializers {
 /// actually requires annotation handling.
 #[derive(Debug)]
 pub enum AnnotationHandler {
+    #[cfg(feature = "py")]
     Python {
         factories: Py<PyDict>,
         serialization_state: Py<PyAny>,
@@ -109,6 +112,7 @@ pub enum AnnotationHandler {
 }
 
 impl AnnotationHandler {
+    #[cfg(feature = "py")]
     pub fn python(factories: &Py<PyDict>) -> Result<Self, QpyError> {
         Python::attach(|py| {
             let module = py.import("qiskit.qpy.binary_io.circuits")?;
@@ -143,6 +147,7 @@ impl AnnotationHandler {
     /// Create independent annotation state for a nested circuit while preserving the caller mode.
     pub fn child(&self) -> Result<Self, QpyError> {
         match self {
+            #[cfg(feature = "py")]
             Self::Python { factories, .. } => Self::python(factories),
             Self::Native {
                 serializers,
@@ -161,6 +166,7 @@ impl AnnotationHandler {
         annotation: &Arc<dyn Annotation>,
     ) -> Result<(u32, Bytes), QpyError> {
         match self {
+            #[cfg(feature = "py")]
             Self::Python {
                 serialization_state,
                 ..
@@ -196,7 +202,7 @@ impl AnnotationHandler {
             }
         }
     }
-
+    #[cfg(feature = "py")]
     pub fn load_py(&self, py: Python, index: u32, payload: Bytes) -> Result<Py<PyAny>, QpyError> {
         match self {
             Self::Python {
@@ -207,8 +213,9 @@ impl AnnotationHandler {
         }
     }
 
-    pub fn load(&self, index: u32, payload: Bytes) -> Result<Arc<dyn Annotation>, QpyError> {
+    pub fn load(&self, _index: u32, payload: Bytes) -> Result<Arc<dyn Annotation>, QpyError> {
         match self {
+            #[cfg(feature = "py")]
             Self::Python { .. } => Python::attach(|py| {
                 Ok(self
                     .load_py(py, index, payload)?
@@ -230,6 +237,7 @@ impl AnnotationHandler {
 
     pub fn dump_serializers(&self) -> Result<Vec<(String, Bytes)>, QpyError> {
         match self {
+            #[cfg(feature = "py")]
             Self::Python {
                 serialization_state,
                 ..
@@ -250,6 +258,7 @@ impl AnnotationHandler {
             return Ok(());
         }
         match self {
+            #[cfg(feature = "py")]
             Self::Python {
                 deserialization_state,
                 ..
