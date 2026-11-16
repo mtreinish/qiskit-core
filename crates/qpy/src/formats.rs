@@ -18,7 +18,7 @@ use crate::value::{
     BitType, CircuitInstructionType, ExpressionType, ExpressionVarDeclaration, ModifierType,
     ProgramType, QPYReadData, QPYWriteData, RegisterType, SymbolicEncoding, ValueType,
 };
-use binrw::{BinRead, BinResult, BinWrite, Endian, binread, binrw, binwrite};
+use binrw::{BinRead, BinResult, BinWrite, Endian, VecArgs, binread, binrw, binwrite};
 use qiskit_circuit::classical::expr::Expr;
 use std::io::{Read, Seek, Write};
 use std::marker::PhantomData;
@@ -65,14 +65,14 @@ pub struct QPYFileHeader {
 pub struct QPYCircuit {
     #[brw(args(version,))]
     pub header: CircuitHeaderV12Pack,
-    #[br(count = header.num_vars)]
+    #[br(args((header.num_vars,)), parse_with=vec_with_count_arg)]
     pub standalone_vars: Vec<ExpressionVarDeclarationPack>,
     #[br(if(version >= 15))]
     pub annotation_headers: Option<AnnotationHeaderStaticPack>,
     #[br(if(version >= 18))]
     pub parameter_vectors: Option<ParameterVectorTablePack>,
     pub custom_instructions: CustomCircuitInstructionsPack,
-    #[br(count = header.num_instructions, args { inner: (true,) })]
+    #[br(count = header.num_instructions, args { inner: (true,) }, parse_with=vec_with_limit)]
     pub instructions: Vec<CircuitInstructionV2Pack>,
     #[bw(if(version < 18), args(version,))]
     #[br(if(version < 18), args(version, max_depth))]
@@ -102,14 +102,14 @@ pub struct CircuitHeaderV12Pack {
     pub num_registers: u32,
     pub num_instructions: u64,
     pub num_vars: u32,
-    #[br(count = name_size as usize, try_map = String::from_utf8)]
+    #[br(args((name_size as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub circuit_name: String,
-    #[br(count = global_phase_size as usize)]
+    #[br(count = global_phase_size)]
     pub global_phase_data: Bytes,
     #[br(count = metadata_size)]
     pub metadata: Bytes,
-    #[br(count = num_registers, args { inner: (version,) })]
+    #[br(count = num_registers, args { inner: (version,) }, parse_with=vec_with_limit)]
     pub registers: Vec<RegisterPack>,
 }
 
@@ -155,19 +155,19 @@ pub struct CircuitInstructionV2Pack {
     pub condition_value: i64,
     pub num_ctrl_qubits: u32,
     pub ctrl_state: u32,
-    #[br(count = name_size as usize, try_map = String::from_utf8)]
+    #[br(args((name_size as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub gate_class_name: String,
-    #[br(count = label_size as usize, try_map = String::from_utf8)]
+    #[br(args((label_size as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub label: String,
     #[br(parse_with = ConditionPack::read, args(condition_register_size, extract_conditional_key(extras_key), condition_value))]
     #[bw(write_with = ConditionPack::write)]
     pub condition: ConditionPack,
-    #[br(count = num_qargs as usize + num_cargs as usize)]
+    #[br(args((num_qargs + num_cargs,)), parse_with=vec_with_count_arg)]
     #[br(if(read_bits))]
     pub bit_data: Vec<CircuitInstructionArgPack>,
-    #[br(count = num_parameters as usize)]
+    #[br(args((num_parameters,)), parse_with=vec_with_count_arg)]
     pub params: Vec<GenericDataPack>,
     #[br(if(has_annotations(extras_key)))]
     pub annotations: Option<InstructionsAnnotationPack>,
@@ -207,7 +207,7 @@ pub struct CircuitInstructionArgPack {
 pub struct CustomCircuitInstructionsPack {
     #[bw(calc = custom_instructions.len() as u64)]
     pub custom_operations_length: u64,
-    #[br(count = custom_operations_length)]
+    #[br(args((custom_operations_length,)), parse_with=vec_with_count_arg)]
     pub custom_instructions: Vec<CustomCircuitInstructionDefPack>,
 }
 
@@ -236,7 +236,7 @@ pub struct CustomCircuitInstructionDefPack {
     pub ctrl_state: u32,
     #[bw(calc = base_gate_raw.len() as u64)]
     pub base_gate_size: u64,
-    #[br(count = gate_name_size as usize, try_map = String::from_utf8)]
+    #[br(count = gate_name_size, try_map = String::from_utf8)]
     #[bw(map = |s| s.as_bytes())]
     pub name: String,
     #[br(count = size)]
@@ -257,14 +257,14 @@ pub struct RegisterV18Pack {
     pub name_size: u16,
     pub in_circuit: u8,
     pub register_attachment: u8,
-    #[br(count = name_size as usize, try_map = String::from_utf8)]
+    #[br(count = name_size, try_map = String::from_utf8)]
     #[bw(map = |s| s.as_bytes())]
     pub name: String,
     #[br(if(register_attachment == 1))]
     #[bw(if(*register_attachment == 1))]
     pub start_index: u32,
 
-    #[br(if(register_attachment == 0), count = size)]
+    #[br(if(register_attachment == 0), args((size,)), parse_with=vec_with_count_arg)]
     #[bw(if(*register_attachment == 0))]
     pub bit_indices: Vec<u32>,
 }
@@ -285,10 +285,10 @@ pub struct RegisterV4Pack {
     #[bw(calc = name.len() as u16)]
     pub name_size: u16,
     pub in_circuit: u8,
-    #[br(count = name_size as usize, try_map = String::from_utf8)]
+    #[br(count = name_size, try_map = String::from_utf8)]
     #[bw(map = |s| s.as_bytes())]
     pub name: String,
-    #[br(count = size)]
+    #[br(args((size,)), parse_with=vec_with_count_arg)]
     pub bit_indices: Vec<i64>,
 }
 
@@ -456,14 +456,14 @@ pub struct LayoutV2Pack {
     #[bw(calc = extra_registers.len() as u32)]
     pub extra_registers_length: u32,
     pub input_qubit_count: i32,
-    #[br(count = extra_registers_length, args { inner: (version,) })]
+    #[br(count = extra_registers_length, args { inner: (version,) }, parse_with=vec_with_limit)]
     pub extra_registers: Vec<RegisterPack>,
-    #[br(count = initial_layout_size.max(0), args { inner: (version,) })]
+    #[br(count = initial_layout_size.max(0), args { inner: (version,) }, parse_with=vec_with_limit)]
     #[bw(args_raw = (version,))]
     pub initial_layout_items: Vec<VirtualQBitPack>,
-    #[br(count = input_mapping_size.max(0))]
+    #[br(args((input_mapping_size.max(0),)), parse_with=vec_with_count_arg)]
     pub input_mapping_items: Vec<u32>,
-    #[br(count = final_layout_size.max(0))]
+    #[br(args((final_layout_size.max(0),)), parse_with=vec_with_count_arg)]
     pub final_layout_items: Vec<u32>,
 }
 
@@ -569,7 +569,7 @@ pub struct GenericDataPack {
 pub struct GenericDataSequencePack {
     #[bw(calc = elements.len() as u64)]
     pub num_elements: u64,
-    #[br(count = num_elements)]
+    #[br(args((num_elements,)), parse_with = vec_with_count_arg)]
     pub elements: Vec<GenericDataPack>,
 }
 
@@ -588,7 +588,7 @@ pub struct PauliEvolutionDefPack {
     pub time_size: u64,
     #[bw(calc = synth_data.len() as u64)]
     pub synth_method_size: u64,
-    #[br(count = operator_size, args { inner: (version,) })]
+    #[br(count = operator_size, args { inner: (version,) }, parse_with=vec_with_limit)]
     #[bw(args(version))]
     pub pauli_data: Vec<PauliDataPack>,
     #[br(count = time_size)]
@@ -645,28 +645,132 @@ pub struct SparsePauliOpListElemPack {
     pub data: Bytes,
 }
 
+#[binrw::parser(reader)]
+fn string_with_limit(args: (usize,)) -> BinResult<String> {
+    let mut out: Vec<u8> = Vec::new();
+    let count = args.0;
+    out.try_reserve_exact(count).map_err(|e| {
+        binrw::Error::Io(binrw::io::Error::new(
+            binrw::io::ErrorKind::OutOfMemory,
+            e.to_string(),
+        ))
+    })?;
+    if reader.take(count as u64).read_to_end(&mut out)? == count {
+        String::from_utf8(out).map_err(|e| {
+            binrw::Error::Io(binrw::io::Error::new(
+                binrw::io::ErrorKind::InvalidInput,
+                e.to_string(),
+            ))
+        })
+    } else {
+        Err(binrw::Error::Io(binrw::io::Error::new(
+            binrw::io::ErrorKind::UnexpectedEof,
+            "Insufficient bytes in QPY for specified size",
+        )))
+    }
+}
+
+fn vec_with_limit<R, T>(
+    reader: &mut R,
+    endian: Endian,
+    args: VecArgs<T::Args<'_>>,
+) -> BinResult<Vec<T>>
+where
+    R: Read + Seek,
+    T: BinRead,
+    for<'a> T::Args<'a>: Clone,
+{
+    let mut out: Vec<T> = Vec::new();
+    out.try_reserve_exact(args.count).map_err(|e| {
+        binrw::Error::Io(binrw::io::Error::new(
+            binrw::io::ErrorKind::OutOfMemory,
+            e.to_string(),
+        ))
+    })?;
+    for _ in 0..args.count {
+        out.push(<_>::read_options(reader, endian, args.inner.clone())?)
+    }
+    Ok(out)
+}
+
+#[binrw::parser(reader, endian)]
+fn vec_with_count_arg<'a, C: TryInto<usize> + Copy + std::fmt::Debug, T: BinRead<Args<'a> = ()>>(
+    args: (C,),
+) -> BinResult<Vec<T>> {
+    let mut out: Vec<T> = Vec::new();
+    let inner_count = args.0;
+    let count = inner_count
+        .try_into()
+        .map_err(|_| binrw::Error::AssertFail {
+            pos: reader.stream_position().unwrap_or(0),
+            message: format!("Invalid count {:?}", inner_count.clone()),
+        })?;
+    out.try_reserve_exact(count).map_err(|e| {
+        binrw::Error::Io(binrw::io::Error::new(
+            binrw::io::ErrorKind::OutOfMemory,
+            e.to_string(),
+        ))
+    })?;
+    for _ in 0..count {
+        out.push(<_>::read_options(reader, endian, ())?)
+    }
+    Ok(out)
+}
+
 /// Read the bit terms of a `SPARSE_OBSERVABLE` payload.
 ///
 /// `BitTerm` is `#[repr(u8)]`, so a single byte is always enough.  QPY 17 nonetheless stored each
 /// bit term as a `u16`, wasting a byte per term; QPY 18 narrowed it to `u8`.  The in-memory
 /// representation is always `u8` and this parser absorbs the difference, so nothing downstream has
 /// to care which version produced the payload.
-#[binrw::parser(reader, endian)]
+#[binrw::parser(reader)]
 fn read_bitterms(version: u8, byte_count: u64) -> BinResult<Vec<u8>> {
-    let count = (byte_count / bitterm_size(version) as u64) as usize;
+    let term_size = bitterm_size(version);
+    let count = byte_count / term_size as u64;
     if version >= 18 {
-        Vec::<u8>::read_options(reader, endian, binrw::VecArgs { count, inner: () })
+        let mut out: Vec<u8> = Vec::new();
+        out.try_reserve_exact(count as usize).map_err(|e| {
+            binrw::Error::Io(binrw::io::Error::new(
+                binrw::io::ErrorKind::OutOfMemory,
+                e.to_string(),
+            ))
+        })?;
+        if reader.take(count).read_to_end(&mut out)? == count as usize {
+            Ok(out)
+        } else {
+            Err(binrw::Error::Io(binrw::io::Error::new(
+                binrw::io::ErrorKind::UnexpectedEof,
+                "Insufficient bytes in QPY for specified size",
+            )))
+        }
     } else {
-        let wide = Vec::<u16>::read_options(reader, endian, binrw::VecArgs { count, inner: () })?;
-        let pos = reader.stream_position().unwrap_or(0);
-        wide.into_iter()
-            .map(|term| {
-                u8::try_from(term).map_err(|_| binrw::Error::AssertFail {
-                    pos,
-                    message: format!("bit term {term} does not fit in a u8"),
-                })
-            })
-            .collect()
+        let mut out: Vec<u8> = Vec::new();
+        out.try_reserve_exact(byte_count as usize).map_err(|e| {
+            binrw::Error::Io(binrw::io::Error::new(
+                binrw::io::ErrorKind::OutOfMemory,
+                e.to_string(),
+            ))
+        })?;
+        let mut terms_reader = reader.take(count);
+        let mut buffer = [0_u8; 2];
+        for _ in 0..count {
+            terms_reader.read_exact(&mut buffer).map_err(|e| {
+                let os_error = e.raw_os_error();
+                match os_error {
+                    Some(e) => binrw::Error::Io(binrw::io::Error::from_raw_os_error(e)),
+                    None => binrw::Error::Io(binrw::io::Error::new(
+                        binrw::io::ErrorKind::Unsupported,
+                        "Read error",
+                    )),
+                }
+            })?;
+            let val = u16::from_be_bytes(buffer);
+            out.push(u8::try_from(val).map_err(|_| binrw::Error::AssertFail {
+                pos: terms_reader.stream_position().unwrap_or(0),
+                message: format!("bit term {val} does not fit in a u8"),
+            })?);
+        }
+        Ok(out)
     }
 }
 
@@ -709,15 +813,15 @@ pub struct SparsePauliObservableElemPack {
     pub inds_data_size: u64,
     #[bw(calc = (bounds_data.len() * std::mem::size_of::<u64>()) as u64)]
     pub bounds_data_size: u64,
-    #[br(count = coeff_data_size / std::mem::size_of::<f64>() as u64)]
+    #[br(args((coeff_data_size / std::mem::size_of::<f64>() as u64,)), parse_with=vec_with_count_arg)]
     pub coeff_data: Vec<f64>, // complex numbers stored in format [re1, im1, re2, im2,...]
     // Stored as `u16` up to QPY 17 and as `u8` from QPY 18 on; always `u8` in memory.
     #[br(parse_with = read_bitterms, args(version, bitterm_data_size))]
     #[bw(write_with = write_bitterms, args(version))]
     pub bitterm_data: Vec<u8>,
-    #[br(count = inds_data_size / std::mem::size_of::<u32>() as u64)]
+    #[br(args((inds_data_size / std::mem::size_of::<u32>() as u64,)), parse_with=vec_with_count_arg)]
     pub inds_data: Vec<u32>,
-    #[br(count = bounds_data_size / std::mem::size_of::<u64>() as u64)]
+    #[br(args((bounds_data_size / std::mem::size_of::<u64>() as u64,)), parse_with=vec_with_count_arg)]
     pub bounds_data: Vec<u64>,
 }
 
@@ -731,7 +835,7 @@ pub struct ParameterSymbolPack {
     #[bw(calc = name.len() as u16)]
     pub name_length: u16,
     pub uuid: [u8; 16],
-    #[br(count = name_length as usize, try_map = String::from_utf8)]
+    #[br(args((name_length as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub name: String,
 }
@@ -746,7 +850,7 @@ pub struct ParameterVectorPack {
     pub name_size: u16,
     pub vector_size: u64,
     pub uuid: [u8; 16],
-    #[br(count = name_size as usize, try_map = String::from_utf8)]
+    #[br(args((name_size as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub name: String,
 }
@@ -760,7 +864,7 @@ pub struct ParameterVectorPack {
 pub struct ParameterVectorTablePack {
     #[bw(calc = vectors.len() as u16)]
     pub num_vectors: u16,
-    #[br(count = num_vectors)]
+    #[br(args((num_vectors,)), parse_with = vec_with_count_arg)]
     pub vectors: Vec<ParameterVectorPack>,
 }
 
@@ -786,7 +890,7 @@ pub struct ParameterVectorElementV17Pack {
     pub vector_size: u64,
     pub uuid: [u8; 16],
     pub index: u64,
-    #[br(count = name_size as usize, try_map = String::from_utf8)]
+    #[br(args((name_size as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub name: String,
 }
@@ -916,7 +1020,7 @@ pub struct ParameterExpressionPack {
     pub expression_data_length: u64,
     #[br(count = expression_data_length)]
     pub expression_data: Bytes,
-    #[br(count = symbol_tables_length, args { inner: (version, depth, max_depth) })]
+    #[br(count = symbol_tables_length, args { inner: (version, depth, max_depth) }, parse_with=vec_with_limit)]
     #[bw(args(version))]
     pub symbol_table_data: Vec<ParameterExpressionSymbolPack>,
 }
@@ -1002,7 +1106,7 @@ pub struct ParameterExpressionParameterExpressionSymbolPack {
 pub struct MappingPack {
     #[bw(calc = items.len() as u64)]
     pub num_elements: u64,
-    #[br(count = num_elements)]
+    #[br(args((num_elements,)), parse_with = vec_with_count_arg)]
     pub items: Vec<MappingItem>,
 }
 
@@ -1098,7 +1202,7 @@ pub enum ExpressionVarElementPack {
 pub struct ExpressionVarRegisterPack {
     #[bw(calc = name.len() as u16)]
     pub name_size: u16,
-    #[br(count = name_size as usize, try_map = String::from_utf8)]
+    #[br(args((name_size as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub name: String,
 }
@@ -1144,7 +1248,7 @@ pub enum DurationPack {
 pub struct BigIntPack {
     #[bw(calc = bytes.len() as u8)]
     pub num_bytes: u8,
-    #[br(count = num_bytes as usize)]
+    #[br(count = num_bytes)]
     pub bytes: Bytes,
 }
 
@@ -1183,7 +1287,7 @@ pub struct ExpressionVarDeclarationPack {
     #[bw(calc = name.len() as u16)]
     pub name_size: u16,
     pub exp_type: ExpressionType,
-    #[br(count = name_size as usize, try_map = String::from_utf8)]
+    #[br(args((name_size as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub name: String,
 }
@@ -1209,7 +1313,7 @@ pub struct InstructionAnnotationPack {
 pub struct InstructionsAnnotationPack {
     #[bw(calc = annotations.len() as u32)]
     pub num_annotations: u32,
-    #[br(count = num_annotations)]
+    #[br(args((num_annotations,)), parse_with=vec_with_count_arg)]
     pub annotations: Vec<InstructionAnnotationPack>,
 }
 
@@ -1222,7 +1326,7 @@ pub struct AnnotationStateHeaderPack {
     pub namespace_size: u32,
     #[bw(calc = state.len() as u64)]
     pub state_size: u64,
-    #[br(count = namespace_size, try_map = String::from_utf8)]
+    #[br(args((namespace_size as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub namespace: String,
     #[br(count = state_size)]
@@ -1236,7 +1340,7 @@ pub struct AnnotationStateHeaderPack {
 pub struct AnnotationHeaderStaticPack {
     #[bw(calc = state_headers.len() as u32)]
     pub num_namespaces: u32,
-    #[br(count = num_namespaces)]
+    #[br(args((num_namespaces,)), parse_with=vec_with_count_arg)]
     pub state_headers: Vec<AnnotationStateHeaderPack>,
 }
 
@@ -1250,7 +1354,7 @@ pub struct AnnotationHeaderStaticPack {
 pub struct CalibrationsPack {
     #[bw(calc = calibrations.len() as u16)]
     pub num_cals: u16,
-    #[br(count = num_cals, args { inner: (version, max_depth) })]
+    #[br(count = num_cals, args { inner: (version, max_depth) }, parse_with=vec_with_limit)]
     pub calibrations: Vec<CalibrationDefPack>,
 }
 
@@ -1267,12 +1371,12 @@ pub struct CalibrationDefPack {
     #[bw(calc = params.len() as u16)]
     pub num_params: u16,
     pub cal_type: ValueType,
-    #[br(count = name_size as usize, try_map = String::from_utf8)]
+    #[br(args((name_size as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub name: String, // might want to emit a warning here?
-    #[br(count = num_qubits)]
+    #[br(args((num_qubits,)), parse_with=vec_with_count_arg)]
     pub qubits: Vec<i64>,
-    #[br(count = num_params)]
+    #[br(args((num_params,)), parse_with=vec_with_count_arg)]
     pub params: Vec<GenericDataPack>,
     #[br(args(version, 0, max_depth))]
     pub schedule: ScheduleBlockPack,
@@ -1293,14 +1397,14 @@ pub struct ScheduleBlockPack {
     pub metadata_size: u64,
     #[bw(calc = elements.len() as u16)]
     pub num_elements: u16,
-    #[br(count = name_size as usize, try_map = String::from_utf8)]
+    #[br(args((name_size as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub name: String,
     #[br(count = metadata_size)]
     // originally to be handled with metadata deserializer
     pub metadata: Bytes,
     pub alignment_context: AlignmentContextPack,
-    #[br(count = num_elements, args { inner: (version, depth, max_depth) })]
+    #[br(count = num_elements, args { inner: (version, depth, max_depth) }, parse_with=vec_with_limit)]
     pub elements: Vec<ScheduleBlockElementPack>,
     #[br(if(version >= 7))]
     // originially a reference is either null or ScheduleBlockPack
@@ -1337,7 +1441,7 @@ pub struct ScheduleBlockElementPack {
 pub struct ScheduleBlockElementNonNestedDataPack {
     #[bw(calc = operands.len() as u64)]
     pub operands_size: u64,
-    #[br(count = operands_size)]
+    #[br(args((operands_size,)), parse_with=vec_with_count_arg)]
     pub operands: Vec<ScheduleOperandPack>, // _loads_operand
     pub name: GenericDataPack,
 }
@@ -1386,17 +1490,17 @@ pub struct ScheduleOperandSymbolicPulsePack {
     pub constraints_size: u16,
     pub valid_amp_conditions_size: u16,
     pub amp_limited: u8,
-    #[br(count = class_name_size as usize, try_map = String::from_utf8)]
+    #[br(args((class_name_size as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub class_name: String,
-    #[br(count = type_size as usize, try_map = String::from_utf8)]
+    #[br(args((type_size as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub type_name: String,
-    #[br(count = envelope_size as usize)]
+    #[br(count = envelope_size)]
     pub envelope: Bytes, // seems to be ignored even if the original code
-    #[br(count = constraints_size as usize)]
+    #[br(count = constraints_size)]
     pub constraints: Bytes, // seems to be ignored even if the original code
-    #[br(count = valid_amp_conditions_size as usize)]
+    #[br(count = valid_amp_conditions_size)]
     pub valid_amp_conditions: Bytes, // seems to be ignored even if the original code
     pub parameters: MappingPack,
     pub duration: GenericDataPack,
@@ -1418,7 +1522,7 @@ pub struct ScheduleOperandChannelPack {
 pub struct ScheduleOperandOperandStrPack {
     #[bw(calc = string.len() as u64)]
     pub operand_data_size: u64,
-    #[br(count = operand_data_size as usize, try_map = String::from_utf8)]
+    #[br(args((operand_data_size as usize,)), parse_with=string_with_limit)]
     #[bw(map = |s| s.as_bytes())]
     pub string: String,
 }
@@ -1577,5 +1681,75 @@ mod tests {
         }
 
         error
+    }
+
+    #[test]
+    fn overalloc_generic_data() {
+        let bytes: Vec<u8> = vec![255, 255, 255, 255, 255, 255, 255, 0, 0, 255];
+        let mut buf = Cursor::new(bytes);
+        let error = GenericDataSequencePack::read_be(&mut buf).unwrap_err();
+        let binrw::Error::Io(e) = error.root_cause() else {
+            panic!("Unexpected error: {:?}", error.root_cause());
+        };
+        assert_eq!(e.kind(), binrw::io::ErrorKind::OutOfMemory);
+    }
+
+    #[test]
+    fn eof_generic_data() {
+        let bytes: Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 5];
+        let mut buf = Cursor::new(bytes);
+        let error = GenericDataSequencePack::read_be(&mut buf).unwrap_err();
+        let binrw::Error::Io(e) = error.root_cause() else {
+            panic!("Unexpected error {:?}", error.root_cause());
+        };
+        assert_eq!(e.kind(), binrw::io::ErrorKind::UnexpectedEof);
+    }
+
+    #[test]
+    fn eof_calibrations() {
+        let bytes: Vec<u8> = vec![255, 255, 0, 0, 0];
+        let mut buf = Cursor::new(bytes);
+        let error = CalibrationsPack::read_be(&mut buf).unwrap_err();
+        let binrw::Error::Io(e) = error.root_cause() else {
+            panic!("Unexpcted error: {:?}", error.root_cause());
+        };
+        assert_eq!(e.kind(), binrw::io::ErrorKind::UnexpectedEof);
+    }
+
+    #[test]
+    fn overalloc_layout() {
+        let bytes: Vec<u8> = vec![
+            0, // exists u8
+            0, 0, 0, 0, // initial_layout_size i32
+            0, 0, 0, 0, // input_mapping_size i32
+            0, 0, 0, 0, // final_layout_size i32
+            255, 255, 255, 255, // extra_registers_length u32
+        ];
+        let mut buf = Cursor::new(bytes);
+        let error = LayoutV2Pack::read_be(&mut buf).unwrap_err();
+        let binrw::Error::Io(e) = error.root_cause() else {
+            panic!("Unexpcted error: {:?}", error.root_cause());
+        };
+        // Based on the system either a 4GB allocation is too large or we will reach eof
+        assert!(matches!(
+            e.kind(),
+            binrw::io::ErrorKind::OutOfMemory | binrw::io::ErrorKind::UnexpectedEof
+        ));
+    }
+
+    #[test]
+    fn param_symbol_pack_eof() {
+        let bytes: Vec<u8> = vec![
+            255, 255, // name_length
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, // uuid
+            b'a', b'b', b'c',
+        ];
+        let mut buf = Cursor::new(bytes);
+        let error = ParameterSymbolPack::read_be(&mut buf).unwrap_err();
+        let binrw::Error::Io(e) = error.root_cause() else {
+            panic!("Unexpcted error: {:?}", error.root_cause());
+        };
+        assert_eq!(e.kind(), binrw::io::ErrorKind::UnexpectedEof);
     }
 }
