@@ -31,6 +31,7 @@ pub mod program;
 pub mod randomization;
 pub mod render;
 pub mod tensor;
+mod serialization;
 
 pub use data_tree::{ArityMismatch, DataTree, InvalidName, PathEntry, TreeMatchError};
 pub use ops::{BoxedOpError, BoxedProgramOp, Constant, ErasedProgramOp, ProgramOp};

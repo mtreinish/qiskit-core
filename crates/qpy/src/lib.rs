@@ -32,6 +32,8 @@ mod params;
 mod py_methods;
 mod value;
 
+pub use bytes::Bytes;
+
 pub use interface::{native_dump_qpy, native_load_qpy};
 
 /// The oldest QPY format version that the Rust QPY implementation can read.
