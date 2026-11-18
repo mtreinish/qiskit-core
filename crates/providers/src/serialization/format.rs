@@ -10,6 +10,8 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+use std::io::Read;
+
 use binrw::{BinRead, BinResult, BinWrite, Endian, VecArgs, binread, binrw, binwrite};
 use num_complex::{Complex32, Complex64};
 use qiskit_qpy::Bytes;
@@ -17,16 +19,16 @@ use qiskit_qpy::Bytes;
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-pub struct ProgramHeader {
+pub(super) struct ProgramHeader {
     #[brw(magic = b"QKPROG")]
-    pub serialization_version: u8,
-    pub qiskit_version: (u8, u8, u8),
-    pub input_structure: DataTreePack,
-    pub output_structure: DataTreePack,
+    pub(super) serialization_version: u8,
+    pub(super) qiskit_version: (u8, u8, u8),
+    pub(super) input_structure: DataTreePack,
+    pub(super) output_structure: DataTreePack,
     #[bw(calc = functions.len() as u64)]
-    pub num_functions: u64,
+    pub(super) num_functions: u64,
     #[br(args((num_functions,)), parse_with=functions_decoder)]
-    pub functions: Vec<ProgramFunctionPack>,
+    pub(super) functions: Vec<ProgramFunctionPack>,
 }
 
 #[binrw::parser(reader, endian)]
@@ -48,7 +50,7 @@ fn functions_decoder(args: (u64,)) -> BinResult<Vec<ProgramFunctionPack>> {
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-pub struct ProgramFunctionPack {
+pub(super) struct ProgramFunctionPack {
     #[bw(calc = instructions.len() as u32)]
     num_instructions: u32,
     #[bw(calc = parameters.len() as u32)]
@@ -66,7 +68,7 @@ pub struct ProgramFunctionPack {
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-pub struct ProgramInstructionPack {
+pub(super) struct ProgramInstructionPack {
     body: InstructionBodyPack,
     #[bw(calc = operands.len() as u32)]
     num_operands: u32,
@@ -81,7 +83,7 @@ pub struct ProgramInstructionPack {
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-struct ValuePack {
+pub(super) struct ValuePack {
     instruction: u32,
     slot: u16,
 }
@@ -89,7 +91,7 @@ struct ValuePack {
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-struct TensorTypePack {
+pub(super) struct TensorTypePack {
     dtype: DtypePack,
     #[bw(calc = shape.len() as u32)]
     shape_len: u32,
@@ -100,7 +102,7 @@ struct TensorTypePack {
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-enum DimPack {
+pub(super) enum DimPack {
     #[brw(magic = b'f')]
     Fixed(u64),
     #[brw(magic = b'b')]
@@ -110,7 +112,7 @@ enum DimPack {
 #[binrw]
 #[brw(big)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum DtypePack {
+pub(super) enum DtypePack {
     #[brw(magic = b'C')]
     C128, // complex
     #[brw(magic = b'c')]
@@ -145,7 +147,7 @@ enum DtypePack {
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-pub enum InstructionBodyPack {
+pub(super) enum InstructionBodyPack {
     #[brw(magic = b'p')]
     Parameter,
     #[brw(magic = b'o')]
@@ -159,7 +161,7 @@ pub enum InstructionBodyPack {
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-enum ProgramOpPack {
+pub(super) enum ProgramOpPack {
     #[brw(magic = b'+')]
     Add,
     #[brw(magic = b'/')]
@@ -206,7 +208,7 @@ enum ProgramOpPack {
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-struct ShotLoopPack {
+pub(super) struct ShotLoopPack {
     shots: u64,
     #[bw(calc = circuits.len() as u64)]
     circuits_size: u64,
@@ -217,7 +219,7 @@ struct ShotLoopPack {
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-struct TensorPack {
+pub(super) struct TensorPack {
     dtype: DtypePack,
     #[bw(calc = shape.len() as u32)]
     shape_len: u32,
@@ -232,7 +234,7 @@ struct TensorPack {
 #[brw(big)]
 #[br(import(dtype: DtypePack, len: usize))]
 #[derive(Debug)]
-enum TensorData {
+pub(super) enum TensorData {
     #[br(pre_assert(dtype == DtypePack::C128))]
     C128(#[br(count = len)] Vec<[f64;2]>),
     #[br(pre_assert(dtype == DtypePack::C64))]
@@ -266,6 +268,62 @@ enum TensorData {
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-struct DataTreePack {
-    // TODO
+pub(super) struct DataTreePack {
+    dtype: DtypePack,
+    size: u64,
+    #[br(count = size)]
+    tree: Vec<Option<DataTreeEntryPack>>,
+}
+
+#[binrw]
+#[brw(big)]
+#[derive(Debug)]
+pub(super) enum DataTreeEntryPack {
+    #[brw(magic = b'E')]
+    Break,
+    #[brw(magic = b'b')]
+    Branch(DataTreeEntryData),
+    #[brw(magic = b'l')]
+    Leaf(DataTreeEntryData),
+}
+
+#[binrw]
+#[brw(big)]
+#[derive(Debug)]
+pub(super) struct DataTreeEntryData {
+    index: u64,
+    key_exists: u8,
+    #[bw(calc = key.len() as u64)]
+    key_size: u64,
+    #[bw(write_with = key_encoder)]
+    #[br(if(key_exists == 1), args((key_size,)), parse_with=key_decoder)]
+    key: String
+}
+
+#[binrw::parser(reader)]
+fn key_decoder(args: (u64,)) -> BinResult<String> {
+    let count = args.0 as usize;
+    let mut out = Vec::new();
+    out.try_reserve_exact(count).map_err(|e| {
+        binrw::Error::Io(binrw::io::Error::new(
+            binrw::io::ErrorKind::OutOfMemory,
+            e.to_string(),
+        ))
+    })?;
+    if reader.take(count as u64).read_to_end(&mut out)? == count {
+        String::from_utf8(out).map_err(|e| binrw::Error::Custom{
+            pos: reader.stream_position().unwrap_or(0) as u64,
+            err: Box::new(e),
+        })
+    } else {
+        Err(binrw::Error::Io(binrw::io::Error::new(
+            binrw::io::ErrorKind::UnexpectedEof,
+            "Insufficient bytes in QPY for specified size",
+        )))
+    }
+}
+
+#[binrw::writer(writer, endian)]
+fn key_encoder(key: &String) -> BinResult<()> {
+    key.as_bytes().write_options(writer, endian, ())
 }
