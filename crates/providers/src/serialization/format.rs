@@ -11,6 +11,7 @@
 // that they have been altered from the originals.
 
 use binrw::{BinRead, BinResult, BinWrite, Endian, VecArgs, binread, binrw, binwrite};
+use num_complex::{Complex32, Complex64};
 use qiskit_qpy::Bytes;
 
 #[binrw]
@@ -108,7 +109,7 @@ enum DimPack {
 
 #[binrw]
 #[brw(big)]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum DtypePack {
     #[brw(magic = b'C')]
     C128, // complex
@@ -217,7 +218,49 @@ struct ShotLoopPack {
 #[brw(big)]
 #[derive(Debug)]
 struct TensorPack {
+    dtype: DtypePack,
+    #[bw(calc = shape.len() as u32)]
+    shape_len: u32,
+    #[br(count = shape_len)]
+    shape: Vec<u64>,
+    num_elems: u64,
+    #[br(args(dtype, num_elems as usize))]
+    data: TensorData,
+}
 
+#[binrw]
+#[brw(big)]
+#[br(import(dtype: DtypePack, len: usize))]
+#[derive(Debug)]
+enum TensorData {
+    #[br(pre_assert(dtype == DtypePack::C128))]
+    C128(#[br(count = len)] Vec<[f64;2]>),
+    #[br(pre_assert(dtype == DtypePack::C64))]
+    C64(#[br(count = len)] Vec<[f32;2]>),
+    #[br(pre_assert(dtype == DtypePack::F64))]
+    F64(#[br(count = len)] Vec<f64>),
+    #[br(pre_assert(dtype == DtypePack::F32))]
+    F32(#[br(count = len)] Vec<f32>),
+    #[br(pre_assert(dtype == DtypePack::I64))]
+    I64(#[br(count = len)] Vec<i64>),
+    #[br(pre_assert(dtype == DtypePack::I32))]
+    I32(#[br(count = len)] Vec<i32>),
+    #[br(pre_assert(dtype == DtypePack::I16))]
+    I16(#[br(count = len)] Vec<i16>),
+    #[br(pre_assert(dtype == DtypePack::I8))]
+    I8(#[br(count = len)] Vec<i8>),
+    #[br(pre_assert(dtype == DtypePack::U64))]
+    U64(#[br(count = len)] Vec<u64>),
+    #[br(pre_assert(dtype == DtypePack::U32))]
+    U32(#[br(count = len)] Vec<u32>),
+    #[br(pre_assert(dtype == DtypePack::U16))]
+    U16(#[br(count = len)] Vec<u16>),
+    #[br(pre_assert(dtype == DtypePack::U8))]
+    U8(#[br(count = len)] Vec<u8>),
+    #[br(pre_assert(dtype == DtypePack::Bit))]
+    Bit(#[br(count = len)] Vec<u8>),
+    #[br(pre_assert(dtype == DtypePack::Philo4x32))]
+    Philo4x32(#[br(count = len)] Vec<u32>),
 }
 
 #[binrw]
