@@ -12,14 +12,13 @@
 
 use std::io::Read;
 
-use binrw::{BinRead, BinResult, BinWrite, Endian, VecArgs, binread, binrw, binwrite};
-use num_complex::{Complex32, Complex64};
+use binrw::{BinRead, BinResult, BinWrite, binrw};
 use qiskit_qpy::Bytes;
 
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-pub(super) struct ProgramHeader {
+pub struct ProgramHeader {
     #[brw(magic = b"QKPROG")]
     pub(super) serialization_version: u8,
     pub(super) qiskit_version: (u8, u8, u8),
@@ -96,7 +95,7 @@ pub(super) struct TensorTypePack {
     #[bw(calc = shape.len() as u32)]
     shape_len: u32,
     #[br(count = shape_len)]
-    pub(super) shape: Vec<DimPack>
+    pub(super) shape: Vec<DimPack>,
 }
 
 #[binrw]
@@ -138,11 +137,10 @@ pub(super) enum DtypePack {
     #[brw(magic = b'B')]
     U8,
     #[brw(magic = b'n')]
-    Bit,           // bool
+    Bit, // bool
     #[brw(magic = b'P')]
     Philo4x32,
 }
-
 
 #[binrw]
 #[brw(big)]
@@ -236,9 +234,9 @@ pub(super) struct TensorPack {
 #[derive(Debug)]
 pub(super) enum TensorData {
     #[br(pre_assert(dtype == DtypePack::C128))]
-    C128(#[br(count = len)] Vec<[f64;2]>),
+    C128(#[br(count = len)] Vec<[f64; 2]>),
     #[br(pre_assert(dtype == DtypePack::C64))]
-    C64(#[br(count = len)] Vec<[f32;2]>),
+    C64(#[br(count = len)] Vec<[f32; 2]>),
     #[br(pre_assert(dtype == DtypePack::F64))]
     F64(#[br(count = len)] Vec<f64>),
     #[br(pre_assert(dtype == DtypePack::F32))]
@@ -304,7 +302,7 @@ pub(super) struct DataTreeEntryKey {
     key_size: u64,
     #[bw(write_with = key_encoder)]
     #[br(args((key_size,)), parse_with=key_decoder)]
-    pub(super) key: String
+    pub(super) key: String,
 }
 
 #[binrw::parser(reader)]
@@ -318,8 +316,8 @@ fn key_decoder(args: (u64,)) -> BinResult<String> {
         ))
     })?;
     if reader.take(count as u64).read_to_end(&mut out)? == count {
-        String::from_utf8(out).map_err(|e| binrw::Error::Custom{
-            pos: reader.stream_position().unwrap_or(0) as u64,
+        String::from_utf8(out).map_err(|e| binrw::Error::Custom {
+            pos: reader.stream_position().unwrap_or(0),
             err: Box::new(e),
         })
     } else {

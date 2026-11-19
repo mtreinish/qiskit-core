@@ -12,14 +12,14 @@
 
 use std::io::Cursor;
 
-use qiskit_qpy::{QISKIT_VERSION, native_dump_qpy, QpyError, Bytes};
+use qiskit_qpy::{Bytes, QISKIT_VERSION, QpyError, native_dump_qpy};
 
-use crate::{QuantumProgram, DataTree};
-use crate::data_tree::PathEntry;
-use crate::program::{Value, InstructionView};
-use crate::ops::{BroadcastTo, Parity, Cast, Mean, Constant, Std, Variance, ShotLoop};
-use crate::tensor::{DType, TensorType, PrngKind, Dim, Tensor, KeyTensor};
 use super::format::*;
+use crate::data_tree::PathEntry;
+use crate::ops::{BroadcastTo, Cast, Constant, Mean, Parity, ShotLoop, Std, Variance};
+use crate::program::{InstructionView, Value};
+use crate::tensor::{DType, Dim, PrngKind, Tensor, TensorType};
+use crate::{DataTree, QuantumProgram};
 
 use thiserror::Error;
 
@@ -35,22 +35,64 @@ fn tensor_to_pack(tensor: &Tensor) -> TensorPack {
     let shape: Vec<u64> = tensor.shape().iter().map(|x| *x as u64).collect();
     let num_elems: u64 = shape.iter().product();
     let (data, dtype) = match tensor {
-            Tensor::C128(arr) => (TensorData::C128(arr.iter().map(|x| [x.re, x.im]).collect()), DtypePack::C128),
-            Tensor::C64(arr) => (TensorData::C64(arr.iter().map(|x| [x.re, x.im]).collect()), DtypePack::C64),
-            Tensor::F32(arr) => (TensorData::F32(arr.clone().into_flat().to_vec()), DtypePack::F32),
-            Tensor::F64(arr) => (TensorData::F64(arr.clone().into_flat().to_vec()), DtypePack::F64),
-            Tensor::I32(arr) => (TensorData::I32(arr.clone().into_flat().to_vec()), DtypePack::I32),
-            Tensor::I64(arr) => (TensorData::I64(arr.clone().into_flat().to_vec()), DtypePack::I64),
-            Tensor::I16(arr) => (TensorData::I16(arr.clone().into_flat().to_vec()), DtypePack::I16),
-            Tensor::I8(arr) => (TensorData::I8(arr.clone().into_flat().to_vec()), DtypePack::I8),
-            Tensor::U32(arr) => (TensorData::U32(arr.clone().into_flat().to_vec()), DtypePack::U32),
-            Tensor::U64(arr) => (TensorData::U64(arr.clone().into_flat().to_vec()), DtypePack::U64),
-            Tensor::U16(arr) => (TensorData::U16(arr.clone().into_flat().to_vec()), DtypePack::U16),
-            Tensor::U8(arr) => (TensorData::U8(arr.clone().into_flat().to_vec()), DtypePack::U8),
-            Tensor::Bit(arr) => (TensorData::U8(arr.clone().into_flat().to_vec()), DtypePack::Bit),
-            Tensor::Key(tensor) => match tensor.kind() {
-                PrngKind::Philox4x32 => (TensorData::Philo4x32(tensor.words().clone().into_flat().to_vec()), DtypePack::Philo4x32),
-            }
+        Tensor::C128(arr) => (
+            TensorData::C128(arr.iter().map(|x| [x.re, x.im]).collect()),
+            DtypePack::C128,
+        ),
+        Tensor::C64(arr) => (
+            TensorData::C64(arr.iter().map(|x| [x.re, x.im]).collect()),
+            DtypePack::C64,
+        ),
+        Tensor::F32(arr) => (
+            TensorData::F32(arr.clone().into_flat().to_vec()),
+            DtypePack::F32,
+        ),
+        Tensor::F64(arr) => (
+            TensorData::F64(arr.clone().into_flat().to_vec()),
+            DtypePack::F64,
+        ),
+        Tensor::I32(arr) => (
+            TensorData::I32(arr.clone().into_flat().to_vec()),
+            DtypePack::I32,
+        ),
+        Tensor::I64(arr) => (
+            TensorData::I64(arr.clone().into_flat().to_vec()),
+            DtypePack::I64,
+        ),
+        Tensor::I16(arr) => (
+            TensorData::I16(arr.clone().into_flat().to_vec()),
+            DtypePack::I16,
+        ),
+        Tensor::I8(arr) => (
+            TensorData::I8(arr.clone().into_flat().to_vec()),
+            DtypePack::I8,
+        ),
+        Tensor::U32(arr) => (
+            TensorData::U32(arr.clone().into_flat().to_vec()),
+            DtypePack::U32,
+        ),
+        Tensor::U64(arr) => (
+            TensorData::U64(arr.clone().into_flat().to_vec()),
+            DtypePack::U64,
+        ),
+        Tensor::U16(arr) => (
+            TensorData::U16(arr.clone().into_flat().to_vec()),
+            DtypePack::U16,
+        ),
+        Tensor::U8(arr) => (
+            TensorData::U8(arr.clone().into_flat().to_vec()),
+            DtypePack::U8,
+        ),
+        Tensor::Bit(arr) => (
+            TensorData::U8(arr.clone().into_flat().to_vec()),
+            DtypePack::Bit,
+        ),
+        Tensor::Key(tensor) => match tensor.kind() {
+            PrngKind::Philox4x32 => (
+                TensorData::Philo4x32(tensor.words().clone().into_flat().to_vec()),
+                DtypePack::Philo4x32,
+            ),
+        },
     };
     TensorPack {
         shape,
@@ -61,82 +103,102 @@ fn tensor_to_pack(tensor: &Tensor) -> TensorPack {
 }
 
 pub fn program_writer(prog: &QuantumProgram) -> ProgramHeader {
-   ProgramHeader {
+    ProgramHeader {
         serialization_version: 1,
         qiskit_version: QISKIT_VERSION,
         input_structure: datatree_writer(prog.input_structure()),
         output_structure: datatree_writer(prog.output_structure()),
-        functions: prog.functions().iter().map(|function| {
-            ProgramFunctionPack {
-                parameters: function.parameters().iter().map(|x| x.index() as u32).collect(),
-                results: function.results().iter().map(|x| x.index() as u32).collect(),
-                instructions: function.iter_instructions().map(|inst| {
-                    let body = match inst.view() {
-                        InstructionView::Parameter => InstructionBodyPack::Parameter,
-                        InstructionView::Call(val) => InstructionBodyPack::Call(val.index() as u32),
-                        InstructionView::Result => InstructionBodyPack::Result,
-                        InstructionView::Op(op) => InstructionBodyPack::Op(match op.name() {
-                            "add" => ProgramOpPack::Add,
-                            "divide" => ProgramOpPack::Divide,
-                            "power" => ProgramOpPack::Power,
-                            "multiply" => ProgramOpPack::Multiply,
-                            "remainder" => ProgramOpPack::Remainder,
-                            "subtract" => ProgramOpPack::Subtract,
-                            "bitwise_and" => ProgramOpPack::BitwiseAnd,
-                            "bitwise_not" => ProgramOpPack::BitwiseNot,
-                            "bitwise_or" => ProgramOpPack::BitwiseOr,
-                            "bitwise_xor" => ProgramOpPack::BitwiseXor,
-                            "parity" => {
-                                let op: &Parity = op.downcast_ref().unwrap();
-                                ProgramOpPack::Parity(op.axis() as u64)
+        functions: prog
+            .functions()
+            .iter()
+            .map(|function| ProgramFunctionPack {
+                parameters: function
+                    .parameters()
+                    .iter()
+                    .map(|x| x.index() as u32)
+                    .collect(),
+                results: function
+                    .results()
+                    .iter()
+                    .map(|x| x.index() as u32)
+                    .collect(),
+                instructions: function
+                    .iter_instructions()
+                    .map(|inst| {
+                        let body = match inst.view() {
+                            InstructionView::Parameter => InstructionBodyPack::Parameter,
+                            InstructionView::Call(val) => {
+                                InstructionBodyPack::Call(val.index() as u32)
                             }
-                            "broadcast_to" => {
-                                let op: &BroadcastTo = op.downcast_ref().unwrap();
-                                ProgramOpPack::BroadcastTo{ targets: op.target().iter().map(|x| x.into()).collect() }
-                            }
-                            "cast" => {
-                                let op: &Cast = op.downcast_ref().unwrap();
-                                ProgramOpPack::Cast(op.target().into())
-                            }
-                            "constant" => {
-                                let op: &Constant = op.downcast_ref().unwrap();
-                                ProgramOpPack::Constant(tensor_to_pack(op.value()))
-                            }
-                            "mean" => {
-                                let op: &Mean = op.downcast_ref().unwrap();
-                                ProgramOpPack::Mean(op.axis() as u64)
-                            }
-                            "std" => {
-                                let op: &Std = op.downcast_ref().unwrap();
-                                ProgramOpPack::Std(op.axis() as u64, op.ddof())
-                            }
-                            "Variance" => {
-                                let op: &Variance = op.downcast_ref().unwrap();
-                                ProgramOpPack::Variance(op.axis() as u64, op.ddof())
-                            }
-                            "ShotLoop" => {
-                                let op: &ShotLoop = op.downcast_ref().unwrap();
-                                let qpy_buf: Vec<u8> = Vec::new();
-                                let mut out_bytes = Cursor::new(qpy_buf);
-                                native_dump_qpy(op.circuits().iter(), &mut out_bytes, None);
-                                let data = ShotLoopPack {
-                                    shots: op.shots() as u64,
-                                    circuits: Bytes(out_bytes.into_inner()),
-                                };
-                                ProgramOpPack::ShotLoop(data)
-                            }
-                            _ => unreachable!("ALL ARE COVERED!"),
-                        })
-                    };
-                    ProgramInstructionPack {
-                        operands: inst.operands().iter().map(|x| x.into()).collect(),
-                        output_types: inst.output_types().iter().map(|out_type| out_type.into()).collect(),
-                        body,
-
-                    }
-                }).collect(),
-            }
-        }).collect()
+                            InstructionView::Result => InstructionBodyPack::Result,
+                            InstructionView::Op(op) => InstructionBodyPack::Op(match op.name() {
+                                "add" => ProgramOpPack::Add,
+                                "divide" => ProgramOpPack::Divide,
+                                "power" => ProgramOpPack::Power,
+                                "multiply" => ProgramOpPack::Multiply,
+                                "remainder" => ProgramOpPack::Remainder,
+                                "subtract" => ProgramOpPack::Subtract,
+                                "bitwise_and" => ProgramOpPack::BitwiseAnd,
+                                "bitwise_not" => ProgramOpPack::BitwiseNot,
+                                "bitwise_or" => ProgramOpPack::BitwiseOr,
+                                "bitwise_xor" => ProgramOpPack::BitwiseXor,
+                                "parity" => {
+                                    let op: &Parity = op.downcast_ref().unwrap();
+                                    ProgramOpPack::Parity(op.axis() as u64)
+                                }
+                                "broadcast_to" => {
+                                    let op: &BroadcastTo = op.downcast_ref().unwrap();
+                                    ProgramOpPack::BroadcastTo {
+                                        targets: op.target().iter().map(|x| x.into()).collect(),
+                                    }
+                                }
+                                "cast" => {
+                                    let op: &Cast = op.downcast_ref().unwrap();
+                                    ProgramOpPack::Cast(op.target().into())
+                                }
+                                "constant" => {
+                                    let op: &Constant = op.downcast_ref().unwrap();
+                                    ProgramOpPack::Constant(tensor_to_pack(op.value()))
+                                }
+                                "mean" => {
+                                    let op: &Mean = op.downcast_ref().unwrap();
+                                    ProgramOpPack::Mean(op.axis() as u64)
+                                }
+                                "std" => {
+                                    let op: &Std = op.downcast_ref().unwrap();
+                                    ProgramOpPack::Std(op.axis() as u64, op.ddof())
+                                }
+                                "Variance" => {
+                                    let op: &Variance = op.downcast_ref().unwrap();
+                                    ProgramOpPack::Variance(op.axis() as u64, op.ddof())
+                                }
+                                "ShotLoop" => {
+                                    let op: &ShotLoop = op.downcast_ref().unwrap();
+                                    let qpy_buf: Vec<u8> = Vec::new();
+                                    let mut out_bytes = Cursor::new(qpy_buf);
+                                    native_dump_qpy(op.circuits().iter(), &mut out_bytes, None).unwrap();
+                                    let data = ShotLoopPack {
+                                        shots: op.shots() as u64,
+                                        circuits: Bytes(out_bytes.into_inner()),
+                                    };
+                                    ProgramOpPack::ShotLoop(data)
+                                }
+                                _ => unreachable!("ALL ARE COVERED!"),
+                            }),
+                        };
+                        ProgramInstructionPack {
+                            operands: inst.operands().iter().map(|x| x.into()).collect(),
+                            output_types: inst
+                                .output_types()
+                                .iter()
+                                .map(|out_type| out_type.into())
+                                .collect(),
+                            body,
+                        }
+                    })
+                    .collect(),
+            })
+            .collect(),
     }
 }
 
@@ -188,17 +250,23 @@ impl From<DType> for DtypePack {
     }
 }
 
-
 fn datatree_writer(tree: &DataTree<()>) -> DataTreePack {
     DataTreePack {
-        tree: tree.iter_path().map(|path| DataTreePathPack {
-                path: path.0.into_iter().map(|entry| match entry {
-                    PathEntry::Key(key) => DataTreePathEntryPack::Key(DataTreeEntryKey{ key: key.to_string() }),
-                    PathEntry::Index(i) => DataTreePathEntryPack::Index(i as u64),
-                })
-                .collect()
-        })
-        .collect()
+        tree: tree
+            .iter_path()
+            .map(|path| DataTreePathPack {
+                path: path
+                    .0
+                    .into_iter()
+                    .map(|entry| match entry {
+                        PathEntry::Key(key) => DataTreePathEntryPack::Key(DataTreeEntryKey {
+                            key: key.to_string(),
+                        }),
+                        PathEntry::Index(i) => DataTreePathEntryPack::Index(i as u64),
+                    })
+                    .collect(),
+            })
+            .collect(),
     }
 }
 
@@ -206,8 +274,8 @@ fn datatree_writer(tree: &DataTree<()>) -> DataTreePack {
 mod test {
     use super::*;
     use crate::ProgramFunction;
-    use binrw::BinWrite;
     use crate::ops::Add;
+    use binrw::BinWrite;
 
     #[test]
     fn test_basic_program() {
@@ -218,12 +286,8 @@ mod test {
         });
         let doubled = function.add_op(Add, &[x, x]).unwrap()[0];
         function.add_result(doubled).unwrap();
-        let program = QuantumProgram::new(
-            vec![function],
-            DataTree::Leaf(()),
-            DataTree::Leaf(()),
-        )
-        .unwrap();
+        let program =
+            QuantumProgram::new(vec![function], DataTree::Leaf(()), DataTree::Leaf(())).unwrap();
         let buf: Vec<u8> = Vec::new();
         let mut buf = Cursor::new(buf);
         program_writer(&program).write_be(&mut buf);
@@ -232,6 +296,4 @@ mod test {
         let expected: Vec<u8> = Vec::new();
         assert_eq!(result, expected);
     }
-
 }
-
