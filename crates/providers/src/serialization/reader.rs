@@ -13,10 +13,11 @@
 use super::format::*;
 use crate::ops::*;
 use crate::tensor::{DType, Dim, KeyTensor, PrngKind, Tensor, TensorError, TensorType};
-use crate::{DataTree, FunctionId, ProgramError, ProgramFunction, QuantumProgram, Value, FunctionError};
+use crate::{FunctionId, ProgramError, ProgramFunction, QuantumProgram, Value, FunctionError};
 use ndarray::{ArcArrayD, ShapeError};
 use num_complex::{Complex32, Complex64};
 use qiskit_qpy::{QISKIT_VERSION, QpyError, native_load_qpy};
+use super::data_tree::{unpack_tree, UnpackTreeError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -31,6 +32,8 @@ pub enum QuantumProgramReadError {
     TensorError(#[from] TensorError),
     #[error(transparent)]
     FunctionError(#[from] FunctionError),
+    #[error(transparent)]
+    TreeError(#[from] UnpackTreeError),
 }
 
 pub fn read_program_pack(prog: ProgramHeader) -> Result<QuantumProgram, QuantumProgramReadError> {
@@ -42,8 +45,8 @@ pub fn read_program_pack(prog: ProgramHeader) -> Result<QuantumProgram, QuantumP
     }
     Ok(QuantumProgram::new(
         build_functions(prog.functions)?,
-        DataTree::new(),
-        DataTree::new(),
+        unpack_tree(prog.input_structure)?,
+        unpack_tree(prog.output_structure)?,
     )?)
 }
 

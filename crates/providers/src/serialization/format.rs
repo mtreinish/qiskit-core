@@ -266,43 +266,51 @@ pub(super) enum TensorData {
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-pub(super) struct DataTreePack {
-    //dtype: DtypePack,
-    #[bw(calc = tree.len() as u64)]
+pub struct DataTreePack {
+    #[bw(calc = nodes.len() as u64)]
+    pub num_nodes: u64,
+    #[br(count = num_nodes)]
+    pub nodes: Vec<DataTreeNodePack>,
+}
+
+#[binrw]
+#[brw(big)]
+#[derive(Debug)]
+pub enum DataTreeNodePack {
+    #[brw(magic = 0u8)]
+    Leaf,
+    #[brw(magic = 1u8)]
+    Branch(DataTreeBranchPack),
+}
+
+#[binrw]
+#[brw(big)]
+#[derive(Debug)]
+pub struct DataTreeBranchPack {
+    pub num_children: u64,
+    pub keys_pack: DataTreeBranchKeysPack,
+}
+
+#[binrw]
+#[brw(big)]
+#[derive(Debug)]
+pub struct DataTreeBranchKeysPack {
+    #[bw(calc = keys.len() as u32)]
+    pub num_keys: u32,
+    #[br(count = num_keys, )]
+    pub keys: Vec<(StringPack, u64)>,
+}
+
+#[binrw]
+#[brw(big)]
+#[derive(Debug)]
+pub(crate) struct StringPack {
+    #[bw(calc = value.len() as u64)]
     size: u64,
-    #[br(count = size)]
-    pub(super) tree: Vec<DataTreePathPack>,
-}
 
-#[binrw]
-#[brw(big)]
-#[derive(Debug)]
-pub(super) struct DataTreePathPack {
-    #[bw(calc = path.len() as u64)]
-    size: u64,
-    #[br(count = size)]
-    pub(super) path: Vec<DataTreePathEntryPack>,
-}
-
-#[binrw]
-#[brw(big)]
-#[derive(Debug)]
-pub(super) enum DataTreePathEntryPack {
-    #[brw(magic = b'k')]
-    Key(DataTreeEntryKey),
-    #[brw(magic = b'i')]
-    Index(u64),
-}
-
-#[binrw]
-#[brw(big)]
-#[derive(Debug)]
-pub(super) struct DataTreeEntryKey {
-    #[bw(calc = key.len() as u64)]
-    key_size: u64,
-    #[bw(write_with = key_encoder)]
-    #[br(args((key_size,)), parse_with=key_decoder)]
-    pub(super) key: String,
+    #[bw(write_with=key_encoder)]
+    #[br(args((size,)), parse_with=key_decoder)]
+    pub value: String,
 }
 
 #[binrw::parser(reader)]

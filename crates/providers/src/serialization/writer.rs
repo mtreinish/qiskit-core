@@ -15,11 +15,11 @@ use std::io::Cursor;
 use qiskit_qpy::{Bytes, QISKIT_VERSION, QpyError, native_dump_qpy};
 
 use super::format::*;
-use crate::data_tree::PathEntry;
+use super::data_tree::pack_tree;
 use crate::ops::{BroadcastTo, Cast, Constant, Mean, Parity, ShotLoop, Std, Variance};
 use crate::program::{InstructionView, Value};
 use crate::tensor::{DType, Dim, PrngKind, Tensor, TensorType};
-use crate::{DataTree, QuantumProgram};
+use crate::QuantumProgram;
 
 use thiserror::Error;
 
@@ -106,8 +106,8 @@ pub fn program_writer(prog: &QuantumProgram) -> ProgramHeader {
     ProgramHeader {
         serialization_version: 1,
         qiskit_version: QISKIT_VERSION,
-        input_structure: datatree_writer(prog.input_structure()),
-        output_structure: datatree_writer(prog.output_structure()),
+        input_structure: pack_tree(prog.input_structure()),
+        output_structure: pack_tree(prog.output_structure()),
         functions: prog
             .functions()
             .iter()
@@ -247,26 +247,6 @@ impl From<DType> for DtypePack {
             DType::Bit => DtypePack::Bit,
             DType::Key(PrngKind::Philox4x32) => DtypePack::Philo4x32,
         }
-    }
-}
-
-fn datatree_writer(tree: &DataTree<()>) -> DataTreePack {
-    DataTreePack {
-        tree: tree
-            .iter_path()
-            .map(|path| DataTreePathPack {
-                path: path
-                    .0
-                    .into_iter()
-                    .map(|entry| match entry {
-                        PathEntry::Key(key) => DataTreePathEntryPack::Key(DataTreeEntryKey {
-                            key: key.to_string(),
-                        }),
-                        PathEntry::Index(i) => DataTreePathEntryPack::Index(i as u64),
-                    })
-                    .collect(),
-            })
-            .collect(),
     }
 }
 

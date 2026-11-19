@@ -31,8 +31,8 @@ pub struct ShotLoop {
 
 impl ShotLoop {
     /// Construct a shot loop running each of `circuits` for `shots` shots.
-    pub fn new(circuits: Vec<CircuitData>, shots: usize) -> Self {
-        Self { circuits, shots }
+    pub fn new(circuits: Vec<CircuitData>, shots: usize) -> Result<Self, ShotLoopError> {
+        Ok(Self { circuits, shots })
     }
 
     /// Return the circuits this op runs.

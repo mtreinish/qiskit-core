@@ -11,6 +11,7 @@
 // that they have been altered from the originals.
 
 mod format;
+mod data_tree;
 mod reader;
 mod writer;
 
