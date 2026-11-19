@@ -14,21 +14,25 @@ use std::io::Cursor;
 
 use qiskit_qpy::{Bytes, QISKIT_VERSION, QpyError, native_dump_qpy};
 
-use super::format::*;
 use super::data_tree::pack_tree;
+use super::format::*;
+use crate::QuantumProgram;
 use crate::ops::{BroadcastTo, Cast, Constant, Mean, Parity, ShotLoop, Std, Variance};
 use crate::program::{InstructionView, Value};
 use crate::tensor::{DType, Dim, PrngKind, Tensor, TensorType};
-use crate::QuantumProgram;
 
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-enum ProgramWriteError {
+pub enum ProgramWriteError {
     #[error("Invalid op name: {0}")]
     InvalidOpName(String),
     #[error(transparent)]
     QpyError(#[from] QpyError),
+    #[error("Invalid operation shadowing the name {0}")]
+    ShadowingBuiltinOp(String),
+    #[error("Unsupported operation name {0}")]
+    InvalidOperation(String),
 }
 
 fn tensor_to_pack(tensor: &Tensor) -> TensorPack {
@@ -102,8 +106,8 @@ fn tensor_to_pack(tensor: &Tensor) -> TensorPack {
     }
 }
 
-pub fn program_writer(prog: &QuantumProgram) -> ProgramHeader {
-    ProgramHeader {
+pub fn program_writer(prog: &QuantumProgram) -> Result<ProgramHeader, ProgramWriteError> {
+    Ok(ProgramHeader {
         serialization_version: 1,
         qiskit_version: QISKIT_VERSION,
         input_structure: pack_tree(prog.input_structure()),
@@ -111,95 +115,145 @@ pub fn program_writer(prog: &QuantumProgram) -> ProgramHeader {
         functions: prog
             .functions()
             .iter()
-            .map(|function| ProgramFunctionPack {
-                parameters: function
-                    .parameters()
-                    .iter()
-                    .map(|x| x.index() as u32)
-                    .collect(),
-                results: function
-                    .results()
-                    .iter()
-                    .map(|x| x.index() as u32)
-                    .collect(),
-                instructions: function
-                    .iter_instructions()
-                    .map(|inst| {
-                        let body = match inst.view() {
-                            InstructionView::Parameter => InstructionBodyPack::Parameter,
-                            InstructionView::Call(val) => {
-                                InstructionBodyPack::Call(val.index() as u32)
-                            }
-                            InstructionView::Result => InstructionBodyPack::Result,
-                            InstructionView::Op(op) => InstructionBodyPack::Op(match op.name() {
-                                "add" => ProgramOpPack::Add,
-                                "divide" => ProgramOpPack::Divide,
-                                "power" => ProgramOpPack::Power,
-                                "multiply" => ProgramOpPack::Multiply,
-                                "remainder" => ProgramOpPack::Remainder,
-                                "subtract" => ProgramOpPack::Subtract,
-                                "bitwise_and" => ProgramOpPack::BitwiseAnd,
-                                "bitwise_not" => ProgramOpPack::BitwiseNot,
-                                "bitwise_or" => ProgramOpPack::BitwiseOr,
-                                "bitwise_xor" => ProgramOpPack::BitwiseXor,
-                                "parity" => {
-                                    let op: &Parity = op.downcast_ref().unwrap();
-                                    ProgramOpPack::Parity(op.axis() as u64)
-                                }
-                                "broadcast_to" => {
-                                    let op: &BroadcastTo = op.downcast_ref().unwrap();
-                                    ProgramOpPack::BroadcastTo {
-                                        targets: op.target().iter().map(|x| x.into()).collect(),
+            .map(
+                |function| -> Result<ProgramFunctionPack, ProgramWriteError> {
+                    Ok(ProgramFunctionPack {
+                        parameters: function
+                            .parameters()
+                            .iter()
+                            .map(|x| x.index() as u32)
+                            .collect(),
+                        results: function
+                            .results()
+                            .iter()
+                            .map(|x| x.index() as u32)
+                            .collect(),
+                        instructions: function
+                            .iter_instructions()
+                            .map(|inst| {
+                                let body = match inst.view() {
+                                    InstructionView::Parameter => InstructionBodyPack::Parameter,
+                                    InstructionView::Call(val) => {
+                                        InstructionBodyPack::Call(val.index() as u32)
                                     }
-                                }
-                                "cast" => {
-                                    let op: &Cast = op.downcast_ref().unwrap();
-                                    ProgramOpPack::Cast(op.target().into())
-                                }
-                                "constant" => {
-                                    let op: &Constant = op.downcast_ref().unwrap();
-                                    ProgramOpPack::Constant(tensor_to_pack(op.value()))
-                                }
-                                "mean" => {
-                                    let op: &Mean = op.downcast_ref().unwrap();
-                                    ProgramOpPack::Mean(op.axis() as u64)
-                                }
-                                "std" => {
-                                    let op: &Std = op.downcast_ref().unwrap();
-                                    ProgramOpPack::Std(op.axis() as u64, op.ddof())
-                                }
-                                "Variance" => {
-                                    let op: &Variance = op.downcast_ref().unwrap();
-                                    ProgramOpPack::Variance(op.axis() as u64, op.ddof())
-                                }
-                                "ShotLoop" => {
-                                    let op: &ShotLoop = op.downcast_ref().unwrap();
-                                    let qpy_buf: Vec<u8> = Vec::new();
-                                    let mut out_bytes = Cursor::new(qpy_buf);
-                                    native_dump_qpy(op.circuits().iter(), &mut out_bytes, None).unwrap();
-                                    let data = ShotLoopPack {
-                                        shots: op.shots() as u64,
-                                        circuits: Bytes(out_bytes.into_inner()),
-                                    };
-                                    ProgramOpPack::ShotLoop(data)
-                                }
-                                _ => unreachable!("ALL ARE COVERED!"),
-                            }),
-                        };
-                        ProgramInstructionPack {
-                            operands: inst.operands().iter().map(|x| x.into()).collect(),
-                            output_types: inst
-                                .output_types()
-                                .iter()
-                                .map(|out_type| out_type.into())
-                                .collect(),
-                            body,
-                        }
+                                    InstructionView::Result => InstructionBodyPack::Result,
+                                    InstructionView::Op(op) => {
+                                        InstructionBodyPack::Op(match op.name() {
+                                            "add" => ProgramOpPack::Add,
+                                            "divide" => ProgramOpPack::Divide,
+                                            "power" => ProgramOpPack::Power,
+                                            "multiply" => ProgramOpPack::Multiply,
+                                            "remainder" => ProgramOpPack::Remainder,
+                                            "subtract" => ProgramOpPack::Subtract,
+                                            "bitwise_and" => ProgramOpPack::BitwiseAnd,
+                                            "bitwise_not" => ProgramOpPack::BitwiseNot,
+                                            "bitwise_or" => ProgramOpPack::BitwiseOr,
+                                            "bitwise_xor" => ProgramOpPack::BitwiseXor,
+                                            "parity" => {
+                                                let op: &Parity = op.downcast_ref().ok_or(
+                                                    ProgramWriteError::ShadowingBuiltinOp(
+                                                        "parity".to_string(),
+                                                    ),
+                                                )?;
+                                                ProgramOpPack::Parity(op.axis() as u64)
+                                            }
+                                            "broadcast_to" => {
+                                                let op: &BroadcastTo = op.downcast_ref().ok_or(
+                                                    ProgramWriteError::ShadowingBuiltinOp(
+                                                        "broadcast_to".to_string(),
+                                                    ),
+                                                )?;
+                                                ProgramOpPack::BroadcastTo {
+                                                    targets: op
+                                                        .target()
+                                                        .iter()
+                                                        .map(|x| x.into())
+                                                        .collect(),
+                                                }
+                                            }
+                                            "cast" => {
+                                                let op: &Cast = op.downcast_ref().ok_or(
+                                                    ProgramWriteError::ShadowingBuiltinOp(
+                                                        "cast".to_string(),
+                                                    ),
+                                                )?;
+                                                ProgramOpPack::Cast(op.target().into())
+                                            }
+                                            "constant" => {
+                                                let op: &Constant = op.downcast_ref().ok_or(
+                                                    ProgramWriteError::ShadowingBuiltinOp(
+                                                        "constant".to_string(),
+                                                    ),
+                                                )?;
+                                                ProgramOpPack::Constant(tensor_to_pack(op.value()))
+                                            }
+                                            "mean" => {
+                                                let op: &Mean = op.downcast_ref().ok_or(
+                                                    ProgramWriteError::ShadowingBuiltinOp(
+                                                        "mean".to_string(),
+                                                    ),
+                                                )?;
+                                                ProgramOpPack::Mean(op.axis() as u64)
+                                            }
+                                            "std" => {
+                                                let op: &Std = op.downcast_ref().ok_or(
+                                                    ProgramWriteError::ShadowingBuiltinOp(
+                                                        "std".to_string(),
+                                                    ),
+                                                )?;
+                                                ProgramOpPack::Std(op.axis() as u64, op.ddof())
+                                            }
+                                            "variance" => {
+                                                let op: &Variance = op.downcast_ref().ok_or(
+                                                    ProgramWriteError::ShadowingBuiltinOp(
+                                                        "variance".to_string(),
+                                                    ),
+                                                )?;
+                                                ProgramOpPack::Variance(op.axis() as u64, op.ddof())
+                                            }
+                                            "shot_loop" => {
+                                                let op: &ShotLoop = op.downcast_ref().ok_or(
+                                                    ProgramWriteError::ShadowingBuiltinOp(
+                                                        "shot_loop".to_string(),
+                                                    ),
+                                                )?;
+                                                let qpy_buf: Vec<u8> = Vec::new();
+                                                let mut out_bytes = Cursor::new(qpy_buf);
+                                                native_dump_qpy(
+                                                    op.circuits().iter(),
+                                                    &mut out_bytes,
+                                                    None,
+                                                )?;
+                                                let data = ShotLoopPack {
+                                                    shots: op.shots() as u64,
+                                                    circuits: Bytes(out_bytes.into_inner()),
+                                                };
+                                                ProgramOpPack::ShotLoop(data)
+                                            }
+                                            _ => {
+                                                return Err(ProgramWriteError::InvalidOperation(
+                                                    op.name().to_string(),
+                                                ));
+                                            }
+                                        })
+                                    }
+                                };
+                                Ok(ProgramInstructionPack {
+                                    operands: inst.operands().iter().map(|x| x.into()).collect(),
+                                    output_types: inst
+                                        .output_types()
+                                        .iter()
+                                        .map(|out_type| out_type.into())
+                                        .collect(),
+                                    body,
+                                })
+                            })
+                            .collect::<Result<Vec<_>, _>>()?,
                     })
-                    .collect(),
-            })
-            .collect(),
-    }
+                },
+            )
+            .collect::<Result<_, _>>()?,
+    })
 }
 
 impl From<&Value> for ValuePack {
@@ -252,13 +306,13 @@ impl From<DType> for DtypePack {
 
 #[cfg(test)]
 mod test {
-    use std::io::Seek;
     use super::*;
+    use crate::DataTree;
     use crate::ProgramFunction;
     use crate::ops::Add;
-    use binrw::{BinRead, BinWrite};
-    use crate::DataTree;
     use crate::serialization::read_program_pack;
+    use binrw::{BinRead, BinWrite};
+    use std::io::Seek;
 
     #[test]
     fn test_basic_program() {
@@ -273,7 +327,10 @@ mod test {
             QuantumProgram::new(vec![function], DataTree::Leaf(()), DataTree::Leaf(())).unwrap();
         let buf: Vec<u8> = Vec::new();
         let mut buf = Cursor::new(buf);
-        program_writer(&program).write_be(&mut buf).unwrap();
+        program_writer(&program)
+            .unwrap()
+            .write_be(&mut buf)
+            .unwrap();
         buf.seek(std::io::SeekFrom::Start(0)).unwrap();
         let pack = ProgramHeader::read_be(&mut buf).unwrap();
         let result = read_program_pack(pack).unwrap();
