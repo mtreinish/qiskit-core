@@ -58,45 +58,45 @@ pub(super) struct ProgramFunctionPack {
     #[bw(calc = results.len() as u32)]
     num_results: u32,
     #[br(count = num_instructions)]
-    instructions: Vec<ProgramInstructionPack>,
+    pub(super) instructions: Vec<ProgramInstructionPack>,
     #[br(count = num_parameters)]
-    parameters: Vec<u32>,
+    pub(super) parameters: Vec<u32>,
     #[br(count = num_results)]
-    results: Vec<u32>,
+    pub(super) results: Vec<u32>,
 }
 
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
 pub(super) struct ProgramInstructionPack {
-    body: InstructionBodyPack,
+    pub(super) body: InstructionBodyPack,
     #[bw(calc = operands.len() as u32)]
     num_operands: u32,
     #[bw(calc = output_types.len() as u32)]
     num_output_types: u32,
     #[br(count = num_operands)]
-    operands: Vec<ValuePack>,
+    pub(super) operands: Vec<ValuePack>,
     #[br(count = num_output_types)]
-    output_types: Vec<TensorTypePack>,
+    pub(super) output_types: Vec<TensorTypePack>,
 }
 
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
 pub(super) struct ValuePack {
-    instruction: u32,
-    slot: u16,
+    pub(super) instruction: u32,
+    pub(super) slot: u16,
 }
 
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
 pub(super) struct TensorTypePack {
-    dtype: DtypePack,
+    pub(super) dtype: DtypePack,
     #[bw(calc = shape.len() as u32)]
     shape_len: u32,
     #[br(count = shape_len)]
-    shape: Vec<DimPack>
+    pub(super) shape: Vec<DimPack>
 }
 
 #[binrw]
@@ -183,7 +183,7 @@ pub(super) enum ProgramOpPack {
     #[brw(magic = b'^')]
     BitwiseXor,
     #[brw(magic = b'p')]
-    Pairity(u64),
+    Parity(u64),
     #[brw(magic = b'b')]
     BroadcastTo {
         #[bw(calc = targets.len() as u64)]
@@ -209,25 +209,25 @@ pub(super) enum ProgramOpPack {
 #[brw(big)]
 #[derive(Debug)]
 pub(super) struct ShotLoopPack {
-    shots: u64,
+    pub(super) shots: u64,
     #[bw(calc = circuits.len() as u64)]
     circuits_size: u64,
     #[br(count = circuits_size)]
-    circuits: Bytes,
+    pub(super) circuits: Bytes,
 }
 
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
 pub(super) struct TensorPack {
-    dtype: DtypePack,
+    pub(super) dtype: DtypePack,
     #[bw(calc = shape.len() as u32)]
     shape_len: u32,
     #[br(count = shape_len)]
-    shape: Vec<u64>,
-    num_elems: u64,
+    pub(super) shape: Vec<u64>,
+    pub(super) num_elems: u64,
     #[br(args(dtype, num_elems as usize))]
-    data: TensorData,
+    pub(super) data: TensorData,
 }
 
 #[binrw]
@@ -269,35 +269,42 @@ pub(super) enum TensorData {
 #[brw(big)]
 #[derive(Debug)]
 pub(super) struct DataTreePack {
-    dtype: DtypePack,
+    //dtype: DtypePack,
+    #[bw(calc = tree.len() as u64)]
     size: u64,
     #[br(count = size)]
-    tree: Vec<Option<DataTreeEntryPack>>,
+    pub(super) tree: Vec<DataTreePathPack>,
 }
 
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-pub(super) enum DataTreeEntryPack {
-    #[brw(magic = b'E')]
-    Break,
-    #[brw(magic = b'b')]
-    Branch(DataTreeEntryData),
-    #[brw(magic = b'l')]
-    Leaf(DataTreeEntryData),
+pub(super) struct DataTreePathPack {
+    #[bw(calc = path.len() as u64)]
+    size: u64,
+    #[br(count = size)]
+    pub(super) path: Vec<DataTreePathEntryPack>,
 }
 
 #[binrw]
 #[brw(big)]
 #[derive(Debug)]
-pub(super) struct DataTreeEntryData {
-    index: u64,
-    key_exists: u8,
+pub(super) enum DataTreePathEntryPack {
+    #[brw(magic = b'k')]
+    Key(DataTreeEntryKey),
+    #[brw(magic = b'i')]
+    Index(u64),
+}
+
+#[binrw]
+#[brw(big)]
+#[derive(Debug)]
+pub(super) struct DataTreeEntryKey {
     #[bw(calc = key.len() as u64)]
     key_size: u64,
     #[bw(write_with = key_encoder)]
-    #[br(if(key_exists == 1), args((key_size,)), parse_with=key_decoder)]
-    key: String
+    #[br(args((key_size,)), parse_with=key_decoder)]
+    pub(super) key: String
 }
 
 #[binrw::parser(reader)]

@@ -42,6 +42,11 @@ pub const QPY_READ_MIN_VERSION: u8 = 13;
 /// The oldest QPY format version that the Rust QPY implementation can write.
 pub const QPY_WRITE_MIN_VERSION: u8 = 17;
 
+/// The current qiskit version tuple
+pub use interface::QISKIT_VERSION;
+
+pub use error::QpyError;
+
 #[cfg(target_os = "windows")]
 const NATIVE_QPY_RECURSION_DEPTH: usize = 30;
 
