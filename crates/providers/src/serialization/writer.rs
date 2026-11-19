@@ -252,10 +252,13 @@ impl From<DType> for DtypePack {
 
 #[cfg(test)]
 mod test {
+    use std::io::Seek;
     use super::*;
     use crate::ProgramFunction;
     use crate::ops::Add;
-    use binrw::BinWrite;
+    use binrw::{BinRead, BinWrite};
+    use crate::DataTree;
+    use crate::serialization::read_program_pack;
 
     #[test]
     fn test_basic_program() {
@@ -270,10 +273,13 @@ mod test {
             QuantumProgram::new(vec![function], DataTree::Leaf(()), DataTree::Leaf(())).unwrap();
         let buf: Vec<u8> = Vec::new();
         let mut buf = Cursor::new(buf);
-        program_writer(&program).write_be(&mut buf);
-        let result = buf.into_inner();
-        println!("result: {:?}", result);
-        let expected: Vec<u8> = Vec::new();
-        assert_eq!(result, expected);
+        program_writer(&program).write_be(&mut buf).unwrap();
+        buf.seek(std::io::SeekFrom::Start(0)).unwrap();
+        let pack = ProgramHeader::read_be(&mut buf).unwrap();
+        let result = read_program_pack(pack).unwrap();
+        assert_eq!(
+            result.eval(DataTree::Leaf(Tensor::from([3.0]))).unwrap(),
+            program.eval(DataTree::Leaf(Tensor::from([3.0]))).unwrap()
+        );
     }
 }

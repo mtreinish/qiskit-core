@@ -169,7 +169,7 @@ fn build_functions(
                             }
                             ProgramOpPack::ShotLoop(data) => {
                                 let circuits = native_load_qpy(&data.circuits.0)?;
-                                Box::new(ShotLoop::new(circuits, data.shots as usize))
+                                Box::new(ShotLoop::new(circuits, data.shots as usize).unwrap())
                             }
                         };
                         out.add_boxed_op(op, &operands)?;

@@ -64,7 +64,7 @@ impl Value {
     pub(crate) fn new(inst: u32, slot: u16) -> Self {
         Self {
             instruction: InstructionId(inst),
-            slot: slot,
+            slot,
         }
     }
 }
