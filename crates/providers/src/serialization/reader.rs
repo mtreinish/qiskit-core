@@ -10,14 +10,14 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+use super::data_tree::{UnpackTreeError, unpack_tree};
 use super::format::*;
 use crate::ops::*;
 use crate::tensor::{DType, Dim, KeyTensor, PrngKind, Tensor, TensorError, TensorType};
-use crate::{FunctionId, ProgramError, ProgramFunction, QuantumProgram, Value, FunctionError};
+use crate::{FunctionError, FunctionId, ProgramError, ProgramFunction, QuantumProgram, Value};
 use ndarray::{ArcArrayD, ShapeError};
 use num_complex::{Complex32, Complex64};
 use qiskit_qpy::{QISKIT_VERSION, QpyError, native_load_qpy};
-use super::data_tree::{unpack_tree, UnpackTreeError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -34,14 +34,18 @@ pub enum QuantumProgramReadError {
     FunctionError(#[from] FunctionError),
     #[error(transparent)]
     TreeError(#[from] UnpackTreeError),
+    #[error("Unsupported version of serialization format {0}")]
+    UnsupportedVersion(u8),
 }
 
 pub fn read_program_pack(prog: ProgramHeader) -> Result<QuantumProgram, QuantumProgramReadError> {
-    if prog.serialization_version > 1 {
-        panic!("Unsupported version");
+    if prog.serialization_version > 1 && prog.serialization_version != 0 {
+        return Err(QuantumProgramReadError::UnsupportedVersion(
+            prog.serialization_version,
+        ));
     }
     if prog.qiskit_version > QISKIT_VERSION {
-        eprintln!("Payload from newer qiskit");
+        // TODO: Return a warning
     }
     Ok(QuantumProgram::new(
         build_functions(prog.functions)?,
@@ -75,13 +79,13 @@ fn build_functions(
                     InstructionBodyPack::Parameter => {
                         out.add_parameter(output_types[0].clone());
                     }
-                    InstructionBodyPack::Call(id) => unsafe {
+                    InstructionBodyPack::Call(id) => {
                         out.add_call_unchecked(
                             FunctionId::from_index(id as usize),
                             &output_types,
                             &operands,
                         )?;
-                    },
+                    }
                     InstructionBodyPack::Result => {
                         out.add_result(operands[0])?;
                     }

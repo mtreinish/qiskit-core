@@ -519,7 +519,8 @@ impl ProgramFunction {
             .collect())
     }
 
-    pub unsafe fn add_call_unchecked(
+    /// For serialization this will not check the inputs based on the call signature
+    pub(crate) fn add_call_unchecked(
         &mut self,
         callee: FunctionId,
         outputs: &[TensorType],

@@ -11,8 +11,8 @@
 // that they have been altered from the originals.
 // Data tree serialization code
 
-use crate::data_tree::*;
 use super::format::*;
+use crate::data_tree::*;
 use hashbrown::{HashMap, HashSet};
 use thiserror::Error;
 
