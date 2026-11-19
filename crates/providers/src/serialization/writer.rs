@@ -118,16 +118,6 @@ pub fn program_writer(prog: &QuantumProgram) -> Result<ProgramHeader, ProgramWri
             .map(
                 |function| -> Result<ProgramFunctionPack, ProgramWriteError> {
                     Ok(ProgramFunctionPack {
-                        parameters: function
-                            .parameters()
-                            .iter()
-                            .map(|x| x.index() as u32)
-                            .collect(),
-                        results: function
-                            .results()
-                            .iter()
-                            .map(|x| x.index() as u32)
-                            .collect(),
                         instructions: function
                             .iter_instructions()
                             .map(|inst| {

@@ -52,16 +52,8 @@ fn functions_decoder(args: (u64,)) -> BinResult<Vec<ProgramFunctionPack>> {
 pub(super) struct ProgramFunctionPack {
     #[bw(calc = instructions.len() as u32)]
     num_instructions: u32,
-    #[bw(calc = parameters.len() as u32)]
-    num_parameters: u32,
-    #[bw(calc = results.len() as u32)]
-    num_results: u32,
     #[br(count = num_instructions)]
     pub(super) instructions: Vec<ProgramInstructionPack>,
-    #[br(count = num_parameters)]
-    pub(super) parameters: Vec<u32>,
-    #[br(count = num_results)]
-    pub(super) results: Vec<u32>,
 }
 
 #[binrw]

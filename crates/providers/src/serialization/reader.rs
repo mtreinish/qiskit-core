@@ -180,8 +180,6 @@ fn build_functions(
                     }
                 };
             }
-            //        let parameters = functions.parameters.iter().map(InstructionId).collect();
-            //        let results = functions.results.iter().map(InstiructionId).collect();
             Ok(out)
         })
         .collect()
